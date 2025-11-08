@@ -1,0 +1,88 @@
+# Laravel specific
+/vendor/
+/node_modules/
+/public/hot
+/public/storage
+/storage/*.key
+/storage/app/private/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+/storage/logs/*
+
+# Environment files
+.env
+.env.backup
+.env.production
+.env.local
+.env.testing
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Build files
+/public/build
+/public/mix-manifest.json
+
+# NPM/Yarn
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# PHP Storm
+/.phpunit.result.cache
+
+# Composer
+composer.phar
+
+# Laravel Mix
+/public/css
+/public/js
+
+# Temporary files
+*.tmp
+*.temp
+
+# QR Code generated images (if stored locally)
+/public/qr-codes/
+/storage/app/qr-codes/
+
+# Laravel Breeze generated files
+/bootstrap/ssr/
+
+# Testing
+/coverage/
+.phpunit.result.cache
+
+# Backup files
+*.bak
+*.backup
+
+# Logs
+*.log
+
+# Cache
+/bootstrap/cache/*.php
+
+# Session files
+/storage/framework/sessions/*
+
+# Compiled templates  
+/storage/framework/views/*
+
+# Local packages
+/packages/
