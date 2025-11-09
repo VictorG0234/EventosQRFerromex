@@ -169,16 +169,16 @@ export default function Index({ event, statistics, guests, auth }) {
             header={
                 <div className="flex justify-between items-center">
                     <div>
-                        <h2 className="font-semibold text-xl text-gray-800 leading-tight">
+                        <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
                             📧 Sistema de Emails - {event.name}
                         </h2>
-                        <p className="text-gray-600 mt-1">
+                        <p className="text-gray-600 dark:text-gray-300 mt-1">
                             Gestiona todas las comunicaciones por email de tu evento
                         </p>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Cog8ToothIcon className="h-5 w-5 text-gray-400" />
-                        <span className="text-sm text-gray-500">Sistema Automático</span>
+                        <Cog8ToothIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Sistema Automático</span>
                     </div>
                 </div>
             }

@@ -127,32 +127,6 @@ class QrCodeService
     }
 
     /**
-     * Regenerar códigos QR para múltiples invitados
-     */
-    public function regenerateMultiple(array $guests): array
-    {
-        $results = [
-            'success' => 0,
-            'errors' => []
-        ];
-
-        foreach ($guests as $guest) {
-            try {
-                $this->generateQrCode($guest);
-                $results['success']++;
-            } catch (\Exception $e) {
-                $results['errors'][] = [
-                    'guest_id' => $guest->id,
-                    'numero_empleado' => $guest->numero_empleado,
-                    'error' => $e->getMessage()
-                ];
-            }
-        }
-
-        return $results;
-    }
-
-    /**
      * Eliminar archivo QR del storage
      */
     public function deleteQrFile(Guest $guest): bool

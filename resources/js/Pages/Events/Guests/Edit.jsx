@@ -49,15 +49,15 @@ export default function Edit({ auth, event, guest }) {
                 <div className="flex items-center">
                     <Link
                         href={route('events.guests.show', [event.id, guest.id])}
-                        className="mr-4 text-gray-600 hover:text-gray-900"
+                        className="mr-4 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                     >
                         <ArrowLeftIcon className="w-5 h-5" />
                     </Link>
                     <div>
-                        <h2 className="font-semibold text-xl text-gray-800 leading-tight">
+                        <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
                             Editar Invitado
                         </h2>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
                             {guest.full_name} - {event.name}
                         </p>
                     </div>

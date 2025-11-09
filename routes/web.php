@@ -38,7 +38,7 @@ Route::middleware('auth')->group(function () {
     Route::get('events/{event}/guests/import', [GuestController::class, 'importForm'])->name('events.guests.import');
     Route::post('events/{event}/guests/import', [GuestController::class, 'import'])->name('events.guests.import.process');
     Route::post('events/{event}/guests/preview', [GuestController::class, 'preview'])->name('events.guests.preview');
-    Route::post('events/{event}/guests/regenerate-qr', [GuestController::class, 'regenerateQrCodes'])->name('events.guests.regenerate-qr');
+    Route::get('events/{event}/guests/{guest}/download-qr', [GuestController::class, 'downloadQr'])->name('events.guests.download-qr');
     
     // Rutas de invitados (nested resource)
     Route::resource('events.guests', GuestController::class)->except(['index', 'create', 'store']);

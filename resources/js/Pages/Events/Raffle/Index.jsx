@@ -120,17 +120,17 @@ export default function RaffleIndex({ auth, event, prizes, statistics }) {
             header={
                 <div className="flex justify-between items-center">
                     <div>
-                        <h2 className="font-semibold text-xl text-gray-800 leading-tight">
+                        <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
                             Sistema de Rifas - {event.name}
                         </h2>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                             Gestiona y ejecuta rifas de premios para tu evento
                         </p>
                     </div>
                     <div className="flex items-center space-x-2">
                         <Link
                             href={route('events.prizes.index', event.id)}
-                            className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium rounded-md transition-colors"
+                            className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-sm font-medium rounded-md transition-colors"
                         >
                             <Gift className="w-4 h-4 mr-2" />
                             Gestionar Premios

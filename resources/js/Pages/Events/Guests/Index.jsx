@@ -10,8 +10,7 @@ import {
     XCircleIcon,
     QrCodeIcon,
     PencilIcon,
-    TrashIcon,
-    ArrowPathIcon
+    TrashIcon
 } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 
@@ -43,15 +42,6 @@ export default function Index({ auth, event, guests }) {
         }
     };
 
-    const regenerateQrCodes = () => {
-        if (confirm('¿Regenerar códigos QR para todos los invitados? Esto puede tomar un momento.')) {
-            setProcessing(true);
-            router.post(route('events.guests.regenerate-qr', event.id), {}, {
-                onFinish: () => setProcessing(false)
-            });
-        }
-    };
-
     const stats = {
         total: guests?.data?.length || 0,
         attended: guests?.data?.filter(g => g.has_attended).length || 0,
@@ -66,15 +56,15 @@ export default function Index({ auth, event, guests }) {
                     <div className="flex items-center">
                         <Link
                             href={route('events.show', event.id)}
-                            className="mr-4 text-gray-600 hover:text-gray-900"
+                            className="mr-4 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                         >
                             ← Volver al evento
                         </Link>
                         <div>
-                            <h2 className="font-semibold text-xl text-gray-800 leading-tight">
+                            <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
                                 Invitados - {event.name}
                             </h2>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
                                 {stats.attended} de {stats.total} confirmados ({event.attendances_count || 0} asistencias)
                             </p>
                         </div>
@@ -83,7 +73,7 @@ export default function Index({ auth, event, guests }) {
                     <div className="flex items-center space-x-2">
                         <Link
                             href={route('events.guests.import', event.id)}
-                            className="inline-flex items-center px-3 py-2 border border-blue-300 shadow-sm text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
+                            className="inline-flex items-center px-3 py-2 border border-blue-300 dark:border-blue-600 shadow-sm text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900 hover:bg-blue-100 dark:hover:bg-blue-800"
                         >
                             <DocumentArrowUpIcon className="w-4 h-4 mr-2" />
                             Importar CSV
@@ -91,7 +81,7 @@ export default function Index({ auth, event, guests }) {
                         
                         <Link
                             href={route('events.guests.create', event.id)}
-                            className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700"
+                            className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
                         >
                             <PlusIcon className="w-4 h-4 mr-2" />
                             Nuevo Invitado
@@ -170,15 +160,6 @@ export default function Index({ auth, event, guests }) {
                                             <option value="not_attended">Sin asistencia</option>
                                         </select>
                                     </div>
-                                    
-                                    <button
-                                        onClick={regenerateQrCodes}
-                                        disabled={processing || stats.total === 0}
-                                        className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                                    >
-                                        <ArrowPathIcon className="w-4 h-4 mr-2" />
-                                        Regenerar QRs
-                                    </button>
                                 </div>
                             </div>
                         </div>

@@ -65,31 +65,31 @@ export default function PrizesIndex({ auth, event, prizes, statistics }) {
             header={
                 <div className="flex justify-between items-center">
                     <div>
-                        <h2 className="font-semibold text-xl text-gray-800 leading-tight">
+                        <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
                             Premios - {event.name}
                         </h2>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                             Gestiona los premios disponibles para rifas
                         </p>
                     </div>
                     <div className="flex items-center space-x-2">
                         <a
                             href={route('templates.prizes')}
-                            className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md transition-colors"
+                            className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white text-sm font-medium rounded-md transition-colors"
                         >
                             <Gift className="w-4 h-4 mr-2" />
                             Descargar Plantilla
                         </a>
                         <Link
                             href={route('events.raffle.index', event.id)}
-                            className="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors"
+                            className="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 text-white text-sm font-medium rounded-md transition-colors"
                         >
                             <Sparkles className="w-4 h-4 mr-2" />
                             Ir a Rifas
                         </Link>
                         <Link
                             href={route('events.prizes.create', event.id)}
-                            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors"
+                            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white text-sm font-medium rounded-md transition-colors"
                         >
                             <Plus className="w-4 h-4 mr-2" />
                             Nuevo Premio

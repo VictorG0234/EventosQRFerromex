@@ -71,17 +71,17 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                     <div className="flex items-center">
                         <Link
                             href={route('events.index')}
-                            className="mr-4 text-gray-600 hover:text-gray-900"
+                            className="mr-4 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                         >
                             ← Volver a eventos
                         </Link>
                         <div>
-                            <h2 className="font-semibold text-xl text-gray-800 leading-tight">
+                            <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
                                 {event.name}
                             </h2>
-                            <div className="flex items-center mt-1 text-sm text-gray-600">
+                            <div className="flex items-center mt-1 text-sm text-gray-600 dark:text-gray-300">
                                 <CalendarIcon className="w-4 h-4 mr-1" />
-                                {formatDate(event.date)}
+                                {event.event_date}
                                 <MapPinIcon className="w-4 h-4 ml-4 mr-1" />
                                 {event.location}
                             </div>
@@ -91,7 +91,7 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                     <div className="flex items-center space-x-3">
                         <Link
                             href={route('events.edit', event.id)}
-                            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                            className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
                         >
                             <PencilIcon className="w-4 h-4 mr-2" />
                             Editar
@@ -99,7 +99,7 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                         
                         <Link
                             href={route('events.guests.index', event.id)}
-                            className="inline-flex items-center px-3 py-2 border border-blue-300 shadow-sm text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
+                            className="inline-flex items-center px-3 py-2 border border-blue-300 dark:border-blue-600 shadow-sm text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900 hover:bg-blue-100 dark:hover:bg-blue-800"
                         >
                             <UsersIcon className="w-4 h-4 mr-2" />
                             Ver Invitados
@@ -107,7 +107,7 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                         
                         <Link
                             href={route('events.emails.index', event.id)}
-                            className="inline-flex items-center px-3 py-2 border border-purple-300 shadow-sm text-sm leading-4 font-medium rounded-md text-purple-700 bg-purple-50 hover:bg-purple-100"
+                            className="inline-flex items-center px-3 py-2 border border-purple-300 dark:border-purple-600 shadow-sm text-sm leading-4 font-medium rounded-md text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900 hover:bg-purple-100 dark:hover:bg-purple-800"
                         >
                             <EnvelopeIcon className="w-4 h-4 mr-2" />
                             Emails
@@ -115,7 +115,7 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                         
                         <Link
                             href={route('events.raffle.index', event.id)}
-                            className="inline-flex items-center px-3 py-2 border border-orange-300 shadow-sm text-sm leading-4 font-medium rounded-md text-orange-700 bg-orange-50 hover:bg-orange-100"
+                            className="inline-flex items-center px-3 py-2 border border-orange-300 dark:border-orange-600 shadow-sm text-sm leading-4 font-medium rounded-md text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900 hover:bg-orange-100 dark:hover:bg-orange-800"
                         >
                             <GiftIcon className="w-4 h-4 mr-2" />
                             Rifas

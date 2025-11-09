@@ -113,11 +113,11 @@ export default function Import({ auth, event }) {
                 <div className="flex items-center">
                     <Link
                         href={route('events.guests.index', event.id)}
-                        className="mr-4 text-gray-600 hover:text-gray-900"
+                        className="mr-4 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                     >
                         ← Volver a invitados
                     </Link>
-                    <h2 className="font-semibold text-xl text-gray-800 leading-tight">
+                    <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
                         Importar Invitados - {event.name}
                     </h2>
                 </div>

@@ -18,33 +18,32 @@ export default function Show({ auth, event, guest }) {
                     <div className="flex items-center">
                         <Link
                             href={route('events.guests.index', event.id)}
-                            className="mr-4 text-gray-600 hover:text-gray-900"
+                            className="mr-4 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                         >
                             <ArrowLeftIcon className="w-5 h-5" />
                         </Link>
                         <div>
-                            <h2 className="font-semibold text-xl text-gray-800 leading-tight">
+                            <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
                                 {guest.full_name}
                             </h2>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
                                 Detalles del invitado - {event.name}
                             </p>
                         </div>
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                        <a
-                            href={`/storage/${guest.qr_code_path}`}
-                            download={`QR_${guest.numero_empleado}_${guest.nombre}.png`}
-                            className="inline-flex items-center px-3 py-2 border border-blue-300 shadow-sm text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
+                        {/* <Link
+                            href={route('events.guests.download-qr', [event.id, guest.id])}
+                            className="inline-flex items-center px-3 py-2 border border-blue-300 dark:border-blue-600 shadow-sm text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900 hover:bg-blue-100 dark:hover:bg-blue-800"
                         >
                             <QrCodeIcon className="w-4 h-4 mr-2" />
                             Descargar QR
-                        </a>
+                        </Link> */}
                         
                         <Link
                             href={route('events.guests.edit', [event.id, guest.id])}
-                            className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700"
+                            className="inline-flex items-center px-4 py-2 bg-blue-600 dark:bg-blue-500 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 dark:hover:bg-blue-600"
                         >
                             <PencilIcon className="w-4 h-4 mr-2" />
                             Editar
@@ -236,14 +235,13 @@ export default function Show({ auth, event, guest }) {
                                         Usa este código QR para registrar la asistencia del invitado
                                     </p>
                                 </div>
-                                <a
-                                    href={`/storage/${guest.qr_code_path}`}
-                                    download={`QR_${guest.numero_empleado}_${guest.nombre}.png`}
+                                <Link
+                                    href={route('events.guests.download-qr', [event.id, guest.id])}
                                     className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700"
                                 >
                                     <QrCodeIcon className="w-4 h-4 mr-2" />
                                     Descargar QR
-                                </a>
+                                </Link>
                             </div>
                         </div>
                     </div>

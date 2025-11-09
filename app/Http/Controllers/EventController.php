@@ -149,10 +149,11 @@ class EventController extends Controller
                 'name' => $event->name,
                 'description' => $event->description,
                 'date' => $event->event_date->format('Y-m-d'),
-                'time' => $event->start_time ? $event->start_time : '09:00',
+                'time' => $event->start_time ? (is_string($event->start_time) ? $event->start_time : $event->start_time->format('H:i')) : '09:00',
                 'location' => $event->location,
                 'status' => $event->status,
                 'is_active' => $event->status === 'active',
+                'created_at' => $event->created_at->format('d/m/Y H:i'),
             ]
         ]);
     }

@@ -310,24 +310,6 @@ class GuestController extends Controller
     }
 
     /**
-     * Regenerate QR codes for all guests.
-     */
-    public function regenerateQrCodes(Event $event)
-    {
-        $this->authorize('view', $event);
-
-        $guests = $event->guests;
-        $processed = 0;
-
-        foreach ($guests as $guest) {
-            $this->qrService->generateQrCode($guest);
-            $processed++;
-        }
-
-        return back()->with('success', "Códigos QR regenerados para {$processed} invitados.");
-    }
-
-    /**
      * Download guest QR code.
      */
     public function downloadQr(Event $event, Guest $guest)
@@ -338,28 +320,20 @@ class GuestController extends Controller
             abort(404);
         }
 
+        // Si no tiene QR o el archivo no existe, generarlo
         if (!$guest->qr_code_path || !Storage::disk('public')->exists($guest->qr_code_path)) {
-            // Regenerar si no existe
             $this->qrService->generateQrCode($guest);
-            $guest->refresh(); // Recargar el guest con el nuevo qr_code_path
+            $guest->refresh();
         }
 
-        $filePath = Storage::disk('public')->path($guest->qr_code_path);
+        // Verificar nuevamente después de generar
+        if (!$guest->qr_code_path || !Storage::disk('public')->exists($guest->qr_code_path)) {
+            abort(404, 'No se pudo generar el código QR');
+        }
+
         $fileName = "QR_{$guest->numero_empleado}_{$guest->nombre}.png";
         
-        if (!file_exists($filePath)) {
-            abort(404, 'Archivo QR no encontrado');
-        }
-
-        // Leer el archivo y devolverlo como respuesta directa
-        $fileContents = file_get_contents($filePath);
-        
-        return response($fileContents, 200, [
-            'Content-Type' => 'image/png',
-            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
-            'Content-Length' => strlen($fileContents),
-            'Cache-Control' => 'no-cache, must-revalidate',
-            'Pragma' => 'no-cache',
-        ]);
+        // Descargar el archivo desde Storage
+        return Storage::disk('public')->download($guest->qr_code_path, $fileName);
     }
 }

@@ -89,7 +89,7 @@ export default function Index({ auth, events }) {
                                                 </h3>
                                                 <div className="flex items-center text-sm text-gray-600 mb-2">
                                                     <CalendarIcon className="w-4 h-4 mr-1" />
-                                                    {event.date}
+                                                    {event.event_date}
                                                 </div>
                                                 <div className="flex items-center text-sm text-gray-600">
                                                     <MapPinIcon className="w-4 h-4 mr-1" />

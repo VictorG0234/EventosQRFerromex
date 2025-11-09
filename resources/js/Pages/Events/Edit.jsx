@@ -6,22 +6,19 @@ import TextInput from '@/Components/TextInput';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { CalendarIcon, MapPinIcon, ClockIcon } from '@heroicons/react/24/outline';
 
-export default function Create({ auth }) {
-    const { data, setData, post, processing, errors, reset } = useForm({
-        name: '',
-        description: '',
-        date: '',
-        time: '',
-        location: '',
+export default function Edit({ auth, event }) {
+    const { data, setData, patch, processing, errors } = useForm({
+        name: event.name || '',
+        description: event.description || '',
+        date: event.date || '',
+        time: event.time || '',
+        location: event.location || '',
     });
 
     const submit = (e) => {
         e.preventDefault();
-        post(route('events.store'));
+        patch(route('events.update', event.id));
     };
-
-    // Obtener fecha mínima (hoy)
-    const today = new Date().toISOString().split('T')[0];
 
     return (
         <AuthenticatedLayout
@@ -29,23 +26,31 @@ export default function Create({ auth }) {
             header={
                 <div className="flex items-center">
                     <Link
-                        href={route('events.index')}
+                        href={route('events.show', event.id)}
                         className="mr-4 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                     >
-                        ← Volver a eventos
+                        ← Volver al evento
                     </Link>
                     <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
-                        Crear Nuevo Evento
+                        Editar Evento
                     </h2>
                 </div>
             }
         >
-            <Head title="Crear Evento" />
+            <Head title={`Editar: ${event.name}`} />
 
             <div className="py-12">
                 <div className="max-w-2xl mx-auto sm:px-6 lg:px-8">
                     <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="p-6">
+                            {/* Información del evento */}
+                            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <h3 className="font-semibold text-blue-900 mb-1">Editando evento</h3>
+                                <p className="text-sm text-blue-700">
+                                    {event.name} - Creado el {event.created_at || 'N/A'}
+                                </p>
+                            </div>
+
                             <form onSubmit={submit} className="space-y-6">
                                 {/* Nombre del evento */}
                                 <div>
@@ -94,7 +99,6 @@ export default function Create({ auth }) {
                                                 name="date"
                                                 value={data.date}
                                                 className="block w-full"
-                                                min={today}
                                                 onChange={(e) => setData('date', e.target.value)}
                                             />
                                         </div>
@@ -140,17 +144,46 @@ export default function Create({ auth }) {
                                     <InputError message={errors.location} className="mt-2" />
                                 </div>
 
+                                {/* Estado del evento */}
+                                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h4 className="font-medium text-gray-900">Estado del evento</h4>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                                Actualmente: <span className={`font-semibold ${event.is_active ? 'text-green-600' : 'text-gray-600'}`}>
+                                                    {event.is_active ? 'Activo' : 'Inactivo'}
+                                                </span>
+                                            </p>
+                                        </div>
+                                        <Link
+                                            href={route('events.toggle-active', event.id)}
+                                            method="patch"
+                                            as="button"
+                                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+                                        >
+                                            Cambiar estado
+                                        </Link>
+                                    </div>
+                                </div>
+
+                                {/* Nota informativa */}
+                                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <p className="text-sm text-yellow-800">
+                                        <strong>Nota:</strong> Los cambios en la fecha, hora o ubicación no afectarán los códigos QR ya generados para los invitados.
+                                    </p>
+                                </div>
+
                                 {/* Botones */}
-                                <div className="flex items-center justify-end space-x-3 pt-6 border-t">
+                                <div className="flex items-center justify-between pt-6 border-t">
                                     <Link
-                                        href={route('events.index')}
+                                        href={route('events.show', event.id)}
                                         className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                     >
                                         Cancelar
                                     </Link>
 
                                     <PrimaryButton disabled={processing}>
-                                        {processing ? 'Creando...' : 'Crear Evento'}
+                                        {processing ? 'Actualizando...' : 'Actualizar Evento'}
                                     </PrimaryButton>
                                 </div>
                             </form>
