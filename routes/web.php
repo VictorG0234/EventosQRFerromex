@@ -12,12 +12,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return redirect()->route('register');
 });
 
 Route::get('/dashboard', function () {
@@ -34,17 +29,18 @@ Route::middleware('auth')->group(function () {
     Route::patch('events/{event}/toggle-active', [EventController::class, 'toggleActive'])->name('events.toggle-active');
     Route::get('events/{event}/statistics', [EventController::class, 'statistics'])->name('events.statistics');
     
-    // Rutas especiales para invitados (DEBEN ir ANTES del resource)
-    Route::get('events/{event}/guests/import', [GuestController::class, 'importForm'])->name('events.guests.import');
-    Route::post('events/{event}/guests/import', [GuestController::class, 'import'])->name('events.guests.import.process');
-    Route::post('events/{event}/guests/preview', [GuestController::class, 'preview'])->name('events.guests.preview');
-    Route::get('events/{event}/guests/{guest}/download-qr', [GuestController::class, 'downloadQr'])->name('events.guests.download-qr');
-    
-    // Rutas de invitados (nested resource)
-    Route::resource('events.guests', GuestController::class)->except(['index', 'create', 'store']);
+    // Rutas de invitados - Las rutas específicas DEBEN ir ANTES de las rutas con parámetros dinámicos
     Route::get('events/{event}/guests', [GuestController::class, 'index'])->name('events.guests.index');
     Route::get('events/{event}/guests/create', [GuestController::class, 'create'])->name('events.guests.create');
     Route::post('events/{event}/guests', [GuestController::class, 'store'])->name('events.guests.store');
+    Route::get('events/{event}/guests/import', [GuestController::class, 'importForm'])->name('events.guests.import');
+    Route::post('events/{event}/guests/import', [GuestController::class, 'import'])->name('events.guests.import.process');
+    Route::post('events/{event}/guests/preview', [GuestController::class, 'preview'])->name('events.guests.preview');
+    Route::get('events/{event}/guests/{guest}', [GuestController::class, 'show'])->name('events.guests.show');
+    Route::get('events/{event}/guests/{guest}/edit', [GuestController::class, 'edit'])->name('events.guests.edit');
+    Route::patch('events/{event}/guests/{guest}', [GuestController::class, 'update'])->name('events.guests.update');
+    Route::delete('events/{event}/guests/{guest}', [GuestController::class, 'destroy'])->name('events.guests.destroy');
+    Route::get('events/{event}/guests/{guest}/download-qr', [GuestController::class, 'downloadQr'])->name('events.guests.download-qr');
     
     // Rutas de asistencia
     Route::get('events/{event}/attendance', [AttendanceController::class, 'index'])->name('events.attendance.index');

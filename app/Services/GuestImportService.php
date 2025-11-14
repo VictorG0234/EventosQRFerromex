@@ -26,6 +26,7 @@ class GuestImportService
         $results = [
             'success' => [],
             'errors' => [],
+            'warnings' => [],
             'total' => 0,
             'imported' => 0,
         ];
@@ -33,14 +34,31 @@ class GuestImportService
         try {
             // Leer el archivo CSV
             $data = Excel::toCollection(null, $file)->first();
-            $results['total'] = $data->count();
+            
+            // Detectar y saltar headers si existen
+            $firstRow = $data->first()->toArray();
+            $hasHeaders = $this->hasHeaders($firstRow);
+            $dataRows = $hasHeaders ? $data->skip(1) : $data;
+            
+            $results['total'] = $dataRows->count();
 
-            foreach ($data as $index => $row) {
-                $rowNumber = $index + 1;
+            foreach ($dataRows as $index => $row) {
+                $rowNumber = $index + ($hasHeaders ? 2 : 1);
                 
                 try {
                     // Validar los datos de la fila
                     $validatedData = $this->validateRow($row->toArray(), $rowNumber);
+                    
+                    // Verificar si hubo conversión de fecha
+                    if (isset($validatedData['_fecha_convertida']) && $validatedData['_fecha_convertida']) {
+                        $results['warnings'][] = [
+                            'row' => $rowNumber,
+                            'field' => 'fecha_alta',
+                            'message' => "Fecha convertida de '{$validatedData['_fecha_original']}' a '{$validatedData['fecha_alta']}'",
+                        ];
+                        // Limpiar los campos temporales
+                        unset($validatedData['_fecha_convertida'], $validatedData['_fecha_original']);
+                    }
                     
                     // Crear el invitado
                     $guest = $this->createGuest($event, $validatedData);
@@ -84,24 +102,44 @@ class GuestImportService
         // Mapear las columnas esperadas
         $mappedData = $this->mapColumns($row);
         
-        // Validar los datos
+        // Convertir numero_empleado a string si es necesario
+        if (isset($mappedData['numero_empleado']) && !is_string($mappedData['numero_empleado'])) {
+            $mappedData['numero_empleado'] = (string) $mappedData['numero_empleado'];
+        }
+        
+        // Guardar fecha original para comparar
+        $originalFecha = $mappedData['fecha_alta'] ?? null;
+        
+        // Normalizar fecha antes de validar
+        if (!empty($mappedData['fecha_alta'])) {
+            $fechaNormalizada = $this->normalizeFecha($mappedData['fecha_alta']);
+            if ($fechaNormalizada) {
+                $mappedData['fecha_alta'] = $fechaNormalizada;
+                // Marcar si la fecha fue convertida
+                if ($originalFecha !== $fechaNormalizada) {
+                    $mappedData['_fecha_convertida'] = true;
+                    $mappedData['_fecha_original'] = $originalFecha;
+                }
+            }
+        }
+        
+        // Validar los datos (ahora la fecha ya está normalizada)
         $validator = Validator::make($mappedData, [
-            'nombre' => 'required|string|max:255',
-            'apellido_p' => 'required|string|max:255',
-            'apellido_m' => 'required|string|max:255',
-            'email' => 'required|email|max:255',
+            'compania' => 'required|string|max:255',
             'numero_empleado' => 'required|string|max:255',
-            'area_laboral' => 'required|string|max:255',
-            'premios_rifa' => 'required|string',
+            'nombre_completo' => 'required|string|max:255',
+            'correo' => 'nullable|email|max:255',
+            'puesto' => 'required|string|max:255',
+            'nivel_de_puesto' => 'nullable|string|max:255',
+            'localidad' => 'required|string|max:255',
+            'fecha_alta' => 'nullable|date',
+            'descripcion' => 'nullable|string',
+            'categoria_rifa' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
             throw new \Exception("Fila $rowNumber: " . implode(', ', $validator->errors()->all()));
         }
-
-        // Procesar premios_rifa como array
-        $premiosArray = array_map('trim', explode(',', $mappedData['premios_rifa']));
-        $mappedData['premios_rifa'] = array_filter($premiosArray);
 
         return $mappedData;
     }
@@ -114,26 +152,78 @@ class GuestImportService
         // Si el array es indexado numéricamente, mapear por posición
         if (array_keys($row) === range(0, count($row) - 1)) {
             return [
-                'nombre' => $row[0] ?? '',
-                'apellido_p' => $row[1] ?? '',
-                'apellido_m' => $row[2] ?? '',
-                'email' => $row[3] ?? '',
-                'numero_empleado' => $row[4] ?? '',
-                'area_laboral' => $row[5] ?? '',
-                'premios_rifa' => $row[6] ?? '',
+                'compania' => $row[0] ?? '',
+                'numero_empleado' => $row[1] ?? '',
+                'nombre_completo' => $row[2] ?? '',
+                'correo' => $row[3] ?? '',
+                'puesto' => $row[4] ?? '',
+                'nivel_de_puesto' => $row[5] ?? '',
+                'localidad' => $row[6] ?? '',
+                'fecha_alta' => $row[7] ?? '',
+                'descripcion' => $row[8] ?? '',
+                'categoria_rifa' => $row[9] ?? '',
             ];
         }
 
-        // Si tiene headers, mapear por nombre de columna
-        return [
-            'nombre' => $row['Nombre'] ?? $row['nombre'] ?? '',
-            'apellido_p' => $row['ApellidoP'] ?? $row['apellido_p'] ?? '',
-            'apellido_m' => $row['ApellidoM'] ?? $row['apellido_m'] ?? '',
-            'email' => $row['Correo'] ?? $row['correo'] ?? $row['email'] ?? '',
-            'numero_empleado' => $row['NumeroEmpleado'] ?? $row['numero_empleado'] ?? '',
-            'area_laboral' => $row['AreaLaboral'] ?? $row['area_laboral'] ?? '',
-            'premios_rifa' => $row['PremiosRifa'] ?? $row['premios_rifa'] ?? '',
+        // Si tiene headers, mapear por nombre de columna (con múltiples variaciones)
+        $mapped = [
+            'compania' => $row['Compañía'] ?? $row['Compañia'] ?? $row['Compania'] ?? $row['compania'] ?? '',
+            'numero_empleado' => $row['NumEmp'] ?? $row['NumEmpleado'] ?? $row['numero_empleado'] ?? '',
+            'nombre_completo' => $row['Nombre completo'] ?? $row['NombreCompleto'] ?? $row['nombre_completo'] ?? '',
+            'correo' => $row['Correo'] ?? $row['correo'] ?? '',
+            'puesto' => $row['Puesto'] ?? $row['puesto'] ?? '',
+            'nivel_de_puesto' => $row['Nivel de puesto'] ?? $row['NivelDePuesto'] ?? $row['nivel_de_puesto'] ?? '',
+            'localidad' => $row['Localidad'] ?? $row['localidad'] ?? '',
+            'fecha_alta' => $row['Fecha de alta'] ?? $row['FechaAlta'] ?? $row['fecha_alta'] ?? '',
+            'descripcion' => $row['Descripcion'] ?? $row['Descripción'] ?? $row['descripcion'] ?? '',
+            'categoria_rifa' => $row['Categoria para la rifa'] ?? $row['CategoriaRifa'] ?? $row['categoria_rifa'] ?? '',
         ];
+        
+        // Normalizar fecha si existe
+        if (!empty($mapped['fecha_alta'])) {
+            $mapped['fecha_alta'] = $this->normalizeFecha($mapped['fecha_alta']);
+        }
+        
+        return $mapped;
+    }
+    
+    /**
+     * Normalizar fecha desde diferentes formatos a Y-m-d
+     */
+    protected function normalizeFecha($fecha): ?string
+    {
+        if (empty($fecha)) {
+            return null;
+        }
+        
+        // Si ya está en formato correcto
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
+            return $fecha;
+        }
+        
+        // Intentar parsear diferentes formatos comunes
+        $formatos = [
+            'd/m/Y',    // 30/5/2016
+            'd-m-Y',    // 30-5-2016
+            'm/d/Y',    // 5/30/2016
+            'Y/m/d',    // 2016/5/30
+            'd/m/y',    // 30/5/16
+        ];
+        
+        foreach ($formatos as $formato) {
+            $date = \DateTime::createFromFormat($formato, $fecha);
+            if ($date !== false) {
+                return $date->format('Y-m-d');
+            }
+        }
+        
+        // Si no se pudo parsear, intentar con strtotime
+        $timestamp = strtotime($fecha);
+        if ($timestamp !== false) {
+            return date('Y-m-d', $timestamp);
+        }
+        
+        return null;
     }
 
     /**
@@ -152,13 +242,16 @@ class GuestImportService
 
         return Guest::create([
             'event_id' => $event->id,
-            'nombre' => $data['nombre'],
-            'apellido_p' => $data['apellido_p'],
-            'apellido_m' => $data['apellido_m'],
-            'email' => $data['email'],
+            'compania' => $data['compania'],
             'numero_empleado' => $data['numero_empleado'],
-            'area_laboral' => $data['area_laboral'],
-            'premios_rifa' => $data['premios_rifa'],
+            'nombre_completo' => $data['nombre_completo'],
+            'correo' => $data['correo'],
+            'puesto' => $data['puesto'],
+            'nivel_de_puesto' => $data['nivel_de_puesto'],
+            'localidad' => $data['localidad'],
+            'fecha_alta' => $data['fecha_alta'],
+            'descripcion' => $data['descripcion'],
+            'categoria_rifa' => $data['categoria_rifa'],
         ]);
     }
 
@@ -169,32 +262,41 @@ class GuestImportService
     {
         return [
             'headers' => [
-                'Nombre',
-                'ApellidoP',
-                'ApellidoM',
+                'Compañia',
+                'NumEmpleado',
+                'NombreCompleto',
                 'Correo',
-                'NumeroEmpleado',
-                'AreaLaboral',
-                'PremiosRifa'
+                'Puesto',
+                'NivelDePuesto',
+                'Localidad',
+                'FechaAlta',
+                'Descripcion',
+                'CategoriaRifa'
             ],
             'example_data' => [
                 [
-                    'Juan',
-                    'Pérez',
-                    'García',
-                    'juan.perez@empresa.com',
+                    'Ferromex',
                     'EMP001',
-                    'Sistemas',
-                    'Categoria1,Categoria2,Categoria3'
+                    'Juan Pérez García',
+                    'juan.perez@ferromex.com',
+                    'Ingeniero',
+                    'Senior',
+                    'Guadalajara',
+                    '2020-01-15',
+                    'Empleado del área de sistemas',
+                    'Premium'
                 ],
                 [
-                    'María',
-                    'López',
-                    'Martínez',
-                    'maria.lopez@empresa.com',
+                    'Ferromex',
                     'EMP002',
-                    'Recursos Humanos',
-                    'Categoria1,Categoria3'
+                    'María López Martínez',
+                    'maria.lopez@ferromex.com',
+                    'Gerente',
+                    'Ejecutivo',
+                    'Ciudad de México',
+                    '2018-03-20',
+                    'Gerente de recursos humanos',
+                    'VIP'
                 ]
             ]
         ];
@@ -208,25 +310,73 @@ class GuestImportService
         try {
             $data = Excel::toCollection(null, $file)->first();
             
+            if ($data->isEmpty()) {
+                throw new \Exception('El archivo CSV está vacío');
+            }
+            
+            // Detectar si la primera fila son headers
+            $firstRow = $data->first()->toArray();
+            $hasHeaders = $this->hasHeaders($firstRow);
+            
+            // Si tiene headers, saltarlos para el preview
+            $dataRows = $hasHeaders ? $data->skip(1) : $data;
+            
             $preview = [
-                'total_rows' => $data->count(),
-                'headers' => $this->detectHeaders($data->first()?->toArray() ?? []),
-                'sample_data' => $data->take($maxRows)->map(function($row, $index) {
+                'total_rows' => $dataRows->count(),
+                'has_headers' => $hasHeaders,
+                'headers' => $hasHeaders ? $this->detectHeaders($firstRow) : [],
+                'sample_data' => $dataRows->take($maxRows)->map(function($row, $index) use ($hasHeaders) {
+                    $mappedData = $this->mapColumns($row->toArray());
+                    
+                    // Detectar advertencias de conversión de fecha
+                    $warnings = [];
+                    if (isset($mappedData['_fecha_convertida']) && $mappedData['_fecha_convertida']) {
+                        $warnings[] = "Fecha convertida de '{$mappedData['_fecha_original']}' a '{$mappedData['fecha_alta']}'";
+                    }
+                    
                     return [
-                        'row_number' => $index + 1,
+                        'row_number' => $index + ($hasHeaders ? 2 : 1),
                         'data' => $row->toArray(),
-                        'mapped' => $this->mapColumns($row->toArray()),
-                        'valid' => $this->isRowValid($row->toArray())
+                        'mapped' => $mappedData,
+                        'valid' => $this->isRowValid($row->toArray()),
+                        'warnings' => $warnings
                     ];
                 })->toArray(),
-                'validation_summary' => $this->getValidationSummary($data)
+                'validation_summary' => $this->getValidationSummary($dataRows)
             ];
 
             return $preview;
 
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Preview CSV error: ' . $e->getMessage());
             throw new \Exception('Error al procesar el archivo: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Detectar si la primera fila contiene headers
+     */
+    protected function hasHeaders(array $firstRow): bool
+    {
+        // Si algún valor de la primera fila coincide con un nombre de campo esperado, son headers
+        $expectedHeaders = [
+            'compania', 'compañia', 'compañía', 
+            'numemp', 'numempleado', 'numeroempleado',
+            'nombrecompleto', 'nombre completo',
+            'correo', 'puesto', 'localidad',
+            'niveldepuesto', 'nivel de puesto',
+            'fechaalta', 'fecha de alta',
+            'categoriarifa', 'categoria para la rifa'
+        ];
+        
+        foreach ($firstRow as $value) {
+            $normalized = strtolower(str_replace([' ', '_'], '', trim($value)));
+            if (in_array($normalized, $expectedHeaders)) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**
@@ -241,7 +391,7 @@ class GuestImportService
                 'original' => $value,
                 'mapped_to' => $this->getFieldMapping($value, $index),
                 'required' => in_array($this->getFieldMapping($value, $index), [
-                    'nombre', 'apellido_p', 'apellido_m', 'email', 'numero_empleado', 'area_laboral', 'premios_rifa'
+                    'compania', 'numero_empleado', 'nombre_completo', 'puesto', 'localidad'
                 ])
             ];
         }
@@ -257,25 +407,38 @@ class GuestImportService
         $header = strtolower(trim($header));
         
         $mappings = [
-            'nombre' => 'nombre',
-            'apellidop' => 'apellido_p',
-            'apellido_p' => 'apellido_p',
-            'apellido p' => 'apellido_p',
-            'apellidom' => 'apellido_m',
-            'apellido_m' => 'apellido_m',
-            'apellido m' => 'apellido_m',
-            'correo' => 'email',
-            'email' => 'email',
-            'e-mail' => 'email',
-            'numeroempleado' => 'numero_empleado',
+            'compañía' => 'compania',
+            'compañia' => 'compania',
+            'compania' => 'compania',
+            'empresa' => 'compania',
+            'numemp' => 'numero_empleado',
+            'numempleado' => 'numero_empleado',
             'numero_empleado' => 'numero_empleado',
             'numero empleado' => 'numero_empleado',
-            'arealaboral' => 'area_laboral',
-            'area_laboral' => 'area_laboral',
-            'area laboral' => 'area_laboral',
-            'premiosrifa' => 'premios_rifa',
-            'premios_rifa' => 'premios_rifa',
-            'premios rifa' => 'premios_rifa',
+            'numeroempleado' => 'numero_empleado',
+            'nombre completo' => 'nombre_completo',
+            'nombrecompleto' => 'nombre_completo',
+            'nombre_completo' => 'nombre_completo',
+            'correo' => 'correo',
+            'email' => 'correo',
+            'e-mail' => 'correo',
+            'puesto' => 'puesto',
+            'cargo' => 'puesto',
+            'nivel de puesto' => 'nivel_de_puesto',
+            'niveldepuesto' => 'nivel_de_puesto',
+            'nivel_de_puesto' => 'nivel_de_puesto',
+            'localidad' => 'localidad',
+            'ubicacion' => 'localidad',
+            'ciudad' => 'localidad',
+            'fecha de alta' => 'fecha_alta',
+            'fechaalta' => 'fecha_alta',
+            'fecha_alta' => 'fecha_alta',
+            'descripcion' => 'descripcion',
+            'descripción' => 'descripcion',
+            'categoria para la rifa' => 'categoria_rifa',
+            'categoriarifa' => 'categoria_rifa',
+            'categoria_rifa' => 'categoria_rifa',
+            'categoria rifa' => 'categoria_rifa',
         ];
 
         if (isset($mappings[$header])) {
@@ -283,7 +446,7 @@ class GuestImportService
         }
 
         // Mapeo por posición si no hay header reconocido
-        $positionMap = ['nombre', 'apellido_p', 'apellido_m', 'email', 'numero_empleado', 'area_laboral', 'premios_rifa'];
+        $positionMap = ['compania', 'numero_empleado', 'nombre_completo', 'correo', 'puesto', 'nivel_de_puesto', 'localidad', 'fecha_alta', 'descripcion', 'categoria_rifa'];
         return $positionMap[$index] ?? 'unknown_' . $index;
     }
 

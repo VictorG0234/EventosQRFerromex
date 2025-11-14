@@ -10,6 +10,7 @@ import {
     ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { useState, useRef } from 'react';
+import axios from 'axios';
 
 export default function Import({ auth, event }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -18,6 +19,7 @@ export default function Import({ auth, event }) {
 
     const [preview, setPreview] = useState(null);
     const [dragActive, setDragActive] = useState(false);
+    const [previewLoading, setPreviewLoading] = useState(false);
     const fileInputRef = useRef(null);
 
     const handleFileSelect = async (file) => {
@@ -27,30 +29,34 @@ export default function Import({ auth, event }) {
         }
 
         setData('csv_file', file);
+        setPreviewLoading(true);
         
-        // Generar preview
+        // Generar preview usando axios (que maneja CSRF automáticamente)
         try {
             const formData = new FormData();
             formData.append('csv_file', file);
             
-            const response = await fetch(route('events.guests.preview', event.id), {
-                method: 'POST',
-                body: formData,
+            const response = await axios.post(route('events.guests.preview', event.id), formData, {
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Content-Type': 'multipart/form-data',
                 },
             });
 
-            if (response.ok) {
-                const previewData = await response.json();
-                setPreview(previewData.data);
+            if (response.data.success) {
+                setPreview(response.data.data);
             } else {
-                const errorData = await response.json();
-                alert(errorData.message || 'Error al procesar el archivo');
+                alert(response.data.message || 'Error al procesar el archivo');
+                setPreview(null);
+                setData('csv_file', null);
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al procesar el archivo');
+            const errorMessage = error.response?.data?.message || error.message || 'Error al procesar el archivo';
+            alert(errorMessage);
+            setPreview(null);
+            setData('csv_file', null);
+        } finally {
+            setPreviewLoading(false);
         }
     };
 
@@ -91,10 +97,10 @@ export default function Import({ auth, event }) {
 
     const downloadTemplate = () => {
         const csvContent = [
-            ['Nombre', 'ApellidoP', 'ApellidoM', 'Correo', 'NumeroEmpleado', 'AreaLaboral', 'PremiosRifa'],
-            ['Juan', 'Pérez', 'García', 'juan.perez@empresa.com', 'EMP001', 'Sistemas', 'Categoria1,Categoria2'],
-            ['María', 'López', 'Martínez', 'maria.lopez@empresa.com', 'EMP002', 'Recursos Humanos', 'Categoria1,Categoria3'],
-            ['Carlos', 'Rodríguez', 'Fernández', 'carlos.rodriguez@empresa.com', 'EMP003', 'Ventas', 'Categoria2,Categoria3']
+            ['Compañia', 'NumEmpleado', 'NombreCompleto', 'Correo', 'Puesto', 'NivelDePuesto', 'Localidad', 'FechaAlta', 'Descripcion', 'CategoriaRifa'],
+            ['Ferromex', 'EMP001', 'Juan Pérez García', 'juan.perez@ferromex.com', 'Ingeniero', 'Senior', 'Guadalajara', '2020-01-15', 'Empleado del área de sistemas', 'Premium'],
+            ['Ferromex', 'EMP002', 'María López Martínez', 'maria.lopez@ferromex.com', 'Gerente', 'Ejecutivo', 'Ciudad de México', '2018-03-20', 'Gerente de recursos humanos', 'VIP'],
+            ['Ferromex', 'EMP003', 'Carlos Rodríguez Fernández', 'carlos.rodriguez@ferromex.com', 'Supervisor', 'Medio', 'Monterrey', '2019-06-10', 'Supervisor de operaciones', 'Estándar']
         ].map(row => row.join(',')).join('\n');
 
         const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -129,37 +135,40 @@ export default function Import({ auth, event }) {
                 <div className="max-w-4xl mx-auto sm:px-6 lg:px-8 space-y-6">
                     
                     {/* Información y template */}
-                    <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="p-6">
                             <div className="flex items-start">
-                                <InformationCircleIcon className="w-5 h-5 text-blue-500 mt-0.5 mr-3" />
+                                <InformationCircleIcon className="w-5 h-5 text-blue-500 dark:text-blue-400 mt-0.5 mr-3" />
                                 <div className="flex-1">
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                                         Formato del Archivo CSV
                                     </h3>
-                                    <p className="text-gray-600 mb-4">
+                                    <p className="text-gray-600 dark:text-gray-300 mb-4">
                                         El archivo debe contener las siguientes columnas en este orden:
                                     </p>
-                                    <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                                        <h4 className="font-medium text-gray-900 mb-2">Formato de la Plantilla</h4>
-                                        <p className="text-sm text-gray-600 mb-3">
+                                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4">
+                                        <h4 className="font-medium text-gray-900 dark:text-white mb-2">Formato de la Plantilla</h4>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                                             Cada fila debe incluir la información del invitado en el siguiente orden:
                                         </p>
                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
-                                            <span className="bg-white px-2 py-1 rounded text-sm">1. Nombre</span>
-                                            <span className="bg-white px-2 py-1 rounded text-sm">2. ApellidoP</span>
-                                            <span className="bg-white px-2 py-1 rounded text-sm">3. ApellidoM</span>
-                                            <span className="bg-white px-2 py-1 rounded text-sm">4. Correo</span>
-                                            <span className="bg-white px-2 py-1 rounded text-sm">5. NumeroEmpleado</span>
-                                            <span className="bg-white px-2 py-1 rounded text-sm">6. AreaLaboral</span>
-                                            <span className="bg-white px-2 py-1 rounded text-sm">7. PremiosRifa</span>
+                                            <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm dark:text-gray-200">1. Compañia</span>
+                                            <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm dark:text-gray-200">2. NumEmpleado</span>
+                                            <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm dark:text-gray-200">3. NombreCompleto</span>
+                                            <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm dark:text-gray-200">4. Correo</span>
+                                            <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm dark:text-gray-200">5. Puesto</span>
+                                            <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm dark:text-gray-200">6. NivelDePuesto</span>
+                                            <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm dark:text-gray-200">7. Localidad</span>
+                                            <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm dark:text-gray-200">8. FechaAlta</span>
+                                            <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm dark:text-gray-200">9. Descripcion</span>
+                                            <span className="bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm dark:text-gray-200">10. CategoriaRifa</span>
                                         </div>
                                     </div>
                                     <div className="flex">
                                         <button
                                             type="button"
                                             onClick={downloadTemplate}
-                                            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                         >
                                             <DocumentTextIcon className="w-4 h-4 mr-2" />
                                             Descargar Plantilla CSV
@@ -171,7 +180,7 @@ export default function Import({ auth, event }) {
                     </div>
 
                     {/* Área de carga de archivo */}
-                    <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="p-6">
                             <form onSubmit={submit}>
                                 <div
@@ -197,6 +206,13 @@ export default function Import({ auth, event }) {
                                                     <p className="text-xs text-gray-500">
                                                         {(data.csv_file.size / 1024).toFixed(1)} KB
                                                     </p>
+                                                </div>
+                                            </div>
+                                        ) : previewLoading ? (
+                                            <div className="space-y-2">
+                                                <div className="mx-auto h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                                <div className="text-sm text-gray-900">
+                                                    <span className="font-medium">Procesando archivo...</span>
                                                 </div>
                                             </div>
                                         ) : (
@@ -260,7 +276,7 @@ export default function Import({ auth, event }) {
                                                             Se encontraron errores en el archivo
                                                         </h5>
                                                         <div className="mt-2 text-sm text-red-700">
-                                                            {preview.validation_summary.errors?.slice(0, 5).map((error, index) => (
+                                                            {Array.isArray(preview.validation_summary?.errors) && preview.validation_summary.errors.slice(0, 5).map((error, index) => (
                                                                 <div key={index}>
                                                                     Fila {error.row}: {error.errors.join(', ')}
                                                                 </div>
@@ -274,53 +290,68 @@ export default function Import({ auth, event }) {
                                         {/* Muestra de datos */}
                                         <div className="overflow-x-auto">
                                             <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-gray-50">
+                                                <thead className="bg-gray-50 dark:bg-gray-700">
                                                     <tr>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                                             Fila
                                                         </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Nombre
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                                            Compañía
                                                         </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Apellidos
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                                            Nombre Completo
                                                         </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                                             Empleado
                                                         </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Área
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                                            Puesto
                                                         </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                                            Localidad
+                                                        </th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                                             Estado
                                                         </th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="bg-white divide-y divide-gray-200">
-                                                    {preview.sample_data?.slice(0, 10).map((row, index) => (
-                                                        <tr key={index} className={row.valid?.valid ? '' : 'bg-red-50'}>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                                    {Array.isArray(preview.sample_data) && preview.sample_data.slice(0, 10).map((row, index) => (
+                                                        <tr key={index} className={row.valid?.valid ? '' : 'bg-red-50 dark:bg-red-900'}>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
                                                                 {row.row_number}
                                                             </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                                {row.mapped?.nombre || '-'}
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
+                                                                {row.mapped?.compania || '-'}
                                                             </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                                {`${row.mapped?.apellido_p || ''} ${row.mapped?.apellido_m || ''}`.trim() || '-'}
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
+                                                                {row.mapped?.nombre_completo || '-'}
                                                             </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
                                                                 {row.mapped?.numero_empleado || '-'}
                                                             </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                                {row.mapped?.area_laboral || '-'}
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
+                                                                {row.mapped?.puesto || '-'}
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
+                                                                {row.mapped?.localidad || '-'}
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                                {row.valid?.valid ? (
-                                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                                {row.warnings && row.warnings.length > 0 ? (
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                                                                            Advertencia
+                                                                        </span>
+                                                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                                            {row.warnings[0]}
+                                                                        </span>
+                                                                    </div>
+                                                                ) : row.valid?.valid ? (
+                                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
                                                                         Válido
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
                                                                         Error
                                                                     </span>
                                                                 )}

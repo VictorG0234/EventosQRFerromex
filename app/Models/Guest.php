@@ -15,21 +15,23 @@ class Guest extends Model
 
     protected $fillable = [
         'event_id',
-        'nombre',
-        'apellido_p',
-        'apellido_m',
+        'compania',
         'numero_empleado',
-        'area_laboral',
-        'premios_rifa',
+        'nombre_completo',
+        'correo',
+        'puesto',
+        'nivel_de_puesto',
+        'localidad',
+        'fecha_alta',
+        'descripcion',
+        'categoria_rifa',
         'qr_code',
         'qr_code_path',
-        'qr_code_data',
-        'email',
         'email_sent',
     ];
 
     protected $casts = [
-        'premios_rifa' => 'array',
+        'fecha_alta' => 'date',
         'email_sent' => 'boolean',
     ];
 
@@ -63,7 +65,7 @@ class Guest extends Model
     // Métodos útiles
     public function getFullNameAttribute(): string
     {
-        return "{$this->nombre} {$this->apellido_p} {$this->apellido_m}";
+        return $this->nombre_completo;
     }
 
     public function hasAttended(): bool
@@ -73,7 +75,7 @@ class Guest extends Model
 
     public function canParticipateInPrize(Prize $prize): bool
     {
-        return in_array($prize->category, $this->premios_rifa) && $this->hasAttended();
+        return $this->categoria_rifa === $prize->category && $this->hasAttended();
     }
 
     public static function generateUniqueQrCode(): string
@@ -90,11 +92,12 @@ class Guest extends Model
         return [
             'id' => $this->id,
             'event_id' => $this->event_id,
-            'nombre' => $this->nombre,
-            'apellido_p' => $this->apellido_p,
-            'apellido_m' => $this->apellido_m,
+            'compania' => $this->compania,
             'numero_empleado' => $this->numero_empleado,
-            'area_laboral' => $this->area_laboral,
+            'nombre_completo' => $this->nombre_completo,
+            'correo' => $this->correo,
+            'puesto' => $this->puesto,
+            'localidad' => $this->localidad,
             'qr_code' => $this->qr_code,
         ];
     }

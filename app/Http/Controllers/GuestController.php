@@ -48,20 +48,28 @@ class GuestController extends Controller
                     'id' => $guest->id,
                     'full_name' => $guest->full_name,
                     'numero_empleado' => $guest->numero_empleado,
-                    'area_laboral' => $guest->area_laboral,
-                    'premios_rifa' => $guest->premios_rifa,
+                    'compania' => $guest->compania,
+                    'puesto' => $guest->puesto,
+                    'localidad' => $guest->localidad,
+                    'categoria_rifa' => $guest->categoria_rifa,
                     'has_attended' => $guest->attendance !== null,
                     'attended_at' => $guest->attendance?->created_at?->format('d/m/Y H:i:s'),
                     'qr_code_path' => $guest->qr_code_path,
                 ];
             });
 
+        // Calcular estadísticas totales (no solo de la página actual)
+        $totalGuests = $event->guests()->count();
+        $totalAttendances = $event->attendances()->count();
+        $guestsWithAttendance = $event->guests()->has('attendance')->count();
+        
         return Inertia::render('Events/Guests/Index', [
             'event' => [
                 'id' => $event->id,
                 'name' => $event->name,
-                'guests_count' => $event->guests()->count(),
-                'attendances_count' => $event->attendances()->count(),
+                'guests_count' => $totalGuests,
+                'attendances_count' => $totalAttendances,
+                'guests_with_attendance' => $guestsWithAttendance,
             ],
             'guests' => $guests
         ]);
@@ -90,20 +98,27 @@ class GuestController extends Controller
         $this->authorize('view', $event);
 
         $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
-            'apellido_p' => 'required|string|max:255',
-            'apellido_m' => 'nullable|string|max:255',
+            'compania' => 'required|string|max:255',
             'numero_empleado' => 'required|string|max:50|unique:guests,numero_empleado,NULL,id,event_id,' . $event->id,
-            'area_laboral' => 'required|string|max:255',
-            'premios_rifa' => 'nullable|string|max:500',
+            'nombre_completo' => 'required|string|max:255',
+            'correo' => 'nullable|email|max:255',
+            'puesto' => 'required|string|max:255',
+            'nivel_de_puesto' => 'nullable|string|max:255',
+            'localidad' => 'required|string|max:255',
+            'fecha_alta' => 'nullable|date',
+            'descripcion' => 'nullable|string',
+            'categoria_rifa' => 'nullable|string|max:255',
         ]);
 
         $validated['event_id'] = $event->id;
 
         $guest = Guest::create($validated);
 
-        // Enviar email de bienvenida si el invitado tiene email
-        if (!empty($guest->email)) {
+        // Generar código QR
+        app(QrCodeService::class)->generateQrCode($guest);
+
+        // Enviar email de bienvenida si el invitado tiene correo
+        if (!empty($guest->correo)) {
             SendEmailJob::dispatch('welcome', $guest);
         }
 
@@ -132,16 +147,18 @@ class GuestController extends Controller
             'guest' => [
                 'id' => $guest->id,
                 'full_name' => $guest->full_name,
-                'nombre' => $guest->nombre,
-                'apellido_p' => $guest->apellido_p,
-                'apellido_m' => $guest->apellido_m,
+                'compania' => $guest->compania,
                 'numero_empleado' => $guest->numero_empleado,
-                'area_laboral' => $guest->area_laboral,
-                'premios_rifa' => $guest->premios_rifa,
-                'email' => $guest->email,
+                'nombre_completo' => $guest->nombre_completo,
+                'correo' => $guest->correo,
+                'puesto' => $guest->puesto,
+                'nivel_de_puesto' => $guest->nivel_de_puesto,
+                'localidad' => $guest->localidad,
+                'fecha_alta' => $guest->fecha_alta?->format('d/m/Y'),
+                'descripcion' => $guest->descripcion,
+                'categoria_rifa' => $guest->categoria_rifa,
                 'qr_code' => $guest->qr_code,
                 'qr_code_path' => $guest->qr_code_path,
-                'qr_code_data' => $guest->qr_code_data,
                 'has_attended' => $guest->attendance !== null,
                 'attended_at' => $guest->attendance?->created_at?->format('d/m/Y H:i:s'),
                 'created_at' => $guest->created_at->format('d/m/Y H:i:s'),
@@ -168,13 +185,16 @@ class GuestController extends Controller
             'guest' => [
                 'id' => $guest->id,
                 'full_name' => $guest->full_name,
-                'nombre' => $guest->nombre,
-                'apellido_p' => $guest->apellido_p,
-                'apellido_m' => $guest->apellido_m,
+                'compania' => $guest->compania,
                 'numero_empleado' => $guest->numero_empleado,
-                'area_laboral' => $guest->area_laboral,
-                'premios_rifa' => $guest->premios_rifa,
-                'email' => $guest->email,
+                'nombre_completo' => $guest->nombre_completo,
+                'correo' => $guest->correo,
+                'puesto' => $guest->puesto,
+                'nivel_de_puesto' => $guest->nivel_de_puesto,
+                'localidad' => $guest->localidad,
+                'fecha_alta' => $guest->fecha_alta?->format('Y-m-d'),
+                'descripcion' => $guest->descripcion,
+                'categoria_rifa' => $guest->categoria_rifa,
             ]
         ]);
     }
@@ -191,19 +211,22 @@ class GuestController extends Controller
         }
 
         $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
-            'apellido_p' => 'required|string|max:255',
-            'apellido_m' => 'nullable|string|max:255',
+            'compania' => 'required|string|max:255',
             'numero_empleado' => 'required|string|max:50|unique:guests,numero_empleado,' . $guest->id . ',id,event_id,' . $event->id,
-            'area_laboral' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'premios_rifa' => 'nullable|array',
+            'nombre_completo' => 'required|string|max:255',
+            'correo' => 'nullable|email|max:255',
+            'puesto' => 'required|string|max:255',
+            'nivel_de_puesto' => 'nullable|string|max:255',
+            'localidad' => 'required|string|max:255',
+            'fecha_alta' => 'nullable|date',
+            'descripcion' => 'nullable|string',
+            'categoria_rifa' => 'nullable|string|max:255',
         ]);
 
         $guest->update($validated);
 
         // Regenerar QR code si cambió información crítica
-        if ($guest->wasChanged(['nombre', 'apellido_p', 'numero_empleado'])) {
+        if ($guest->wasChanged(['nombre_completo', 'numero_empleado'])) {
             $this->qrService->generateQrCode($guest);
         }
 
@@ -268,8 +291,20 @@ class GuestController extends Controller
                 $event
             );
 
+            $errorsCount = count($result['errors']);
+            $warningsCount = count($result['warnings'] ?? []);
+            $message = "Importación completada: {$result['imported']} invitados importados.";
+            
+            if ($errorsCount > 0) {
+                $message .= " {$errorsCount} registro(s) con errores.";
+            }
+            
+            if ($warningsCount > 0) {
+                $message .= " {$warningsCount} advertencia(s) (fechas convertidas automáticamente).";
+            }
+
             return redirect()->route('events.guests.index', $event)
-                ->with('success', "Importación completada: {$result['imported']} invitados importados, {$result['errors']} errores.");
+                ->with($errorsCount > 0 ? 'warning' : 'success', $message);
 
         } catch (ValidationException $e) {
             return back()

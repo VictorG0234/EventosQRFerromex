@@ -14,19 +14,23 @@ return new class extends Migration
         Schema::create('guests', function (Blueprint $table) {
             $table->id();
             $table->foreignId('event_id')->constrained()->onDelete('cascade');
-            $table->string('nombre');
-            $table->string('apellido_p');
-            $table->string('apellido_m');
+            $table->string('compania');
             $table->string('numero_empleado')->unique();
-            $table->string('area_laboral');
-            $table->json('premios_rifa'); // Array de categorías de premios a los que puede acceder
+            $table->string('nombre_completo');
+            $table->string('correo')->nullable();
+            $table->string('puesto');
+            $table->string('nivel_de_puesto')->nullable();
+            $table->string('localidad');
+            $table->date('fecha_alta')->nullable();
+            $table->text('descripcion')->nullable();
+            $table->string('categoria_rifa')->nullable();
             $table->string('qr_code')->unique(); // Código QR único
-            $table->string('email')->nullable();
+            $table->string('qr_code_path')->nullable(); // Ruta al archivo QR
             $table->boolean('email_sent')->default(false); // Para controlar si ya se envió el QR por email
             $table->timestamps();
             
             // Índices para mejorar rendimiento
-            $table->index(['event_id', 'numero_empleado']);
+            $table->unique(['event_id', 'numero_empleado']); // Unique constraint compuesto
             $table->index('qr_code');
         });
     }
