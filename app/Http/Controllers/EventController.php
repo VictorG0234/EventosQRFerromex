@@ -118,6 +118,8 @@ class EventController extends Controller
                 'status' => $event->status,
                 'is_active' => $event->status === 'active',
                 'created_at' => $event->created_at->format('d/m/Y H:i'),
+                'public_token' => $event->public_token,
+                'public_url' => route('public.event.register', $event->public_token),
             ],
             'statistics' => $statistics,
             'recent_attendances' => $event->attendances()

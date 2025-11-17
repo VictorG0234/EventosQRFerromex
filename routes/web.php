@@ -7,9 +7,15 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\PrizeController;
 use App\Http\Controllers\RaffleController;
+use App\Http\Controllers\PublicEventController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+// Rutas públicas (sin autenticación)
+Route::get('/event/{token}', [PublicEventController::class, 'showRegistrationForm'])->name('public.event.register');
+Route::post('/event/{token}/validate', [PublicEventController::class, 'validateGuest'])->name('public.event.validate');
+Route::get('/event/{token}/guest/{guest}', [PublicEventController::class, 'showGuestDetails'])->name('public.event.guest.details');
 
 Route::get('/', function () {
     return redirect()->route('register');

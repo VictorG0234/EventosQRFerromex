@@ -11,6 +11,8 @@ import {
     SpeakerXMarkIcon
 } from '@heroicons/react/24/outline';
 import { useState, useEffect, useRef } from 'react';
+import jsQR from 'jsqr';
+import axios from 'axios';
 
 export default function Scanner({ auth, event, statistics }) {
     const [isScanning, setIsScanning] = useState(false);
@@ -105,9 +107,16 @@ export default function Scanner({ auth, event, statistics }) {
                 
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
-                // Aquí normalmente usarías una librería como jsQR
-                // Por ahora simularemos con un input manual
-                // En implementación real: const code = jsQR(imageData.data, imageData.width, imageData.height);
+                // Obtener datos de imagen para jsQR
+                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
+                
+                if (code && code.data) {
+                    // QR detectado - procesar
+                    processScan(code.data);
+                }
             }
         }, 300); // Escanear cada 300ms
     };
@@ -120,16 +129,11 @@ export default function Scanner({ auth, event, statistics }) {
         setLastScan(qrData);
         
         try {
-            const response = await fetch(route('events.attendance.scan', event.id), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                },
-                body: JSON.stringify({ qr_data: qrData })
+            const response = await axios.post(route('events.attendance.scan', event.id), {
+                qr_data: qrData
             });
 
-            const result = await response.json();
+            const result = response.data;
             
             setScanResult(result);
             
@@ -154,9 +158,10 @@ export default function Scanner({ auth, event, statistics }) {
             
         } catch (error) {
             console.error('Error processing scan:', error);
+            const errorMessage = error.response?.data?.message || 'Error de conexión. Intenta nuevamente.';
             setScanResult({
                 success: false,
-                message: 'Error de conexión. Intenta nuevamente.',
+                message: errorMessage,
                 type: 'error'
             });
             playSound('error');

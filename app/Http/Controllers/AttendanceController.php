@@ -44,7 +44,7 @@ class AttendanceController extends Controller
                         'id' => $attendance->id,
                         'guest_name' => $attendance->guest->full_name,
                         'employee_number' => $attendance->guest->numero_empleado,
-                        'work_area' => $attendance->guest->area_laboral,
+                        'work_area' => $attendance->guest->puesto,
                         'attended_at' => $attendance->created_at->format('H:i:s'),
                         'time_ago' => $attendance->created_at->diffForHumans(),
                     ];
@@ -55,9 +55,9 @@ class AttendanceController extends Controller
             'event' => [
                 'id' => $event->id,
                 'name' => $event->name,
-                'date' => $event->date->format('d/m/Y H:i'),
+                'date' => $event->event_date->format('d/m/Y') . ($event->start_time ? ' ' . $event->start_time->format('H:i') : ''),
                 'location' => $event->location,
-                'is_active' => $event->is_active,
+                'is_active' => $event->status === 'active',
             ],
             'statistics' => $statistics
         ]);
@@ -136,7 +136,7 @@ class AttendanceController extends Controller
                 'guest' => [
                     'name' => $guest->full_name,
                     'employee_number' => $guest->numero_empleado,
-                    'work_area' => $guest->area_laboral,
+                    'work_area' => $guest->puesto,
                     'attended_at' => $attendance->created_at->format('d/m/Y H:i:s'),
                     'raffle_categories' => $guest->premios_rifa
                 ],
@@ -227,7 +227,7 @@ class AttendanceController extends Controller
                         'id' => $attendance->guest->id,
                         'name' => $attendance->guest->full_name,
                         'employee_number' => $attendance->guest->numero_empleado,
-                        'work_area' => $attendance->guest->area_laboral,
+                        'work_area' => $attendance->guest->puesto,
                     ],
                     'attended_at' => $attendance->created_at->format('d/m/Y H:i:s'),
                     'time_ago' => $attendance->created_at->diffForHumans(),
@@ -246,10 +246,10 @@ class AttendanceController extends Controller
                 ->pluck('count', 'hour'),
             'attendances_by_area' => $event->attendances()
                 ->join('guests', 'attendances.guest_id', '=', 'guests.id')
-                ->selectRaw('guests.area_laboral, COUNT(*) as count')
-                ->groupBy('guests.area_laboral')
+                ->selectRaw('guests.puesto, COUNT(*) as count')
+                ->groupBy('guests.puesto')
                 ->orderByDesc('count')
-                ->pluck('count', 'area_laboral')
+                ->pluck('count', 'puesto')
         ];
 
         return Inertia::render('Events/Attendance/Index', [

@@ -370,6 +370,11 @@ class GuestImportService
         ];
         
         foreach ($firstRow as $value) {
+            // Ignorar valores null o vacíos
+            if (empty($value)) {
+                continue;
+            }
+            
             $normalized = strtolower(str_replace([' ', '_'], '', trim($value)));
             if (in_array($normalized, $expectedHeaders)) {
                 return true;
@@ -387,10 +392,14 @@ class GuestImportService
         $detectedHeaders = [];
         
         foreach ($firstRow as $index => $value) {
+            // Convertir null a string vacío
+            $value = $value ?? '';
+            $mappedField = $this->getFieldMapping($value, $index);
+            
             $detectedHeaders[$index] = [
                 'original' => $value,
-                'mapped_to' => $this->getFieldMapping($value, $index),
-                'required' => in_array($this->getFieldMapping($value, $index), [
+                'mapped_to' => $mappedField,
+                'required' => in_array($mappedField, [
                     'compania', 'numero_empleado', 'nombre_completo', 'puesto', 'localidad'
                 ])
             ];
@@ -402,8 +411,14 @@ class GuestImportService
     /**
      * Mapear nombre de columna a campo
      */
-    protected function getFieldMapping(string $header, int $index): string
+    protected function getFieldMapping(?string $header, int $index): string
     {
+        // Si el header es null o vacío, usar mapeo por posición
+        if (empty($header)) {
+            $positionMap = ['compania', 'numero_empleado', 'nombre_completo', 'correo', 'puesto', 'nivel_de_puesto', 'localidad', 'fecha_alta', 'descripcion', 'categoria_rifa'];
+            return $positionMap[$index] ?? 'unknown_' . $index;
+        }
+        
         $header = strtolower(trim($header));
         
         $mappings = [

@@ -21,6 +21,7 @@ class Event extends Model
         'location',
         'status',
         'settings',
+        'public_token',
     ];
 
     protected $casts = [
@@ -85,5 +86,27 @@ class Event extends Model
     public function getIsActiveAttribute(): bool
     {
         return $this->status === 'active';
+    }
+
+    /**
+     * Generate public registration URL
+     */
+    public function getPublicUrlAttribute(): string
+    {
+        return route('public.event.register', $this->public_token);
+    }
+
+    /**
+     * Boot method to generate token on creation
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($event) {
+            if (empty($event->public_token)) {
+                $event->public_token = bin2hex(random_bytes(16));
+            }
+        });
     }
 }

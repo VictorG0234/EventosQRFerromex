@@ -213,7 +213,7 @@ export default function Index({ auth, event, guests }) {
                                 {/* Filas de invitados */}
                                 <div className="divide-y divide-gray-200 dark:divide-gray-700">
                                     {filteredGuests.map((guest) => (
-                                        <div key={guest.id} className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700">
+                                        <div key={guest.id} className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700 group">
                                             <div className="grid grid-cols-12 gap-4 items-center">
                                                 {/* Estado */}
                                                 <div className="col-span-1">
@@ -226,11 +226,11 @@ export default function Index({ auth, event, guests }) {
 
                                                 {/* Nombre */}
                                                 <div className="col-span-3">
-                                                    <div className="text-sm font-medium text-gray-800 dark:text-gray-100">
+                                                    <div className="text-sm font-medium text-gray-500 dark:text-gray-500">
                                                         {guest.full_name}
                                                     </div>
                                                     {guest.categoria_rifa && (
-                                                        <div className="text-xs text-gray-600 dark:text-gray-400">
+                                                        <div className="text-xs text-gray-500 dark:text-gray-500">
                                                             Rifa: {guest.categoria_rifa}
                                                         </div>
                                                     )}
@@ -238,17 +238,17 @@ export default function Index({ auth, event, guests }) {
 
                                                 {/* Número de empleado */}
                                                 <div className="col-span-2">
-                                                    <div className="text-sm text-gray-800 dark:text-gray-100">
+                                                    <div className="text-sm text-gray-500 dark:text-gray-500">
                                                         {guest.numero_empleado}
                                                     </div>
                                                 </div>
 
                                                 {/* Puesto y Localidad */}
                                                 <div className="col-span-2">
-                                                    <div className="text-sm text-gray-800 dark:text-gray-100">
+                                                    <div className="text-sm text-gray-500 dark:text-gray-500">
                                                         {guest.puesto}
                                                     </div>
-                                                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                                                    <div className="text-xs text-gray-500 dark:text-gray-500">
                                                         {guest.localidad}
                                                     </div>
                                                 </div>
@@ -260,12 +260,12 @@ export default function Index({ auth, event, guests }) {
                                                             <div className="text-sm text-green-600 dark:text-green-400 font-medium">
                                                                 Registrada
                                                             </div>
-                                                            <div className="text-xs text-gray-600 dark:text-gray-400">
+                                                            <div className="text-xs text-gray-500 dark:text-gray-500">
                                                                 {guest.attended_at}
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                                                        <span className="text-sm text-gray-500 dark:text-gray-500">
                                                             Sin registrar
                                                         </span>
                                                     )}

@@ -139,6 +139,51 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
             <div className="py-12">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
                     
+                    {/* URL Pública del Evento */}
+                    <div className="bg-gradient-to-r from-blue-500 to-indigo-600 overflow-hidden shadow-lg sm:rounded-lg">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                    <h3 className="text-lg font-semibold text-white mb-2 flex items-center">
+                                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                        </svg>
+                                        URL Pública de Registro
+                                    </h3>
+                                    <p className="text-blue-100 text-sm mb-3">
+                                        Comparte este enlace con tus invitados para que puedan acceder con su credencial
+                                    </p>
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            value={event.public_url}
+                                            className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-white/50"
+                                            onClick={(e) => e.target.select()}
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(event.public_url);
+                                                alert('¡Enlace copiado al portapapeles!');
+                                            }}
+                                            className="px-4 py-2 bg-white text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition duration-200"
+                                        >
+                                            Copiar
+                                        </button>
+                                        <a
+                                            href={event.public_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="px-4 py-2 bg-white/20 text-white font-semibold rounded-lg hover:bg-white/30 transition duration-200"
+                                        >
+                                            Abrir
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Información del evento */}
                     {event.description && (
                         <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
