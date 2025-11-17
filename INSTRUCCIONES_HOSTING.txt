@@ -1,0 +1,76 @@
+============================================
+PASOS PARA SUBIR AL HOSTING
+============================================
+
+PROBLEMA ACTUAL:
+Tu hosting NO tiene habilitadas las extensiones ext-gd y ext-zip
+
+SOLUCIÓN 1 - CONTACTAR AL HOSTING (Recomendado):
+Contacta a tu proveedor y solicita que habiliten:
+- ext-gd (para imágenes y QR codes)
+- ext-zip (para Excel)
+
+SOLUCIÓN 2 - SUBIR DE TODAS FORMAS:
+
+1. Este proyecto YA está preparado con --ignore-platform-reqs
+   Las librerías están instaladas pero pueden no funcionar 100%
+
+2. SUBIR ARCHIVOS:
+   - Sube TODA la carpeta al hosting
+   - O comprímela: zip -r proyecto.zip . -x "node_modules/*" ".git/*"
+
+3. ESTRUCTURA EN HOSTING:
+   
+   public_html/
+   ├── index.php          (de tu carpeta public/)
+   ├── .htaccess          (de tu carpeta public/)
+   └── build/             (assets compilados)
+   
+   un_nivel_arriba/       (fuera de public_html)
+   ├── app/
+   ├── vendor/
+   ├── storage/
+   ├── .env
+   └── ...
+
+4. EDITAR public_html/index.php:
+   
+   Cambia las líneas ~18 y ~28:
+   require __DIR__.'/../vendor/autoload.php';
+   $app = require_once __DIR__.'/../bootstrap/app.php';
+
+5. CONFIGURAR .env:
+   
+   APP_ENV=production
+   APP_DEBUG=false
+   APP_URL=https://tudominio.com
+   
+   DB_CONNECTION=mysql
+   DB_HOST=localhost
+   DB_DATABASE=tu_bd
+   DB_USERNAME=tu_user
+   DB_PASSWORD=tu_pass
+
+6. FUNCIONES QUE PODRÍAN FALLAR SIN LAS EXTENSIONES:
+   
+   ❌ Importar Excel (CSV sí funciona)
+   ❌ Generar códigos QR (pero el escaneo sí funciona)
+   ✅ Escanear QR (funciona si tienes HTTPS)
+   ✅ Registro manual de asistencia
+   ✅ Ver lista de invitados
+   ✅ Estadísticas
+
+IMPORTANTE PARA LA CÁMARA:
+- DEBES tener HTTPS habilitado
+- En cPanel: Seguridad → SSL/TLS
+- Let's Encrypt es gratis en la mayoría de hostings
+
+PRUEBA RÁPIDA:
+Si todo está bien, deberías poder:
+1. Ver la página de login
+2. Iniciar sesión
+3. Ver lista de eventos
+4. Ver lista de invitados
+5. Usar registro MANUAL (sin cámara funciona siempre)
+
+============================================

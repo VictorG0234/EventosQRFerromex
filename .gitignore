@@ -89,3 +89,12 @@ composer.phar
 
 # Archivos .sh
 *.sh
+
+# Archivos .bat
+*.bat
+
+# Archivos .exe
+*.exe
+
+# Archivos .md
+*.md
