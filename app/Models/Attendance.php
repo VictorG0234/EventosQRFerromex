@@ -36,7 +36,7 @@ class Attendance extends Model
     }
 
     // Métodos útiles
-    public static function registerAttendance(Guest $guest, string $scannedBy = null, array $metadata = []): self
+    public static function registerAttendance(Guest $guest, ?string $scannedBy = null, array $metadata = []): self
     {
         return self::create([
             'event_id' => $guest->event_id,

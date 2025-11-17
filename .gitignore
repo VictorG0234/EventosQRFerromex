@@ -86,3 +86,6 @@ composer.phar
 
 # Local packages
 /packages/
+
+# Archivos .sh
+*.sh
