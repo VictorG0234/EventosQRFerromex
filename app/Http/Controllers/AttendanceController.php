@@ -11,6 +11,7 @@ use App\Jobs\SendEmailJob;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends Controller
 {
@@ -113,14 +114,27 @@ class AttendanceController extends Controller
 
             $attendance = Attendance::create([
                 'event_id' => $event->id,
-                'guest_id' => $guest->id
+                'guest_id' => $guest->id,
+                'scanned_at' => now(),
+                'scanned_by' => auth()->user()->name ?? 'Scanner QR',
+                'scan_metadata' => [
+                    'method' => 'qr_scan',
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent()
+                ]
             ]);
 
             DB::commit();
 
             // Enviar email de confirmación de asistencia si el invitado tiene email
+            // Usar try-catch separado para que el email no rompa el registro
             if (!empty($guest->email)) {
-                SendEmailJob::dispatch('attendance_confirmation', $guest);
+                try {
+                    SendEmailJob::dispatch('attendance_confirmation', $guest, $event);
+                } catch (\Exception $emailError) {
+                    Log::warning('Error al despachar email de confirmación: ' . $emailError->getMessage());
+                    // No fallar el registro si el email falla
+                }
             }
 
             // Estadísticas actualizadas
@@ -146,10 +160,19 @@ class AttendanceController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             
+            // Log del error completo para debugging
+            Log::error('Error al registrar asistencia: ' . $e->getMessage(), [
+                'exception' => $e,
+                'event_id' => $event->id,
+                'guest_id' => $guest->id ?? null,
+                'qr_data' => $request->qr_data
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Error al registrar la asistencia. Intente nuevamente.',
-                'type' => 'error'
+                'type' => 'error',
+                'debug' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
@@ -192,12 +215,23 @@ class AttendanceController extends Controller
             Attendance::create([
                 'event_id' => $event->id,
                 'guest_id' => $guest->id,
-                'notes' => 'Registro manual: ' . ($request->reason ?? 'Sin especificar')
+                'scanned_at' => now(),
+                'scanned_by' => auth()->user()->name ?? 'Registro Manual',
+                'scan_metadata' => [
+                    'method' => 'manual_registration',
+                    'reason' => $request->reason ?? 'Sin especificar',
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent()
+                ]
             ]);
 
             // Enviar email de confirmación de asistencia si el invitado tiene email
             if (!empty($guest->email)) {
-                SendEmailJob::dispatch('attendance_confirmation', $guest);
+                try {
+                    SendEmailJob::dispatch('attendance_confirmation', $guest, $event);
+                } catch (\Exception $emailError) {
+                    Log::warning('Error al despachar email de confirmación (registro manual): ' . $emailError->getMessage());
+                }
             }
 
             return back()->with('success', 
