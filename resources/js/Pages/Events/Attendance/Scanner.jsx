@@ -114,7 +114,18 @@ export default function Scanner({ auth, event, statistics }) {
                                 console.log('Estado: paused =', videoRef.current.paused);
                                 console.log('Estado: ended =', videoRef.current.ended);
                                 console.log('Estado: readyState =', videoRef.current.readyState);
-                                resolve();
+                                console.log('Dimensiones:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
+                                
+                                // Esperar un poco más para asegurar que el video tenga frames
+                                setTimeout(() => {
+                                    if (videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
+                                        console.log('✅ Video con dimensiones válidas, iniciando escaneo');
+                                        resolve();
+                                    } else {
+                                        console.warn('⚠️ Video sin dimensiones después de espera');
+                                        resolve(); // Resolver de todas formas, startScanning esperará
+                                    }
+                                }, 500);
                             })
                             .catch((playError) => {
                                 console.error('❌ Error al reproducir:', playError);
@@ -181,26 +192,48 @@ export default function Scanner({ auth, event, statistics }) {
 
     // Iniciar escaneo continuo
     const startScanning = () => {
+        console.log('🔍 Iniciando escaneo continuo...');
+        
         scanIntervalRef.current = setInterval(() => {
             if (videoRef.current && canvasRef.current && !isProcessing) {
                 const video = videoRef.current;
                 const canvas = canvasRef.current;
-                const context = canvas.getContext('2d');
                 
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
+                // Verificar que el video tenga dimensiones válidas
+                if (video.videoWidth === 0 || video.videoHeight === 0) {
+                    console.warn('⚠️ Video sin dimensiones aún, esperando...');
+                    return;
+                }
                 
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                // Verificar que el video esté reproduciendo
+                if (video.paused || video.ended) {
+                    console.warn('⚠️ Video pausado o finalizado');
+                    return;
+                }
                 
-                // Obtener datos de imagen para jsQR
-                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-                const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: "dontInvert",
-                });
-                
-                if (code && code.data) {
-                    // QR detectado - procesar
-                    processScan(code.data);
+                try {
+                    const context = canvas.getContext('2d');
+                    
+                    // Establecer dimensiones del canvas
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    
+                    // Dibujar frame del video en el canvas
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    // Obtener datos de imagen para jsQR
+                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: "dontInvert",
+                    });
+                    
+                    if (code && code.data) {
+                        // QR detectado - procesar
+                        console.log('📱 QR detectado:', code.data.substring(0, 50) + '...');
+                        processScan(code.data);
+                    }
+                } catch (error) {
+                    console.error('❌ Error en escaneo:', error);
                 }
             }
         }, 300); // Escanear cada 300ms
