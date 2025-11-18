@@ -63,6 +63,19 @@ export default function Scanner({ auth, event, statistics }) {
                 throw new Error('Tu navegador no soporta acceso a la cámara. Usa un navegador moderno.');
             }
 
+            // Esperar un momento para que React monte los elementos
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            
+            if (!video || !canvas) {
+                console.error('❌ Refs no disponibles:', { video, canvas });
+                throw new Error('Elementos video/canvas no disponibles');
+            }
+            
+            console.log('✅ Elementos disponibles:', { video, canvas });
+
             // Solicitar stream de video
             console.log('🎥 Solicitando acceso a la cámara...');
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -79,12 +92,6 @@ export default function Scanner({ auth, event, statistics }) {
             console.log('📹 Configuración del stream:', settings);
             
             streamRef.current = stream;
-            const video = videoRef.current;
-            const canvas = canvasRef.current;
-            
-            if (!video || !canvas) {
-                throw new Error('Elementos video/canvas no disponibles');
-            }
             
             // Configurar video (oculto, solo para obtener frames)
             video.srcObject = stream;
@@ -443,30 +450,28 @@ export default function Scanner({ auth, event, statistics }) {
 
                                     {/* Área del escáner */}
                                     <div className="relative">
+                                        {/* Video y Canvas - siempre en el DOM */}
+                                        <video
+                                            ref={videoRef}
+                                            style={{ display: 'none' }}
+                                            autoPlay
+                                            playsInline
+                                            muted
+                                        />
+                                        <canvas
+                                            ref={canvasRef}
+                                            className="w-full h-auto rounded-lg"
+                                            style={{ 
+                                                minHeight: '400px',
+                                                maxHeight: '600px',
+                                                width: '100%',
+                                                display: isScanning ? 'block' : 'none',
+                                                backgroundColor: '#000'
+                                            }}
+                                        />
+                                        
                                         {isScanning ? (
-                                            <div className="relative bg-black rounded-lg overflow-hidden" style={{ minHeight: '400px' }}>
-                                                {/* Video oculto - solo para capturar frames */}
-                                                <video
-                                                    ref={videoRef}
-                                                    style={{ display: 'none' }}
-                                                    autoPlay
-                                                    playsInline
-                                                    muted
-                                                />
-                                                
-                                                {/* Canvas visible - muestra el video y el escaneo */}
-                                                <canvas
-                                                    ref={canvasRef}
-                                                    className="w-full h-auto rounded-lg"
-                                                    style={{ 
-                                                        minHeight: '400px',
-                                                        maxHeight: '600px',
-                                                        width: '100%',
-                                                        display: 'block',
-                                                        backgroundColor: '#000'
-                                                    }}
-                                                />
-                                                
+                                            <div className="relative">
                                                 {/* Overlay de escaneo */}
                                                 <div className="absolute inset-0 border-4 border-blue-500 rounded-lg pointer-events-none">
                                                     <div className="absolute top-4 left-4 w-8 h-8 border-l-4 border-t-4 border-white"></div>
