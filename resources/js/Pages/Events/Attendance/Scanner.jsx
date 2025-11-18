@@ -28,6 +28,7 @@ export default function Scanner({ auth, event, statistics }) {
     const canvasRef = useRef(null);
     const streamRef = useRef(null);
     const scanIntervalRef = useRef(null);
+    const animationFrameRef = useRef(null);
 
     // Sonidos
     const playSound = (type) => {
@@ -62,117 +63,63 @@ export default function Scanner({ auth, event, statistics }) {
                 throw new Error('Tu navegador no soporta acceso a la cámara. Usa un navegador moderno.');
             }
 
-            // Intentar primero con configuración completa
-            let stream;
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                });
-                console.log('✅ Stream obtenido con configuración completa');
-            } catch (err) {
-                console.warn('⚠️ Configuración completa falló, intentando simple...', err);
-                // Fallback: solicitar solo video sin restricciones
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: true
-                });
-                console.log('✅ Stream obtenido con configuración simple');
-            }
-            
-            console.log('Stream:', stream);
-            console.log('Tracks de video:', stream.getVideoTracks());
-            stream.getVideoTracks().forEach(track => {
-                console.log('Track settings:', track.getSettings());
+            // Solicitar stream de video
+            console.log('🎥 Solicitando acceso a la cámara...');
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
             });
             
+            console.log('✅ Stream obtenido');
+            const track = stream.getVideoTracks()[0];
+            const settings = track.getSettings();
+            console.log('📹 Configuración del stream:', settings);
+            
             streamRef.current = stream;
-            if (videoRef.current) {
-                const video = videoRef.current;
-                
-                // Configurar atributos ANTES de asignar el stream
-                video.setAttribute('autoplay', '');
-                video.setAttribute('playsinline', '');
-                video.setAttribute('muted', '');
-                video.muted = true;
-                video.playsInline = true;
-                
-                console.log('📹 Configurando video element...');
-                console.log('Stream tracks:', stream.getVideoTracks()[0].getSettings());
-                
-                // Asignar stream
-                video.srcObject = stream;
-                
-                console.log('✅ Stream asignado al video');
-                
-                // Esperar a que el video esté listo con AMBOS eventos
-                await new Promise((resolve, reject) => {
-                    let metadataLoaded = false;
-                    let dataLoaded = false;
-                    
-                    const checkReady = () => {
-                        if (metadataLoaded && dataLoaded) {
-                            console.log('✅ Video completamente cargado');
-                            console.log('Dimensiones finales:', video.videoWidth, 'x', video.videoHeight);
-                            resolve();
-                        }
-                    };
-                    
-                    video.onloadedmetadata = () => {
-                        console.log('✅ [loadedmetadata] Metadata cargada');
-                        console.log('Dimensiones:', video.videoWidth, 'x', video.videoHeight);
-                        console.log('ReadyState:', video.readyState);
-                        metadataLoaded = true;
-                        checkReady();
-                    };
-                    
-                    video.onloadeddata = () => {
-                        console.log('✅ [loadeddata] Primeros datos disponibles');
-                        console.log('Dimensiones:', video.videoWidth, 'x', video.videoHeight);
-                        dataLoaded = true;
-                        checkReady();
-                    };
-                    
-                    video.oncanplay = () => {
-                        console.log('✅ [canplay] Video puede empezar a reproducirse');
-                        console.log('Dimensiones en canplay:', video.videoWidth, 'x', video.videoHeight);
-                    };
-                    
-                    video.onerror = (err) => {
-                        console.error('❌ Error en video element:', err);
-                        reject(err);
-                    };
-                    
-                    // Timeout de seguridad - si después de 3 segundos no hay dimensiones, forzar
-                    setTimeout(() => {
-                        if (!metadataLoaded || !dataLoaded) {
-                            console.warn('⚠️ Timeout: Forzando resolución');
-                            resolve();
-                        }
-                    }, 3000);
-                });
-                
-                // IMPORTANTE: Intentar reproducir DESPUÉS de que metadata esté lista
-                console.log('▶️ Intentando reproducir video...');
-                try {
-                    await video.play();
-                    console.log('✅ Video reproduciendo');
-                    console.log('Estado: paused =', video.paused);
-                    console.log('Estado: readyState =', video.readyState);
-                    console.log('Dimensiones después de play:', video.videoWidth, 'x', video.videoHeight);
-                } catch (playError) {
-                    console.error('❌ Error al reproducir:', playError);
-                    throw playError;
-                }
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            
+            if (!video || !canvas) {
+                throw new Error('Elementos video/canvas no disponibles');
             }
             
+            // Configurar video (oculto, solo para obtener frames)
+            video.srcObject = stream;
+            video.muted = true;
+            video.playsInline = true;
+            
+            // Esperar a que el video tenga metadata
+            await new Promise((resolve, reject) => {
+                video.onloadedmetadata = () => {
+                    console.log('✅ Metadata cargada:', video.videoWidth, 'x', video.videoHeight);
+                    resolve();
+                };
+                video.onerror = reject;
+                setTimeout(() => reject(new Error('Timeout esperando metadata')), 5000);
+            });
+            
+            // Iniciar reproducción
+            await video.play();
+            console.log('✅ Video reproduciendo');
+            
+            // Configurar canvas con las dimensiones del video
+            const width = video.videoWidth || settings.width || 1280;
+            const height = video.videoHeight || settings.height || 720;
+            
+            canvas.width = width;
+            canvas.height = height;
+            console.log('✅ Canvas configurado:', width, 'x', height);
+            
             setIsScanning(true);
+            
+            // Iniciar bucle de renderizado y escaneo
             startScanning();
             
         } catch (error) {
-            console.error('Error accessing camera:', error);
+            console.error('❌ Error al acceder a la cámara:', error);
             
             let errorMessage = 'No se pudo acceder a la cámara. ';
             
@@ -199,6 +146,14 @@ export default function Scanner({ auth, event, statistics }) {
 
     // Detener cámara
     const stopCamera = () => {
+        console.log('🛑 Deteniendo cámara...');
+        
+        // Cancelar animación
+        if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
+        }
+        
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
             streamRef.current = null;
@@ -212,53 +167,67 @@ export default function Scanner({ auth, event, statistics }) {
         setIsScanning(false);
     };
 
-    // Iniciar escaneo continuo
+    // Iniciar escaneo continuo con renderizado
     const startScanning = () => {
-        console.log('🔍 Iniciando escaneo continuo...');
+        console.log('🔍 Iniciando bucle de renderizado y escaneo...');
         
-        scanIntervalRef.current = setInterval(() => {
-            if (videoRef.current && canvasRef.current && !isProcessing) {
-                const video = videoRef.current;
-                const canvas = canvasRef.current;
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        
+        if (!video || !canvas) {
+            console.error('❌ Video o canvas no disponibles');
+            return;
+        }
+        
+        const ctx = canvas.getContext('2d');
+        let frameCount = 0;
+        
+        // Función de renderizado que se ejecuta en cada frame
+        const tick = () => {
+            if (!video || video.paused || video.ended) {
+                console.log('⏹️ Video no disponible o detenido');
+                return;
+            }
+            
+            try {
+                // Dibujar el frame actual del video en el canvas
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
-                // Verificar que el video tenga dimensiones válidas
-                if (video.videoWidth === 0 || video.videoHeight === 0) {
-                    console.warn('⚠️ Video sin dimensiones aún, esperando...');
-                    return;
-                }
-                
-                // Verificar que el video esté reproduciendo
-                if (video.paused || video.ended) {
-                    console.warn('⚠️ Video pausado o finalizado');
-                    return;
-                }
-                
-                try {
-                    const context = canvas.getContext('2d');
-                    
-                    // Establecer dimensiones del canvas
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    
-                    // Dibujar frame del video en el canvas
-                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    
-                    // Obtener datos de imagen para jsQR
-                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                // Cada 10 frames (~300ms a 60fps), intentar escanear QR
+                if (frameCount % 10 === 0 && !isProcessing) {
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const code = jsQR(imageData.data, imageData.width, imageData.height, {
                         inversionAttempts: "dontInvert",
                     });
                     
                     if (code && code.data) {
-                        // QR detectado - procesar
                         console.log('📱 QR detectado:', code.data.substring(0, 50) + '...');
                         processScan(code.data);
+                        
+                        // Dibujar rectángulo alrededor del QR detectado
+                        ctx.strokeStyle = '#00FF00';
+                        ctx.lineWidth = 4;
+                        ctx.strokeRect(
+                            code.location.topLeftCorner.x,
+                            code.location.topLeftCorner.y,
+                            code.location.bottomRightCorner.x - code.location.topLeftCorner.x,
+                            code.location.bottomRightCorner.y - code.location.topLeftCorner.y
+                        );
                     }
-                } catch (error) {
-                    console.error('❌ Error en escaneo:', error);
                 }
+                
+                frameCount++;
+            } catch (error) {
+                console.error('❌ Error en tick:', error);
             }
-        }, 300); // Escanear cada 300ms
+            
+            // Solicitar el siguiente frame
+            animationFrameRef.current = requestAnimationFrame(tick);
+        };
+        
+        // Iniciar el bucle
+        tick();
+        console.log('✅ Bucle de renderizado iniciado');
     };
 
     // Procesar código QR
@@ -476,8 +445,18 @@ export default function Scanner({ auth, event, statistics }) {
                                     <div className="relative">
                                         {isScanning ? (
                                             <div className="relative bg-black rounded-lg overflow-hidden" style={{ minHeight: '400px' }}>
+                                                {/* Video oculto - solo para capturar frames */}
                                                 <video
                                                     ref={videoRef}
+                                                    style={{ display: 'none' }}
+                                                    autoPlay
+                                                    playsInline
+                                                    muted
+                                                />
+                                                
+                                                {/* Canvas visible - muestra el video y el escaneo */}
+                                                <canvas
+                                                    ref={canvasRef}
                                                     className="w-full h-auto rounded-lg"
                                                     style={{ 
                                                         minHeight: '400px',
@@ -486,13 +465,6 @@ export default function Scanner({ auth, event, statistics }) {
                                                         display: 'block',
                                                         backgroundColor: '#000'
                                                     }}
-                                                    autoPlay
-                                                    playsInline
-                                                    muted
-                                                />
-                                                <canvas
-                                                    ref={canvasRef}
-                                                    className="hidden"
                                                 />
                                                 
                                                 {/* Overlay de escaneo */}
