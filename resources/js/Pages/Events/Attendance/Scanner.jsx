@@ -90,60 +90,82 @@ export default function Scanner({ auth, event, statistics }) {
             
             streamRef.current = stream;
             if (videoRef.current) {
-                videoRef.current.srcObject = stream;
+                const video = videoRef.current;
                 
-                // Forzar atributos del video
-                videoRef.current.setAttribute('autoplay', '');
-                videoRef.current.setAttribute('playsinline', '');
-                videoRef.current.setAttribute('muted', '');
+                // Configurar atributos ANTES de asignar el stream
+                video.setAttribute('autoplay', '');
+                video.setAttribute('playsinline', '');
+                video.setAttribute('muted', '');
+                video.muted = true;
+                video.playsInline = true;
                 
-                // Log para debugging
+                console.log('📹 Configurando video element...');
+                console.log('Stream tracks:', stream.getVideoTracks()[0].getSettings());
+                
+                // Asignar stream
+                video.srcObject = stream;
+                
                 console.log('✅ Stream asignado al video');
-                console.log('Video element:', videoRef.current);
                 
-                // Esperar a que el video esté listo
+                // Esperar a que el video esté listo con AMBOS eventos
                 await new Promise((resolve, reject) => {
-                    videoRef.current.onloadedmetadata = () => {
-                        console.log('✅ Video metadata cargada');
-                        console.log('Dimensiones del video:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
-                        
-                        // Intentar reproducir
-                        videoRef.current.play()
-                            .then(() => {
-                                console.log('✅ Video reproduciendo exitosamente');
-                                console.log('Estado: paused =', videoRef.current.paused);
-                                console.log('Estado: ended =', videoRef.current.ended);
-                                console.log('Estado: readyState =', videoRef.current.readyState);
-                                console.log('Dimensiones:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
-                                
-                                // Esperar un poco más para asegurar que el video tenga frames
-                                setTimeout(() => {
-                                    if (videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
-                                        console.log('✅ Video con dimensiones válidas, iniciando escaneo');
-                                        resolve();
-                                    } else {
-                                        console.warn('⚠️ Video sin dimensiones después de espera');
-                                        resolve(); // Resolver de todas formas, startScanning esperará
-                                    }
-                                }, 500);
-                            })
-                            .catch((playError) => {
-                                console.error('❌ Error al reproducir:', playError);
-                                reject(playError);
-                            });
+                    let metadataLoaded = false;
+                    let dataLoaded = false;
+                    
+                    const checkReady = () => {
+                        if (metadataLoaded && dataLoaded) {
+                            console.log('✅ Video completamente cargado');
+                            console.log('Dimensiones finales:', video.videoWidth, 'x', video.videoHeight);
+                            resolve();
+                        }
                     };
                     
-                    videoRef.current.onerror = (err) => {
+                    video.onloadedmetadata = () => {
+                        console.log('✅ [loadedmetadata] Metadata cargada');
+                        console.log('Dimensiones:', video.videoWidth, 'x', video.videoHeight);
+                        console.log('ReadyState:', video.readyState);
+                        metadataLoaded = true;
+                        checkReady();
+                    };
+                    
+                    video.onloadeddata = () => {
+                        console.log('✅ [loadeddata] Primeros datos disponibles');
+                        console.log('Dimensiones:', video.videoWidth, 'x', video.videoHeight);
+                        dataLoaded = true;
+                        checkReady();
+                    };
+                    
+                    video.oncanplay = () => {
+                        console.log('✅ [canplay] Video puede empezar a reproducirse');
+                        console.log('Dimensiones en canplay:', video.videoWidth, 'x', video.videoHeight);
+                    };
+                    
+                    video.onerror = (err) => {
                         console.error('❌ Error en video element:', err);
                         reject(err);
                     };
                     
-                    // Timeout de seguridad
+                    // Timeout de seguridad - si después de 3 segundos no hay dimensiones, forzar
                     setTimeout(() => {
-                        console.error('❌ Timeout al cargar video');
-                        reject(new Error('Timeout al cargar video'));
-                    }, 10000);
+                        if (!metadataLoaded || !dataLoaded) {
+                            console.warn('⚠️ Timeout: Forzando resolución');
+                            resolve();
+                        }
+                    }, 3000);
                 });
+                
+                // IMPORTANTE: Intentar reproducir DESPUÉS de que metadata esté lista
+                console.log('▶️ Intentando reproducir video...');
+                try {
+                    await video.play();
+                    console.log('✅ Video reproduciendo');
+                    console.log('Estado: paused =', video.paused);
+                    console.log('Estado: readyState =', video.readyState);
+                    console.log('Dimensiones después de play:', video.videoWidth, 'x', video.videoHeight);
+                } catch (playError) {
+                    console.error('❌ Error al reproducir:', playError);
+                    throw playError;
+                }
             }
             
             setIsScanning(true);
@@ -460,8 +482,9 @@ export default function Scanner({ auth, event, statistics }) {
                                                     style={{ 
                                                         minHeight: '400px',
                                                         maxHeight: '600px',
-                                                        objectFit: 'cover',
-                                                        display: 'block'
+                                                        width: '100%',
+                                                        display: 'block',
+                                                        backgroundColor: '#000'
                                                     }}
                                                     autoPlay
                                                     playsInline
