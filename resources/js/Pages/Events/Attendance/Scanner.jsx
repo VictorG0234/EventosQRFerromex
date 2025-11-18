@@ -75,11 +75,20 @@ export default function Scanner({ auth, event, statistics }) {
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 
+                // Log para debugging
+                console.log('✅ Stream asignado al video');
+                console.log('Video dimensions:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
+                
                 // Esperar a que el video esté listo
                 await new Promise((resolve, reject) => {
                     videoRef.current.onloadedmetadata = () => {
+                        console.log('✅ Video metadata cargada');
+                        console.log('Dimensiones reales:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
                         videoRef.current.play()
-                            .then(resolve)
+                            .then(() => {
+                                console.log('✅ Video reproduciendo');
+                                resolve();
+                            })
                             .catch(reject);
                     };
                     
@@ -373,10 +382,16 @@ export default function Scanner({ auth, event, statistics }) {
                                     {/* Área del escáner */}
                                     <div className="relative">
                                         {isScanning ? (
-                                            <div className="relative">
+                                            <div className="relative bg-black rounded-lg overflow-hidden" style={{ minHeight: '400px' }}>
                                                 <video
                                                     ref={videoRef}
-                                                    className="w-full max-h-96 object-cover rounded-lg"
+                                                    className="w-full h-auto rounded-lg"
+                                                    style={{ 
+                                                        minHeight: '400px',
+                                                        maxHeight: '600px',
+                                                        objectFit: 'cover',
+                                                        display: 'block'
+                                                    }}
                                                     autoPlay
                                                     playsInline
                                                     muted
@@ -396,6 +411,12 @@ export default function Scanner({ auth, event, statistics }) {
                                                 
                                                 {/* Línea de escaneo animada */}
                                                 <div className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500 shadow-lg animate-pulse"></div>
+                                                
+                                                {/* Indicador de estado */}
+                                                <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center">
+                                                    <span className="animate-pulse mr-1">●</span>
+                                                    Escaneando...
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="flex items-center justify-center h-64 bg-gray-100 rounded-lg">
