@@ -57,6 +57,12 @@ export default function Scanner({ auth, event, statistics }) {
     // Inicializar cámara
     const startCamera = async () => {
         try {
+            // Verificar si la API está disponible
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('Tu navegador no soporta acceso a la cámara. Usa un navegador moderno.');
+            }
+
+            // Solicitar acceso a la cámara
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { 
                     facingMode: 'environment', // Cámara trasera preferida
@@ -68,14 +74,46 @@ export default function Scanner({ auth, event, statistics }) {
             streamRef.current = stream;
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
-                videoRef.current.play();
+                
+                // Esperar a que el video esté listo
+                await new Promise((resolve, reject) => {
+                    videoRef.current.onloadedmetadata = () => {
+                        videoRef.current.play()
+                            .then(resolve)
+                            .catch(reject);
+                    };
+                    
+                    // Timeout de seguridad
+                    setTimeout(() => reject(new Error('Timeout al cargar video')), 10000);
+                });
             }
             
             setIsScanning(true);
             startScanning();
+            
         } catch (error) {
             console.error('Error accessing camera:', error);
-            alert('No se pudo acceder a la cámara. Verifica los permisos.');
+            
+            let errorMessage = 'No se pudo acceder a la cámara. ';
+            
+            if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                errorMessage += 'Permisos denegados. Ve a la configuración de tu navegador y permite el acceso a la cámara para este sitio.';
+            } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                errorMessage += 'No se detectó ninguna cámara en tu dispositivo.';
+            } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+                errorMessage += 'La cámara está siendo usada por otra aplicación. Cierra otras apps que usen la cámara.';
+            } else if (error.name === 'OverconstrainedError') {
+                errorMessage += 'No se pudo configurar la cámara con los requisitos solicitados.';
+            } else if (error.name === 'SecurityError') {
+                errorMessage += 'Verifica que estás usando HTTPS y que el sitio tiene permisos de cámara.';
+            } else {
+                errorMessage += error.message || 'Error desconocido.';
+            }
+            
+            alert(errorMessage);
+            
+            // Si falló, mostrar el modo manual
+            setManualMode(true);
         }
     };
 
@@ -272,13 +310,47 @@ export default function Scanner({ auth, event, statistics }) {
                                         </h3>
                                         <div className="flex space-x-2">
                                             {!isScanning ? (
-                                                <button
-                                                    onClick={startCamera}
-                                                    className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150"
-                                                >
-                                                    <CameraIcon className="w-4 h-4 mr-2" />
-                                                    Iniciar Escáner
-                                                </button>
+                                                <>
+                                                    <button
+                                                        onClick={async () => {
+                                                            // Diagnóstico de cámara
+                                                            try {
+                                                                const devices = await navigator.mediaDevices.enumerateDevices();
+                                                                const cameras = devices.filter(d => d.kind === 'videoinput');
+                                                                
+                                                                let msg = `🎥 DIAGNÓSTICO DE CÁMARA\n\n`;
+                                                                msg += `✅ HTTPS: ${window.location.protocol === 'https:' ? 'Sí' : '❌ NO'}\n`;
+                                                                msg += `✅ API disponible: ${navigator.mediaDevices ? 'Sí' : '❌ NO'}\n`;
+                                                                msg += `✅ Cámaras detectadas: ${cameras.length}\n\n`;
+                                                                
+                                                                if (cameras.length > 0) {
+                                                                    msg += `Cámaras:\n`;
+                                                                    cameras.forEach((cam, i) => {
+                                                                        msg += `${i + 1}. ${cam.label || 'Cámara sin nombre'}\n`;
+                                                                    });
+                                                                } else {
+                                                                    msg += `❌ No se detectaron cámaras.\n`;
+                                                                    msg += `Verifica que tu dispositivo tenga cámara.`;
+                                                                }
+                                                                
+                                                                alert(msg);
+                                                            } catch (error) {
+                                                                alert(`Error en diagnóstico: ${error.message}`);
+                                                            }
+                                                        }}
+                                                        className="inline-flex items-center px-3 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition"
+                                                        title="Ver información de cámara"
+                                                    >
+                                                        ℹ️
+                                                    </button>
+                                                    <button
+                                                        onClick={startCamera}
+                                                        className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150"
+                                                    >
+                                                        <CameraIcon className="w-4 h-4 mr-2" />
+                                                        Iniciar Escáner
+                                                    </button>
+                                                </>
                                             ) : (
                                                 <button
                                                     onClick={stopCamera}
