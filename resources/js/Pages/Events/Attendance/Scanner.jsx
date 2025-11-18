@@ -62,38 +62,76 @@ export default function Scanner({ auth, event, statistics }) {
                 throw new Error('Tu navegador no soporta acceso a la cámara. Usa un navegador moderno.');
             }
 
-            // Solicitar acceso a la cámara
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { 
-                    facingMode: 'environment', // Cámara trasera preferida
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
+            // Intentar primero con configuración completa
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                console.log('✅ Stream obtenido con configuración completa');
+            } catch (err) {
+                console.warn('⚠️ Configuración completa falló, intentando simple...', err);
+                // Fallback: solicitar solo video sin restricciones
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: true
+                });
+                console.log('✅ Stream obtenido con configuración simple');
+            }
+            
+            console.log('Stream:', stream);
+            console.log('Tracks de video:', stream.getVideoTracks());
+            stream.getVideoTracks().forEach(track => {
+                console.log('Track settings:', track.getSettings());
             });
             
             streamRef.current = stream;
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 
+                // Forzar atributos del video
+                videoRef.current.setAttribute('autoplay', '');
+                videoRef.current.setAttribute('playsinline', '');
+                videoRef.current.setAttribute('muted', '');
+                
                 // Log para debugging
                 console.log('✅ Stream asignado al video');
-                console.log('Video dimensions:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
+                console.log('Video element:', videoRef.current);
                 
                 // Esperar a que el video esté listo
                 await new Promise((resolve, reject) => {
                     videoRef.current.onloadedmetadata = () => {
                         console.log('✅ Video metadata cargada');
-                        console.log('Dimensiones reales:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
+                        console.log('Dimensiones del video:', videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
+                        
+                        // Intentar reproducir
                         videoRef.current.play()
                             .then(() => {
-                                console.log('✅ Video reproduciendo');
+                                console.log('✅ Video reproduciendo exitosamente');
+                                console.log('Estado: paused =', videoRef.current.paused);
+                                console.log('Estado: ended =', videoRef.current.ended);
+                                console.log('Estado: readyState =', videoRef.current.readyState);
                                 resolve();
                             })
-                            .catch(reject);
+                            .catch((playError) => {
+                                console.error('❌ Error al reproducir:', playError);
+                                reject(playError);
+                            });
+                    };
+                    
+                    videoRef.current.onerror = (err) => {
+                        console.error('❌ Error en video element:', err);
+                        reject(err);
                     };
                     
                     // Timeout de seguridad
-                    setTimeout(() => reject(new Error('Timeout al cargar video')), 10000);
+                    setTimeout(() => {
+                        console.error('❌ Timeout al cargar video');
+                        reject(new Error('Timeout al cargar video'));
+                    }, 10000);
                 });
             }
             
