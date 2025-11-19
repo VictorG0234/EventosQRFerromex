@@ -440,7 +440,16 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                                                         </p>
                                                     </div>
                                                     <div className="flex-shrink-0 text-sm text-gray-500">
-                                                        {attendance.attended_at}
+                                                        {new Date(attendance.attended_at).toLocaleString('es-MX', {
+                                                            timeZone: 'America/Mexico_City',
+                                                            year: 'numeric',
+                                                            month: '2-digit',
+                                                            day: '2-digit',
+                                                            hour: '2-digit',
+                                                            minute: '2-digit',
+                                                            second: '2-digit',
+                                                            hour12: false
+                                                        })}
                                                     </div>
                                                 </div>
                                             </li>

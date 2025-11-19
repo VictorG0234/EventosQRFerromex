@@ -109,7 +109,10 @@ class EventController extends Controller
             ],
             'prizes_by_category' => $event->prizes->groupBy('category')->map->sum('stock'),
             'hourly_attendance' => $event->attendances
-                ->groupBy(fn($attendance) => $attendance->scanned_at ? $attendance->scanned_at->format('H') : $attendance->created_at->format('H'))
+                ->groupBy(function($attendance) {
+                    $timestamp = $attendance->scanned_at ?? $attendance->created_at;
+                    return $timestamp->setTimezone('America/Mexico_City')->format('H');
+                })
                 ->map->count()
                 ->sortKeys()
                 ->toArray(),
@@ -254,10 +257,13 @@ class EventController extends Controller
                 'active_raffle_entries' => $event->raffleEntries()->count(),
             ],
             'hourly_attendance' => $event->attendances()
-                ->selectRaw('HOUR(COALESCE(scanned_at, created_at)) as hour, COUNT(*) as count')
-                ->groupBy('hour')
-                ->orderBy('hour')
-                ->pluck('count', 'hour')
+                ->get()
+                ->groupBy(function ($attendance) {
+                    $timestamp = $attendance->scanned_at ?? $attendance->created_at;
+                    return $timestamp->setTimezone('America/Mexico_City')->format('H');
+                })
+                ->map->count()
+                ->sortKeys()
                 ->toArray(),
             'attendance_by_area' => $event->attendances()
                 ->join('guests', 'attendances.guest_id', '=', 'guests.id')
