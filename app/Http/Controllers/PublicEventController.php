@@ -67,8 +67,7 @@ class PublicEventController extends Controller
         // Enviar email de invitación con código QR
         try {
             if ($guest->correo && filter_var($guest->correo, FILTER_VALIDATE_EMAIL)) {
-                Mail::to($guest->correo)->send(new GuestInvitationMail($guest, $event));
-                
+                // Mail::to($guest->correo)->send(new GuestInvitationMail($guest, $event));                
                 Log::info('Email de invitación enviado', [
                     'guest_id' => $guest->id,
                     'guest_name' => $guest->full_name,
