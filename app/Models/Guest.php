@@ -35,6 +35,11 @@ class Guest extends Model
         'email_sent' => 'boolean',
     ];
 
+    protected $appends = [
+        'full_name',
+        'has_attended',
+    ];
+
     protected static function boot()
     {
         parent::boot();
@@ -66,6 +71,11 @@ class Guest extends Model
     public function getFullNameAttribute(): string
     {
         return $this->nombre_completo;
+    }
+
+    public function getHasAttendedAttribute(): bool
+    {
+        return $this->attendance !== null;
     }
 
     public function hasAttended(): bool

@@ -119,7 +119,9 @@ class PublicEventController extends Controller
                 'localidad' => $guest->localidad,
                 'categoria_rifa' => $guest->categoria_rifa,
                 'has_attended' => $guest->has_attended,
-                'attended_at' => $guest->attendance ? $guest->attendance->created_at->format('d/m/Y H:i') : null,
+                'attended_at' => $guest->attendance 
+                    ? ($guest->attendance->scanned_at ?? $guest->attendance->created_at)->setTimezone('America/Mexico_City')->format('d/m/Y H:i') 
+                    : null,
                 'qr_code_url' => $guest->qr_code_path ? asset('storage/' . $guest->qr_code_path) : null,
             ]
         ]);
