@@ -150,7 +150,9 @@ class EventController extends Controller
                         'id' => $attendance->id,
                         'guest_name' => $attendance->guest->full_name,
                         'employee_number' => $attendance->guest->numero_empleado,
-                        'attended_at' => ($attendance->scanned_at ?? $attendance->created_at)->format('d/m/Y H:i:s'),
+                        'attended_at' => \Carbon\Carbon::parse($attendance->scanned_at ?? $attendance->created_at)
+                            ->setTimezone('America/Mexico_City')
+                            ->format('d/m/Y H:i:s'),
                     ];
                 })
         ]);
