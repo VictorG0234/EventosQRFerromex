@@ -26,7 +26,7 @@ class PublicEventController extends Controller
                 'name' => $event->name,
                 'description' => $event->description,
                 'event_date' => $event->event_date->format('d/m/Y'),
-                'start_time' => $event->start_time ? $event->start_time->format('H:i') : null,
+                'start_time' => $event->start_time ? $event->start_time->setTimezone('America/Mexico_City')->format('H:i') : null,
                 'location' => $event->location,
             ]
         ]);
@@ -106,7 +106,7 @@ class PublicEventController extends Controller
                 'name' => $event->name,
                 'description' => $event->description,
                 'event_date' => $event->event_date->format('d/m/Y'),
-                'start_time' => $event->start_time ? $event->start_time->format('H:i') : null,
+                'start_time' => $event->start_time ? $event->start_time->setTimezone('America/Mexico_City')->format('H:i') : null,
                 'location' => $event->location,
             ],
             'guest' => [
