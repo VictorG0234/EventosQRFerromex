@@ -106,24 +106,24 @@ export default function GuestDetails({ event, guest, token }) {
                                 <span className="font-medium text-gray-600 dark:text-gray-400 w-32">No. Empleado:</span>
                                 <span className="text-gray-900 dark:text-white">{guest.numero_empleado}</span>
                             </div>
-                            {guest.puesto && (
+                            {/* {guest.puesto && (
                                 <div className="flex items-start">
                                     <span className="font-medium text-gray-600 dark:text-gray-400 w-32">Puesto:</span>
                                     <span className="text-gray-900 dark:text-white">{guest.puesto}</span>
                                 </div>
-                            )}
+                            )} */}
                             {guest.localidad && (
                                 <div className="flex items-start">
                                     <span className="font-medium text-gray-600 dark:text-gray-400 w-32">Localidad:</span>
                                     <span className="text-gray-900 dark:text-white">{guest.localidad}</span>
                                 </div>
                             )}
-                            {guest.categoria_rifa && (
+                            {/* {guest.categoria_rifa && (
                                 <div className="flex items-start">
                                     <span className="font-medium text-gray-600 dark:text-gray-400 w-32">Categoría:</span>
                                     <span className="text-gray-900 dark:text-white">{guest.categoria_rifa}</span>
                                 </div>
-                            )}
+                            )} */}
                         </div>
                     </div>
 
@@ -151,15 +151,18 @@ export default function GuestDetails({ event, guest, token }) {
                                 Tu Código QR
                             </h2>
                             <p className="text-gray-600 dark:text-gray-400 mb-6">
-                                Presenta este código en el registro del evento
+                                Presenta este código en el evento para registrar tu asistencia.
                             </p>
-                            <div className="inline-block bg-white p-6 rounded-xl shadow-lg">
+                            <p className="text-gray-600 dark:text-gray-400 mb-6">
+                                También te lo enviamos al correo registrado por el staff.
+                            </p>
+                            {/* <div className="inline-block bg-white p-6 rounded-xl shadow-lg">
                                 <img 
                                     src={guest.qr_code_url} 
                                     alt="Código QR" 
                                     className="w-64 h-64 mx-auto"
                                 />
-                            </div>
+                            </div> */}
                             <a
                                 href={guest.qr_code_url}
                                 download={`QR_${guest.numero_empleado}.png`}
