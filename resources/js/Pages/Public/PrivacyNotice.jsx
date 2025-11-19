@@ -57,14 +57,15 @@ export default function PrivacyNotice() {
                     mexicana que le es obligatoria a Ferrocarril Mexicano, S.A.
                     de C.V.
                   </p>
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4"></p>
+                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
                   Así mismo si por alguna razón o situación no prevista fuera
                   necesario contar con algún otro dato que no hubiera
                   proporcionado o que no se le hubiera requerido durante su
                   proceso de contratación, la empresa le informará para que
                   Usted pueda en un momento determinado emitir su decisión para
                   el uso y protección de esos nuevos datos personales incluyendo
-                  los sensibles.z
+                  los sensibles
+                  </p>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
                     En virtud de lo expuesto, le pedimos que en este acto y si
                     así es su decisión unilateral, voluntaria y por su propio
