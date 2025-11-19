@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Models\Guest;
+use App\Mail\GuestInvitationMail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class PublicEventController extends Controller
@@ -61,9 +64,29 @@ class PublicEventController extends Controller
             ]);
         }
 
+        // Enviar email de invitación con código QR
+        try {
+            if ($guest->correo && filter_var($guest->correo, FILTER_VALIDATE_EMAIL)) {
+                Mail::to($guest->correo)->send(new GuestInvitationMail($guest, $event));
+                
+                Log::info('Email de invitación enviado', [
+                    'guest_id' => $guest->id,
+                    'guest_name' => $guest->full_name,
+                    'email' => $guest->correo,
+                    'event_id' => $event->id
+                ]);
+            }
+        } catch (\Exception $e) {
+            // No bloqueamos el flujo si falla el email, solo lo registramos
+            Log::error('Error al enviar email de invitación', [
+                'guest_id' => $guest->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+
         // Redirigir a la página de detalles del invitado
         return redirect()->route('public.event.guest.details', [$token, $guest->id])
-            ->with('success', '¡Bienvenido ' . $guest->full_name . '!');
+            ->with('success', '¡Bienvenido ' . $guest->full_name . '! Hemos enviado tu código QR a tu correo electrónico.');
     }
 
     /**
@@ -101,5 +124,13 @@ class PublicEventController extends Controller
                 'qr_code_url' => $guest->qr_code_path ? asset('storage/' . $guest->qr_code_path) : null,
             ]
         ]);
+    }
+
+    /**
+     * Show privacy notice page
+     */
+    public function showPrivacyNotice()
+    {
+        return Inertia::render('Public/PrivacyNotice');
     }
 }

@@ -8,14 +8,16 @@ import {
     QrCodeIcon,
     ArrowLeftIcon
 } from '@heroicons/react/24/outline';
+import PublicFooter from '@/Components/PublicFooter';
 
 export default function GuestDetails({ event, guest, token }) {
     return (
         <>
             <Head title={`${guest.full_name} - ${event.name}`} />
             
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-12 px-4">
-                <div className="max-w-2xl mx-auto">
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex flex-col">
+                <div className="flex-grow py-12 px-4">
+                    <div className="max-w-2xl mx-auto">
                     
                     {/* Botón volver */}
                     <Link
@@ -173,7 +175,10 @@ export default function GuestDetails({ event, guest, token }) {
                             </a>
                         </div>
                     )}
+                    </div>
                 </div>
+                
+                <PublicFooter />
             </div>
         </>
     );

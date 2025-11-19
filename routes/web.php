@@ -16,6 +16,7 @@ use Inertia\Inertia;
 Route::get('/event/{token}', [PublicEventController::class, 'showRegistrationForm'])->name('public.event.register');
 Route::post('/event/{token}/validate', [PublicEventController::class, 'validateGuest'])->name('public.event.validate');
 Route::get('/event/{token}/guest/{guest}', [PublicEventController::class, 'showGuestDetails'])->name('public.event.guest.details');
+Route::get('/aviso-de-privacidad', [PublicEventController::class, 'showPrivacyNotice'])->name('public.privacy.notice');
 
 Route::get('/', function () {
     return redirect()->route('register');

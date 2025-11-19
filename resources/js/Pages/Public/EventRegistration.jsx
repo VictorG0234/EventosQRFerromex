@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import { CalendarIcon, MapPinIcon, ClockIcon } from '@heroicons/react/24/outline';
+import PublicFooter from '@/Components/PublicFooter';
 
 export default function EventRegistration({ event, token }) {
     const { data, setData, post, processing, errors } = useForm({
@@ -16,8 +17,9 @@ export default function EventRegistration({ event, token }) {
         <>
             <Head title={`Registro - ${event.name}`} />
             
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
-                <div className="w-full max-w-md">
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex flex-col">
+                <div className="flex-grow flex items-center justify-center p-4">
+                    <div className="w-full max-w-md">
                     {/* Logo o header */}
                     <div className="text-center mb-8">
                         <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-600 rounded-full mb-4">
@@ -106,7 +108,10 @@ export default function EventRegistration({ event, token }) {
                     <div className="text-center text-sm text-gray-600 dark:text-gray-400">
                         <p>Sistema de Registro de Eventos</p>
                     </div>
+                    </div>
                 </div>
+                
+                <PublicFooter />
             </div>
         </>
     );
