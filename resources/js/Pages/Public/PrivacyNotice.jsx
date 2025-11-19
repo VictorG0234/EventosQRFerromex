@@ -115,17 +115,14 @@ export default function PrivacyNotice() {
                   <div className="bg-blue-50 dark:bg-gray-700 rounded-lg p-6">
                     <p className="text-gray-700 dark:text-gray-300 mb-3">
                       Para cualquier duda o aclaración sobre este aviso de
-                      privacidad, puedes contactarnos en:
+                      privacidad, puedes contactarnos con:
                     </p>
                     <div className="space-y-2 text-gray-700 dark:text-gray-300">
                       <p>
-                        <strong>Email:</strong> privacidad@empresa.com
+                        Lic. Cynthia Corina Morales Cambronero
                       </p>
                       <p>
-                        <strong>Teléfono:</strong> +52 (55) 1234-5678
-                      </p>
-                      <p>
-                        <strong>Dirección:</strong> [Dirección completa]
+                        <strong>Teléfono:</strong> 55 52463700 <strong>extensión:</strong> 3845
                       </p>
                     </div>
                   </div>
