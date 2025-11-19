@@ -101,6 +101,7 @@ class EventController extends Controller
             'overview' => [
                 'total_guests' => $totalGuests,
                 'total_attendances' => $totalAttendances,
+                'pending_guests' => $totalGuests - $totalAttendances,
                 'attendance_rate' => $attendanceRate,
                 'total_prizes' => $event->prizes->count(),
                 'total_prize_stock' => $event->prizes->sum('stock'),
@@ -247,6 +248,7 @@ class EventController extends Controller
             'overview' => [
                 'total_guests' => $totalGuests,
                 'total_attendances' => $totalAttendances,
+                'pending_guests' => $totalGuests - $totalAttendances,
                 'attendance_rate' => $totalGuests > 0 ? round(($totalAttendances / $totalGuests) * 100, 2) : 0,
                 'total_prizes' => $event->prizes()->count(),
                 'active_raffle_entries' => $event->raffleEntries()->count(),
