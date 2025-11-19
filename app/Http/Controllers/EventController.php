@@ -114,9 +114,9 @@ class EventController extends Controller
                 ->toArray(),
             'attendance_by_work_area' => $event->attendances()
                 ->join('guests', 'attendances.guest_id', '=', 'guests.id')
-                ->selectRaw('guests.area_laboral, COUNT(*) as count')
-                ->groupBy('guests.area_laboral')
-                ->pluck('count', 'area_laboral')
+                ->selectRaw('guests.puesto, COUNT(*) as count')
+                ->groupBy('guests.puesto')
+                ->pluck('count', 'puesto')
                 ->toArray(),
         ];
 
@@ -259,9 +259,9 @@ class EventController extends Controller
                 ->toArray(),
             'attendance_by_area' => $event->attendances()
                 ->join('guests', 'attendances.guest_id', '=', 'guests.id')
-                ->selectRaw('guests.area_laboral, COUNT(*) as count')
-                ->groupBy('guests.area_laboral')
-                ->pluck('count', 'area_laboral')
+                ->selectRaw('guests.puesto, COUNT(*) as count')
+                ->groupBy('guests.puesto')
+                ->pluck('count', 'puesto')
                 ->toArray(),
         ];
 
