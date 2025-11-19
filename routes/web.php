@@ -35,6 +35,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('events', EventController::class);
     Route::patch('events/{event}/toggle-active', [EventController::class, 'toggleActive'])->name('events.toggle-active');
     Route::get('events/{event}/statistics', [EventController::class, 'statistics'])->name('events.statistics');
+    Route::get('events/{event}/statistics-report', [EventController::class, 'statisticsReport'])->name('events.statistics.report');
+    Route::get('events/{event}/statistics-pdf', [EventController::class, 'generatePDF'])->name('events.statistics.pdf');
     
     // Rutas de invitados - Las rutas específicas DEBEN ir ANTES de las rutas con parámetros dinámicos
     Route::get('events/{event}/guests', [GuestController::class, 'index'])->name('events.guests.index');

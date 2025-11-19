@@ -119,11 +119,11 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                         </Link>
                         
                         <Link
-                            href={route('events.emails.index', event.id)}
+                            href={route('events.statistics.report', event.id)}
                             className="inline-flex items-center px-3 py-2 border border-purple-300 dark:border-purple-600 shadow-sm text-sm leading-4 font-medium rounded-md text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900 hover:bg-purple-100 dark:hover:bg-purple-800"
                         >
-                            <EnvelopeIcon className="w-4 h-4 mr-2" />
-                            Emails
+                            <ChartBarIcon className="w-4 h-4 mr-2" />
+                            Estadísticas
                         </Link>
                         
                         <Link

@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class EventController extends Controller
 {
@@ -289,5 +291,145 @@ class EventController extends Controller
         ];
 
         return response()->json($stats);
+    }
+
+    /**
+     * Show statistics report page
+     */
+    public function statisticsReport(Event $event)
+    {
+        $this->authorize('view', $event);
+
+        $event->load(['guests', 'prizes', 'attendances.guest']);
+        
+        // Estadísticas del evento
+        $totalGuests = $event->guests->count();
+        $totalAttendances = $event->attendances->count();
+        $attendanceRate = $totalGuests > 0 ? 
+            round(($totalAttendances / $totalGuests) * 100, 2) : 0;
+        
+        $statistics = [
+            'overview' => [
+                'total_guests' => $totalGuests,
+                'total_attendances' => $totalAttendances,
+                'pending_guests' => $totalGuests - $totalAttendances,
+                'attendance_rate' => $attendanceRate,
+                'total_prizes' => $event->prizes->count(),
+                'total_prize_stock' => $event->prizes->sum('stock'),
+                'active_raffle_entries' => $event->raffleEntries()->count(),
+            ],
+            'prizes_by_category' => $event->prizes->groupBy('category')->map->sum('stock'),
+            'hourly_attendance' => $event->attendances
+                ->groupBy(function($attendance) {
+                    $timestamp = $attendance->scanned_at ?? $attendance->created_at;
+                    return \Carbon\Carbon::parse($timestamp)->setTimezone('America/Mexico_City')->format('H');
+                })
+                ->map->count()
+                ->sortKeys()
+                ->toArray(),
+            'attendance_by_work_area' => $event->attendances()
+                ->join('guests', 'attendances.guest_id', '=', 'guests.id')
+                ->selectRaw('guests.puesto, COUNT(*) as count')
+                ->groupBy('guests.puesto')
+                ->pluck('count', 'puesto')
+                ->toArray(),
+        ];
+
+        // Obtener todas las asistencias
+        $attendances = $event->attendances()
+            ->with('guest')
+            ->orderBy('scanned_at', 'desc')
+            ->get()
+            ->map(function ($attendance) {
+                return [
+                    'id' => $attendance->id,
+                    'guest_name' => $attendance->guest->full_name,
+                    'employee_number' => $attendance->guest->numero_empleado,
+                    'work_area' => $attendance->guest->puesto,
+                    'attended_at' => \Carbon\Carbon::parse($attendance->scanned_at ?? $attendance->created_at)
+                        ->setTimezone('America/Mexico_City')
+                        ->format('d/m/Y H:i:s'),
+                ];
+            });
+
+        return Inertia::render('Events/StatisticsReport', [
+            'event' => [
+                'id' => $event->id,
+                'name' => $event->name,
+                'description' => $event->description,
+                'event_date' => $event->event_date->format('d/m/Y'),
+                'start_time' => $event->start_time,
+                'location' => $event->location,
+                'status' => $event->status,
+            ],
+            'statistics' => $statistics,
+            'attendances' => $attendances,
+        ]);
+    }
+
+    /**
+     * Generate PDF report
+     */
+    public function generatePDF(Event $event)
+    {
+        $this->authorize('view', $event);
+
+        $event->load(['guests', 'prizes', 'attendances.guest']);
+        
+        // Estadísticas del evento
+        $totalGuests = $event->guests->count();
+        $totalAttendances = $event->attendances->count();
+        $attendanceRate = $totalGuests > 0 ? 
+            round(($totalAttendances / $totalGuests) * 100, 2) : 0;
+        
+        $statistics = [
+            'overview' => [
+                'total_guests' => $totalGuests,
+                'total_attendances' => $totalAttendances,
+                'pending_guests' => $totalGuests - $totalAttendances,
+                'attendance_rate' => $attendanceRate,
+                'total_prizes' => $event->prizes->count(),
+                'total_prize_stock' => $event->prizes->sum('stock'),
+                'active_raffle_entries' => $event->raffleEntries()->count(),
+            ],
+            'hourly_attendance' => $event->attendances
+                ->groupBy(function($attendance) {
+                    $timestamp = $attendance->scanned_at ?? $attendance->created_at;
+                    return \Carbon\Carbon::parse($timestamp)->setTimezone('America/Mexico_City')->format('H');
+                })
+                ->map->count()
+                ->sortKeys()
+                ->toArray(),
+            'attendance_by_work_area' => $event->attendances()
+                ->join('guests', 'attendances.guest_id', '=', 'guests.id')
+                ->selectRaw('guests.puesto, COUNT(*) as count')
+                ->groupBy('guests.puesto')
+                ->pluck('count', 'puesto')
+                ->toArray(),
+        ];
+
+        // Obtener todas las asistencias
+        $attendances = $event->attendances()
+            ->with('guest')
+            ->orderBy('scanned_at', 'desc')
+            ->get()
+            ->map(function ($attendance) {
+                return [
+                    'guest_name' => $attendance->guest->full_name,
+                    'employee_number' => $attendance->guest->numero_empleado,
+                    'work_area' => $attendance->guest->puesto,
+                    'attended_at' => \Carbon\Carbon::parse($attendance->scanned_at ?? $attendance->created_at)
+                        ->setTimezone('America/Mexico_City')
+                        ->format('d/m/Y H:i:s'),
+                ];
+            });
+
+        $pdf = Pdf::loadView('pdf.statistics-report', [
+            'event' => $event,
+            'statistics' => $statistics,
+            'attendances' => $attendances,
+        ]);
+
+        return $pdf->download('estadisticas-' . Str::slug($event->name) . '.pdf');
     }
 }
