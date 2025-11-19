@@ -19,6 +19,7 @@ export default function Scanner({ auth, event, statistics }) {
     const [lastScan, setLastScan] = useState(null);
     const [scanResult, setScanResult] = useState(null);
     const [stats, setStats] = useState(statistics);
+    const [recentAttendances, setRecentAttendances] = useState(statistics.recent_attendances || []);
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [manualMode, setManualMode] = useState(false);
     const [manualEmployeeNumber, setManualEmployeeNumber] = useState('');
@@ -262,8 +263,30 @@ export default function Scanner({ auth, event, statistics }) {
                         ...result.statistics
                     }));
                 }
+                
+                // Agregar nueva asistencia a la lista (al principio)
+                if (result.guest) {
+                    const newAttendance = {
+                        id: Date.now(), // Temporal hasta que se recargue
+                        guest_name: result.guest.name,
+                        employee_number: result.guest.employee_number,
+                        work_area: result.guest.work_area,
+                        attended_at: new Date().toLocaleTimeString('es-ES'),
+                        time_ago: 'Justo ahora'
+                    };
+                    setRecentAttendances(prev => [newAttendance, ...prev.slice(0, 9)]);
+                }
+                
+                // PAUSA DE 3 SEGUNDOS después de escaneo exitoso
+                console.log('⏸️ Pausando escaneo por 3 segundos...');
+                setTimeout(() => {
+                    setIsProcessing(false);
+                    console.log('▶️ Reanudando escaneo');
+                }, 3000);
             } else {
                 playSound('error');
+                // Si no fue exitoso, reanudar inmediatamente
+                setIsProcessing(false);
             }
             
             // Limpiar resultado después de 5 segundos
@@ -281,8 +304,7 @@ export default function Scanner({ auth, event, statistics }) {
                 type: 'error'
             });
             playSound('error');
-        } finally {
-            setIsProcessing(false);
+            setIsProcessing(false); // Reanudar inmediatamente en caso de error
         }
     };
 
@@ -663,6 +685,52 @@ export default function Scanner({ auth, event, statistics }) {
                                         <p>• El escaneo es automático</p>
                                         <p>• Los sonidos confirman el registro</p>
                                         <p>• Usa registro manual si hay problemas</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Últimas Asistencias */}
+                            <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                                <div className="p-6">
+                                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                                        Últimas Asistencias Registradas
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {recentAttendances.length > 0 ? (
+                                            recentAttendances.map((attendance, index) => (
+                                                <div 
+                                                    key={attendance.id || index}
+                                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                                                >
+                                                    <div className="flex items-center space-x-3">
+                                                        <div className="flex-shrink-0">
+                                                            <CheckCircleIcon className="w-5 h-5 text-green-500" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                                {attendance.guest_name}
+                                                            </p>
+                                                            <p className="text-xs text-gray-500">
+                                                                {attendance.employee_number} • {attendance.work_area}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-xs text-gray-600">
+                                                            {attendance.attended_at}
+                                                        </p>
+                                                        <p className="text-xs text-gray-400">
+                                                            {attendance.time_ago}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-center py-8 text-gray-500">
+                                                <UserIcon className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                                                <p className="text-sm">Aún no hay asistencias registradas</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

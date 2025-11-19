@@ -92,18 +92,32 @@ class EventController extends Controller
         $event->load(['guests', 'prizes', 'attendances.guest']);
         
         // Estadísticas del evento
+        $totalGuests = $event->guests->count();
+        $totalAttendances = $event->attendances->count();
+        $attendanceRate = $totalGuests > 0 ? 
+            round(($totalAttendances / $totalGuests) * 100, 2) : 0;
+        
         $statistics = [
-            'total_guests' => $event->guests->count(),
-            'total_attendances' => $event->attendances->count(),
-            'attendance_rate' => $event->guests->count() > 0 ? 
-                round(($event->attendances->count() / $event->guests->count()) * 100, 2) : 0,
-            'total_prizes' => $event->prizes->count(),
-            'total_prize_stock' => $event->prizes->sum('stock'),
+            'overview' => [
+                'total_guests' => $totalGuests,
+                'total_attendances' => $totalAttendances,
+                'attendance_rate' => $attendanceRate,
+                'total_prizes' => $event->prizes->count(),
+                'total_prize_stock' => $event->prizes->sum('stock'),
+                'active_raffle_entries' => $event->raffleEntries()->count(),
+            ],
             'prizes_by_category' => $event->prizes->groupBy('category')->map->sum('stock'),
-            'attendances_by_hour' => $event->attendances
-                ->groupBy(fn($attendance) => $attendance->created_at->format('H:00'))
+            'hourly_attendance' => $event->attendances
+                ->groupBy(fn($attendance) => $attendance->scanned_at ? $attendance->scanned_at->format('H') : $attendance->created_at->format('H'))
                 ->map->count()
-                ->sortKeys(),
+                ->sortKeys()
+                ->toArray(),
+            'attendance_by_work_area' => $event->attendances()
+                ->join('guests', 'attendances.guest_id', '=', 'guests.id')
+                ->selectRaw('guests.area_laboral, COUNT(*) as count')
+                ->groupBy('guests.area_laboral')
+                ->pluck('count', 'area_laboral')
+                ->toArray(),
         ];
 
         return Inertia::render('Events/Show', [
@@ -131,8 +145,8 @@ class EventController extends Controller
                     return [
                         'id' => $attendance->id,
                         'guest_name' => $attendance->guest->full_name,
-                        'guest_employee_number' => $attendance->guest->employee_number,
-                        'attended_at' => $attendance->created_at->format('d/m/Y H:i:s'),
+                        'employee_number' => $attendance->guest->numero_empleado,
+                        'attended_at' => ($attendance->scanned_at ?? $attendance->created_at)->format('d/m/Y H:i:s'),
                     ];
                 })
         ]);
@@ -220,36 +234,35 @@ class EventController extends Controller
     }
 
     /**
-     * Get event statistics for dashboard.
+     * Get event statistics for dashboard (AJAX endpoint).
      */
     public function statistics(Event $event)
     {
         $this->authorize('view', $event);
 
+        $totalGuests = $event->guests()->count();
+        $totalAttendances = $event->attendances()->count();
+
         $stats = [
             'overview' => [
-                'total_guests' => $event->guests()->count(),
-                'total_attendances' => $event->attendances()->count(),
-                'attendance_rate' => $event->getAttendanceRate(),
+                'total_guests' => $totalGuests,
+                'total_attendances' => $totalAttendances,
+                'attendance_rate' => $totalGuests > 0 ? round(($totalAttendances / $totalGuests) * 100, 2) : 0,
                 'total_prizes' => $event->prizes()->count(),
                 'active_raffle_entries' => $event->raffleEntries()->count(),
             ],
             'hourly_attendance' => $event->attendances()
-                ->selectRaw('HOUR(created_at) as hour, COUNT(*) as count')
+                ->selectRaw('HOUR(COALESCE(scanned_at, created_at)) as hour, COUNT(*) as count')
                 ->groupBy('hour')
                 ->orderBy('hour')
-                ->get()
-                ->pluck('count', 'hour'),
+                ->pluck('count', 'hour')
+                ->toArray(),
             'attendance_by_area' => $event->attendances()
                 ->join('guests', 'attendances.guest_id', '=', 'guests.id')
-                ->selectRaw('guests.work_area, COUNT(*) as count')
-                ->groupBy('guests.work_area')
-                ->get()
-                ->pluck('count', 'work_area'),
-            'prize_categories' => $event->prizes()
-                ->selectRaw('category, COUNT(*) as total_prizes, SUM(stock) as total_stock')
-                ->groupBy('category')
-                ->get(),
+                ->selectRaw('guests.area_laboral, COUNT(*) as count')
+                ->groupBy('guests.area_laboral')
+                ->pluck('count', 'area_laboral')
+                ->toArray(),
         ];
 
         return response()->json($stats);
