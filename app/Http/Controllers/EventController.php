@@ -265,6 +265,19 @@ class EventController extends Controller
                 ->groupBy('guests.puesto')
                 ->pluck('count', 'puesto')
                 ->toArray(),
+            'recent_attendances' => $event->attendances()
+                ->with('guest')
+                ->latest()
+                ->take(10)
+                ->get()
+                ->map(function ($attendance) {
+                    return [
+                        'id' => $attendance->id,
+                        'guest_name' => $attendance->guest->full_name,
+                        'employee_number' => $attendance->guest->numero_empleado,
+                        'attended_at' => ($attendance->scanned_at ?? $attendance->created_at)->format('d/m/Y H:i:s'),
+                    ];
+                })
         ];
 
         return response()->json($stats);

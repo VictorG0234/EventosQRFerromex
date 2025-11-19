@@ -18,9 +18,10 @@ import { useState, useEffect } from 'react';
 
 export default function Show({ auth, event, statistics, recent_attendances }) {
     const [liveStats, setLiveStats] = useState(statistics);
+    const [recentAttendances, setRecentAttendances] = useState(recent_attendances || []);
     const [lastUpdated, setLastUpdated] = useState(null);
 
-    // Actualizar estadísticas cada 30 segundos
+    // Actualizar estadísticas y asistencias cada 10 segundos
     useEffect(() => {
         const interval = setInterval(async () => {
             try {
@@ -28,18 +29,30 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                 if (response.ok) {
                     const data = await response.json();
                     setLiveStats(data);
-                    setLastUpdated(new Date().toLocaleTimeString());
+                    
+                    // Actualizar lista de asistencias si viene en la respuesta
+                    if (data.recent_attendances) {
+                        setRecentAttendances(data.recent_attendances);
+                    }
+                    
+                    setLastUpdated(new Date().toLocaleTimeString('es-MX', { 
+                        timeZone: 'America/Mexico_City',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    }));
                 }
             } catch (error) {
                 console.error('Error updating stats:', error);
             }
-        }, 30000);
+        }, 10000); // Cada 10 segundos
 
         return () => clearInterval(interval);
     }, [event.id]);
 
     const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString('es-ES', {
+        return new Date(dateString).toLocaleDateString('es-MX', {
+            timeZone: 'America/Mexico_City',
             weekday: 'long',
             year: 'numeric',
             month: 'long',
@@ -407,11 +420,11 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                                 </Link>
                             </div>
                             
-                            {recent_attendances && recent_attendances.length > 0 ? (
+                            {recentAttendances && recentAttendances.length > 0 ? (
                                 <div className="flow-root">
                                     <ul className="-my-5 divide-y divide-gray-200">
-                                        {recent_attendances.map((attendance, index) => (
-                                            <li key={index} className="py-4">
+                                        {recentAttendances.map((attendance, index) => (
+                                            <li key={attendance.id || index} className="py-4">
                                                 <div className="flex items-center space-x-4">
                                                     <div className="flex-shrink-0">
                                                         <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
@@ -423,7 +436,7 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                                                             {attendance.guest_name}
                                                         </p>
                                                         <p className="text-sm text-gray-500 truncate">
-                                                            {attendance.guest_employee_number}
+                                                            {attendance.employee_number}
                                                         </p>
                                                     </div>
                                                     <div className="flex-shrink-0 text-sm text-gray-500">
