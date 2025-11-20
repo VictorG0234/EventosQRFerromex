@@ -130,25 +130,29 @@
         
         /* Tarjetas de estadísticas mejoradas */
         .stats-container {
-            display: table;
             width: 100%;
             margin-bottom: 20px;
-            border-spacing: 10px;
         }
         
         .stats-row {
-            display: table-row;
+            width: 100%;
+            clear: both;
         }
         
         .stat-card {
-            display: table-cell;
-            width: 24%;
+            float: left;
+            width: 23%;
+            margin-right: 2%;
             padding: 18px 15px;
             text-align: center;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             position: relative;
             overflow: hidden;
+        }
+        
+        .stat-card:last-child {
+            margin-right: 0;
         }
         
         .stat-card.blue {
@@ -201,25 +205,22 @@
         }
         
         .chart-row {
-            display: table;
             width: 100%;
+            clear: both;
             margin-bottom: 8px;
         }
         
         .chart-label {
-            display: table-cell;
+            float: left;
             width: 120px;
             padding: 6px 10px;
             font-size: 9px;
             font-weight: 600;
-            vertical-align: middle;
             color: #4A5568;
         }
         
         .chart-bar-container {
-            display: table-cell;
-            width: auto;
-            vertical-align: middle;
+            margin-left: 130px;
             padding: 4px 0;
         }
         
@@ -333,21 +334,28 @@
         
         /* Grid de información */
         .info-grid {
-            display: table;
             width: 100%;
             margin: 15px 0;
         }
         
         .info-row {
-            display: table-row;
+            width: 100%;
+            clear: both;
+            margin-bottom: 5px;
         }
         
         .info-cell {
-            display: table-cell;
-            width: 50%;
+            float: left;
+            width: 48%;
+            margin-right: 2%;
             padding: 8px 10px;
             border: 1px solid #E2E8F0;
             background: #F7FAFC;
+            box-sizing: border-box;
+        }
+        
+        .info-cell:nth-child(2n) {
+            margin-right: 0;
         }
         
         .info-cell strong {
@@ -361,6 +369,13 @@
             color: #4A5568;
             font-size: 11px;
             font-weight: 600;
+        }
+        
+        /* Clearfix */
+        .clearfix::after {
+            content: "";
+            display: table;
+            clear: both;
         }
     </style>
 </head>
@@ -410,8 +425,8 @@
         <div class="section">
             <div class="section-title">Resumen General del Evento</div>
             
-            <div class="stats-container">
-                <div class="stats-row">
+            <div class="stats-container clearfix">
+                <div class="stats-row clearfix">
                     <div class="stat-card blue">
                         <div class="label">Total Invitados</div>
                         <div class="value">{{ number_format($statistics['overview']['total_guests']) }}</div>
@@ -440,8 +455,8 @@
         <div class="section">
             <div class="section-title">Información de Rifas y Premios</div>
             
-            <div class="info-grid">
-                <div class="info-row">
+            <div class="info-grid clearfix">
+                <div class="info-row clearfix">
                     <div class="info-cell">
                         <strong>TOTAL DE PREMIOS</strong>
                         <span>{{ number_format($statistics['overview']['total_prizes']) }}</span>
@@ -451,7 +466,7 @@
                         <span>{{ number_format($statistics['overview']['total_prize_stock']) }}</span>
                     </div>
                 </div>
-                <div class="info-row">
+                <div class="info-row clearfix">
                     <div class="info-cell">
                         <strong>PARTICIPANTES EN RIFAS</strong>
                         <span>{{ number_format($statistics['overview']['active_raffle_entries']) }}</span>
@@ -480,7 +495,7 @@
                     $totalHourly = array_sum($statistics['hourly_attendance']);
                 @endphp
                 @foreach($statistics['hourly_attendance'] as $hour => $count)
-                <div class="chart-row">
+                <div class="chart-row clearfix">
                     <div class="chart-label">{{ str_pad($hour, 2, '0', STR_PAD_LEFT) }}:00</div>
                     <div class="chart-bar-container">
                         <div class="chart-bar" style="width: {{ $maxCount > 0 ? max(($count / $maxCount) * 350, 35) : 35 }}px;">
@@ -507,7 +522,7 @@
                     $totalAreas = array_sum($statistics['attendance_by_work_area']);
                 @endphp
                 @foreach($sortedAreas as $area => $count)
-                <div class="chart-row">
+                <div class="chart-row clearfix">
                     <div class="chart-label" title="{{ $area }}">{{ Str::limit($area, 18) }}</div>
                     <div class="chart-bar-container">
                         <div class="chart-bar chart-bar-green" style="width: {{ $maxAreaCount > 0 ? max(($count / $maxAreaCount) * 350, 35) : 35 }}px;">
