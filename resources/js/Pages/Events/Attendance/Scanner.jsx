@@ -270,6 +270,11 @@ export default function Scanner({ auth, event, statistics }) {
             
             if (result.success) {
                 playSound('success');
+                
+                // DETENER INMEDIATAMENTE el escáner para evitar escaneos duplicados
+                stopCamera();
+                console.log('🛑 Escáner detenido inmediatamente después de registro exitoso');
+                
                 // Actualizar estadísticas
                 if (result.statistics) {
                     setStats(prev => ({
@@ -291,14 +296,12 @@ export default function Scanner({ auth, event, statistics }) {
                     setRecentAttendances(prev => [newAttendance, ...prev.slice(0, 9)]);
                 }
                 
-                // PAUSA DE 5 SEGUNDOS después de escaneo exitoso
-                console.log('⏸️ Pausando escaneo por 5 segundos...');
+                // Limpiar mensaje después de 5 segundos
                 setTimeout(() => {
-                    stopCamera(); // Detener completamente el escáner después de registro exitoso
                     setIsProcessing(false);
                     setScanResult(null);
                     setLastScan(null);
-                    console.log('🛑 Escáner detenido - Usuario debe reactivarlo manualmente');
+                    console.log('💬 Mensaje limpiado - Usuario puede reactivar escáner manualmente');
                 }, 5000);
             } else {
                 playSound('error');
