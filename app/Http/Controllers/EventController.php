@@ -6,6 +6,7 @@ use App\Models\Event;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -372,65 +373,75 @@ class EventController extends Controller
      */
     public function generatePDF(Event $event)
     {
-        $this->authorize('view', $event);
+        try {
+            $this->authorize('view', $event);
 
-        $event->load(['guests', 'prizes', 'attendances.guest']);
-        
-        // Estadísticas del evento
-        $totalGuests = $event->guests->count();
-        $totalAttendances = $event->attendances->count();
-        $attendanceRate = $totalGuests > 0 ? 
-            round(($totalAttendances / $totalGuests) * 100, 2) : 0;
-        
-        $statistics = [
-            'overview' => [
-                'total_guests' => $totalGuests,
-                'total_attendances' => $totalAttendances,
-                'pending_guests' => $totalGuests - $totalAttendances,
-                'attendance_rate' => $attendanceRate,
-                'total_prizes' => $event->prizes->count(),
-                'total_prize_stock' => $event->prizes->sum('stock'),
-                'active_raffle_entries' => $event->raffleEntries()->count(),
-            ],
-            'hourly_attendance' => $event->attendances
-                ->groupBy(function($attendance) {
-                    $timestamp = $attendance->scanned_at ?? $attendance->created_at;
-                    return \Carbon\Carbon::parse($timestamp)->setTimezone('America/Mexico_City')->format('H');
+            $event->load(['guests', 'prizes', 'attendances.guest']);
+            
+            // Estadísticas del evento
+            $totalGuests = $event->guests->count();
+            $totalAttendances = $event->attendances->count();
+            $attendanceRate = $totalGuests > 0 ? 
+                round(($totalAttendances / $totalGuests) * 100, 2) : 0;
+            
+            $statistics = [
+                'overview' => [
+                    'total_guests' => $totalGuests,
+                    'total_attendances' => $totalAttendances,
+                    'pending_guests' => $totalGuests - $totalAttendances,
+                    'attendance_rate' => $attendanceRate,
+                    'total_prizes' => $event->prizes->count(),
+                    'total_prize_stock' => $event->prizes->sum('stock'),
+                    'active_raffle_entries' => $event->raffleEntries()->count(),
+                ],
+                'hourly_attendance' => $event->attendances
+                    ->groupBy(function($attendance) {
+                        $timestamp = $attendance->scanned_at ?? $attendance->created_at;
+                        return \Carbon\Carbon::parse($timestamp)->setTimezone('America/Mexico_City')->format('H');
+                    })
+                    ->map->count()
+                    ->sortKeys()
+                    ->toArray(),
+                'attendance_by_work_area' => $event->attendances()
+                    ->join('guests', 'attendances.guest_id', '=', 'guests.id')
+                    ->selectRaw('guests.puesto, COUNT(*) as count')
+                    ->groupBy('guests.puesto')
+                    ->pluck('count', 'puesto')
+                    ->toArray(),
+            ];
+
+            // Obtener todas las asistencias
+            $attendances = $event->attendances
+                ->sortByDesc('created_at')
+                ->map(function ($attendance) {
+                    return [
+                        'guest_name' => $attendance->guest->full_name ?? 'N/A',
+                        'employee_number' => $attendance->guest->numero_empleado ?? 'N/A',
+                        'work_area' => $attendance->guest->puesto ?? 'N/A',
+                        'attended_at' => \Carbon\Carbon::parse($attendance->scanned_at ?? $attendance->created_at)
+                            ->setTimezone('America/Mexico_City')
+                            ->format('d/m/Y H:i:s'),
+                    ];
                 })
-                ->map->count()
-                ->sortKeys()
-                ->toArray(),
-            'attendance_by_work_area' => $event->attendances()
-                ->join('guests', 'attendances.guest_id', '=', 'guests.id')
-                ->selectRaw('guests.puesto, COUNT(*) as count')
-                ->groupBy('guests.puesto')
-                ->pluck('count', 'puesto')
-                ->toArray(),
-        ];
+                ->values()
+                ->toArray();
 
-        // Obtener todas las asistencias
-        $attendances = $event->attendances()
-            ->with('guest')
-            ->latest('created_at')
-            ->get()
-            ->map(function ($attendance) {
-                return [
-                    'guest_name' => $attendance->guest->full_name,
-                    'employee_number' => $attendance->guest->numero_empleado,
-                    'work_area' => $attendance->guest->puesto,
-                    'attended_at' => \Carbon\Carbon::parse($attendance->scanned_at ?? $attendance->created_at)
-                        ->setTimezone('America/Mexico_City')
-                        ->format('d/m/Y H:i:s'),
-                ];
-            })
-            ->toArray();
+            $pdf = Pdf::loadView('pdf.statistics-report', [
+                'event' => $event,
+                'statistics' => $statistics,
+                'attendances' => $attendances,
+            ]);
 
-        $pdf = Pdf::loadView('pdf.statistics-report', [
-            'event' => $event,
-            'statistics' => $statistics,
-            'attendances' => $attendances,
-        ]);
-
-        return $pdf->download('estadisticas-' . Str::slug($event->name) . '.pdf');
+            return $pdf->download('estadisticas-' . Str::slug($event->name) . '.pdf');
+            
+        } catch (\Exception $e) {
+            Log::error('Error generando PDF: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            
+            return response()->json([
+                'error' => 'Error al generar el PDF',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 }
