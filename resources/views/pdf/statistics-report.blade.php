@@ -79,14 +79,14 @@
         
         /* Contenido principal */
         .content {
-            padding-top: 20px;
+            padding: 20px 30px;
         }
         
         .event-info-box {
             background: #EBF4FF;
             border-left: 4px solid #4299E1;
-            padding: 15px;
-            margin-bottom: 25px;
+            padding: 20px;
+            margin-bottom: 30px;
             border-radius: 4px;
         }
         
@@ -104,34 +104,25 @@
         }
         
         .section {
-            margin-bottom: 30px;
+            margin-bottom: 35px;
             page-break-inside: avoid;
+            padding: 0 10px;
         }
         
         .section-title {
-            font-size: 14px;
+            font-size: 15px;
             font-weight: bold;
             color: #2D3748;
-            margin-bottom: 15px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #667eea;
-            display: flex;
-            align-items: center;
-        }
-        
-        .section-title::before {
-            content: '';
-            display: inline-block;
-            width: 4px;
-            height: 14px;
-            background: #667eea;
-            margin-right: 10px;
+            margin-bottom: 18px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+            display: block;
         }
         
         /* Tarjetas de estadísticas mejoradas */
         .stats-container {
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
         
         .stats-row {
@@ -141,12 +132,12 @@
         
         .stat-card {
             float: left;
-            width: 23%;
-            margin-right: 2%;
-            padding: 18px 15px;
+            width: 22%;
+            margin-right: 4%;
+            padding: 22px 15px;
             text-align: center;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
             position: relative;
             overflow: hidden;
         }
@@ -198,45 +189,47 @@
         
         /* Gráficos de barras mejorados */
         .chart-container {
-            margin: 15px 0;
+            margin: 20px 0;
             background: #F7FAFC;
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
         }
         
         .chart-row {
             width: 100%;
             clear: both;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
+            min-height: 30px;
         }
         
         .chart-label {
             float: left;
-            width: 120px;
-            padding: 6px 10px;
-            font-size: 9px;
+            width: 140px;
+            padding: 8px 10px;
+            font-size: 10px;
             font-weight: 600;
             color: #4A5568;
+            line-height: 24px;
         }
         
         .chart-bar-container {
-            margin-left: 130px;
+            margin-left: 150px;
             padding: 4px 0;
         }
         
         .chart-bar {
-            height: 24px;
+            height: 28px;
             background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 4px 10px;
-            font-size: 9px;
+            padding: 6px 12px;
+            font-size: 10px;
             font-weight: bold;
             border-radius: 4px;
-            display: inline-block;
-            min-width: 35px;
+            display: block;
+            min-width: 50px;
             text-align: right;
+            line-height: 16px;
             box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
-            position: relative;
         }
         
         .chart-bar-green {
@@ -264,10 +257,10 @@
             width: 100%;
             border-collapse: separate;
             border-spacing: 0;
-            margin-top: 15px;
+            margin-top: 20px;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         thead {
@@ -276,9 +269,9 @@
         }
         
         th {
-            padding: 12px 10px;
+            padding: 14px 12px;
             text-align: left;
-            font-size: 9px;
+            font-size: 10px;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -293,9 +286,9 @@
         }
         
         td {
-            padding: 10px;
+            padding: 12px;
             border-bottom: 1px solid #E2E8F0;
-            font-size: 9px;
+            font-size: 10px;
             color: #4A5568;
         }
         
@@ -310,11 +303,12 @@
         /* Badge de resumen */
         .summary-badge {
             display: inline-block;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 9px;
+            padding: 6px 14px;
+            border-radius: 14px;
+            font-size: 10px;
             font-weight: bold;
-            margin-right: 8px;
+            margin-right: 10px;
+            margin-bottom: 8px;
         }
         
         .summary-badge.success {
@@ -335,23 +329,24 @@
         /* Grid de información */
         .info-grid {
             width: 100%;
-            margin: 15px 0;
+            margin: 20px 0;
         }
         
         .info-row {
             width: 100%;
             clear: both;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
         }
         
         .info-cell {
             float: left;
             width: 48%;
-            margin-right: 2%;
-            padding: 8px 10px;
-            border: 1px solid #E2E8F0;
+            margin-right: 4%;
+            padding: 15px 12px;
+            border: 2px solid #E2E8F0;
             background: #F7FAFC;
             box-sizing: border-box;
+            border-radius: 6px;
         }
         
         .info-cell:nth-child(2n) {
@@ -362,12 +357,13 @@
             color: #2D3748;
             font-size: 9px;
             display: block;
-            margin-bottom: 3px;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
         }
         
         .info-cell span {
             color: #4A5568;
-            font-size: 11px;
+            font-size: 13px;
             font-weight: 600;
         }
         
@@ -498,7 +494,7 @@
                 <div class="chart-row clearfix">
                     <div class="chart-label">{{ str_pad($hour, 2, '0', STR_PAD_LEFT) }}:00</div>
                     <div class="chart-bar-container">
-                        <div class="chart-bar" style="width: {{ $maxCount > 0 ? max(($count / $maxCount) * 350, 35) : 35 }}px;">
+                        <div class="chart-bar" style="width: {{ $maxCount > 0 ? max(($count / $maxCount) * 380, 50) : 50 }}px;">
                             {{ $count }} ({{ $totalHourly > 0 ? round(($count / $totalHourly) * 100, 1) : 0 }}%)
                         </div>
                     </div>
@@ -523,9 +519,9 @@
                 @endphp
                 @foreach($sortedAreas as $area => $count)
                 <div class="chart-row clearfix">
-                    <div class="chart-label" title="{{ $area }}">{{ Str::limit($area, 18) }}</div>
+                    <div class="chart-label" title="{{ $area }}">{{ Str::limit($area, 20) }}</div>
                     <div class="chart-bar-container">
-                        <div class="chart-bar chart-bar-green" style="width: {{ $maxAreaCount > 0 ? max(($count / $maxAreaCount) * 350, 35) : 35 }}px;">
+                        <div class="chart-bar chart-bar-green" style="width: {{ $maxAreaCount > 0 ? max(($count / $maxAreaCount) * 380, 50) : 50 }}px;">
                             {{ $count }} ({{ $totalAreas > 0 ? round(($count / $totalAreas) * 100, 1) : 0 }}%)
                         </div>
                     </div>
@@ -581,11 +577,11 @@
         @endif
 
         <!-- Resumen final -->
-        <div class="section" style="margin-top: 30px; padding: 15px; background: #F7FAFC; border-left: 4px solid #667eea; border-radius: 4px;">
-            <div style="font-size: 11px; color: #2D3748; font-weight: 600; margin-bottom: 8px;">
+        <div class="section" style="margin-top: 35px; padding: 20px; background: #F7FAFC; border-left: 4px solid #667eea; border-radius: 4px;">
+            <div style="font-size: 12px; color: #2D3748; font-weight: 600; margin-bottom: 10px;">
                 📊 Resumen Ejecutivo
             </div>
-            <div style="font-size: 9px; color: #4A5568; line-height: 1.8;">
+            <div style="font-size: 10px; color: #4A5568; line-height: 1.8;">
                 Este evento contó con <strong>{{ number_format($statistics['overview']['total_guests']) }} invitados</strong> registrados, 
                 de los cuales <strong>{{ number_format($statistics['overview']['total_attendances']) }} confirmaron su asistencia</strong>, 
                 representando una <strong>tasa de asistencia del {{ $statistics['overview']['attendance_rate'] }}%</strong>.
