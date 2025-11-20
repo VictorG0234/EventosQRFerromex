@@ -534,8 +534,10 @@
             
             <div style="margin-bottom: 15px; text-align: center;">
                 <span class="summary-badge success">{{ count($attendances) }} asistencias registradas</span>
-                <span class="summary-badge info">Primera: {{ $attendances->last()['attended_at'] ?? 'N/A' }}</span>
-                <span class="summary-badge warning">Última: {{ $attendances->first()['attended_at'] ?? 'N/A' }}</span>
+                @if(count($attendances) > 0)
+                    <span class="summary-badge info">Primera: {{ $attendances[count($attendances) - 1]['attended_at'] ?? 'N/A' }}</span>
+                    <span class="summary-badge warning">Última: {{ $attendances[0]['attended_at'] ?? 'N/A' }}</span>
+                @endif
             </div>
             
             <table>

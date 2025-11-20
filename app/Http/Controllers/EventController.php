@@ -411,7 +411,7 @@ class EventController extends Controller
         // Obtener todas las asistencias
         $attendances = $event->attendances()
             ->with('guest')
-            ->orderBy('scanned_at', 'desc')
+            ->latest('created_at')
             ->get()
             ->map(function ($attendance) {
                 return [
@@ -422,7 +422,8 @@ class EventController extends Controller
                         ->setTimezone('America/Mexico_City')
                         ->format('d/m/Y H:i:s'),
                 ];
-            });
+            })
+            ->toArray();
 
         $pdf = Pdf::loadView('pdf.statistics-report', [
             'event' => $event,
