@@ -294,14 +294,15 @@ export default function Scanner({ auth, event, statistics }) {
                 // PAUSA DE 5 SEGUNDOS después de escaneo exitoso
                 console.log('⏸️ Pausando escaneo por 5 segundos...');
                 setTimeout(() => {
+                    stopCamera(); // Detener completamente el escáner después de registro exitoso
                     setIsProcessing(false);
                     setScanResult(null);
                     setLastScan(null);
-                    console.log('▶️ Reanudando escaneo');
+                    console.log('🛑 Escáner detenido - Usuario debe reactivarlo manualmente');
                 }, 5000);
             } else {
                 playSound('error');
-                // Si no fue exitoso, pausar 5 segundos también para que se lea el error
+                // Si no fue exitoso, pausar 5 segundos y continuar escaneando
                 console.log('⏸️ Pausando escaneo por 5 segundos (error)...');
                 setTimeout(() => {
                     setIsProcessing(false);
