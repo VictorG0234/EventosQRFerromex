@@ -291,23 +291,26 @@ export default function Scanner({ auth, event, statistics }) {
                     setRecentAttendances(prev => [newAttendance, ...prev.slice(0, 9)]);
                 }
                 
-                // PAUSA DE 3 SEGUNDOS después de escaneo exitoso
-                console.log('⏸️ Pausando escaneo por 3 segundos...');
+                // PAUSA DE 5 SEGUNDOS después de escaneo exitoso
+                console.log('⏸️ Pausando escaneo por 5 segundos...');
                 setTimeout(() => {
                     setIsProcessing(false);
+                    setScanResult(null);
+                    setLastScan(null);
                     console.log('▶️ Reanudando escaneo');
-                }, 3000);
+                }, 5000);
             } else {
                 playSound('error');
-                // Si no fue exitoso, reanudar inmediatamente
-                setIsProcessing(false);
+                // Si no fue exitoso, pausar 5 segundos también para que se lea el error
+                console.log('⏸️ Pausando escaneo por 5 segundos (error)...');
+                setTimeout(() => {
+                    setIsProcessing(false);
+                    setScanResult(null);
+                    setLastScan(null);
+                    console.log('▶️ Reanudando escaneo');
+                }, 5000);
             }
             
-            // Limpiar resultado después de 5 segundos
-            setTimeout(() => {
-                setScanResult(null);
-                setLastScan(null);
-            }, 5000);
             
         } catch (error) {
             console.error('Error processing scan:', error);
@@ -318,7 +321,14 @@ export default function Scanner({ auth, event, statistics }) {
                 type: 'error'
             });
             playSound('error');
-            setIsProcessing(false); // Reanudar inmediatamente en caso de error
+            // Pausar 5 segundos también en errores de conexión
+            console.log('⏸️ Pausando escaneo por 5 segundos (error de conexión)...');
+            setTimeout(() => {
+                setIsProcessing(false);
+                setScanResult(null);
+                setLastScan(null);
+                console.log('▶️ Reanudando escaneo');
+            }, 5000);
         }
     };
 
