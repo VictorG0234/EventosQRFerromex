@@ -411,12 +411,12 @@ export default function Scanner({ auth, event, statistics }) {
                             {soundEnabled ? <SpeakerWaveIcon className="w-5 h-5" /> : <SpeakerXMarkIcon className="w-5 h-5" />}
                         </button>
                         
-                        <Link
+                        {/* <Link
                             href={route('events.attendance.index', event.id)}
                             className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
                         >
                             Ver Asistencias
-                        </Link>
+                        </Link> */}
                     </div>
                 </div>
             }

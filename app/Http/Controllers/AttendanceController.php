@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Models\Guest;
 use App\Models\Attendance;
+use App\Models\AuditLog;
 use App\Services\QrCodeService;
 use App\Services\EmailService;
 use App\Jobs\SendEmailJob;
@@ -125,6 +126,14 @@ class AttendanceController extends Controller
             ]);
 
             DB::commit();
+
+            // Registrar en auditoría
+            AuditLog::log(
+                action: 'scan',
+                model: 'Attendance',
+                modelId: $attendance->id,
+                description: "Escaneo QR exitoso: {$guest->full_name} ({$guest->numero_empleado}) en evento {$event->name}"
+            );
 
             // Enviar email de confirmación de asistencia si el invitado tiene email
             // Usar try-catch separado para que el email no rompa el registro

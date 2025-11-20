@@ -8,6 +8,7 @@ use App\Http\Controllers\EmailController;
 use App\Http\Controllers\PrizeController;
 use App\Http\Controllers\RaffleController;
 use App\Http\Controllers\PublicEventController;
+use App\Http\Controllers\AuditLogController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -88,6 +89,11 @@ Route::middleware('auth')->group(function () {
     Route::delete('events/{event}/raffle/prizes/{prize}/entries/{entry}', [RaffleController::class, 'deleteEntry'])->name('events.raffle.delete-entry');
     Route::post('events/{event}/raffle/prizes/{prize}/select-winner', [RaffleController::class, 'selectWinner'])->name('events.raffle.select-winner');
     Route::get('events/{event}/raffle/live-data', [RaffleController::class, 'liveData'])->name('events.raffle.live-data');
+    
+    // Rutas de auditoría
+    Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+    Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show');
+    Route::get('audit-logs/export/csv', [AuditLogController::class, 'export'])->name('audit-logs.export');
 });
 
 require __DIR__.'/auth.php';
