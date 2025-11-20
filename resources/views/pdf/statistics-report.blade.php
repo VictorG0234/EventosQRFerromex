@@ -421,86 +421,100 @@
         <div class="section">
             <div class="section-title">Resumen General del Evento</div>
             
-            <div class="stats-container clearfix">
-                <div class="stats-row clearfix">
-                    <div class="stat-card blue">
-                        <div class="label">Total Invitados</div>
-                        <div class="value">{{ number_format($statistics['overview']['total_guests']) }}</div>
-                        <div class="unit">Registrados</div>
-                    </div>
-                    <div class="stat-card green">
-                        <div class="label">Asistencias</div>
-                        <div class="value">{{ number_format($statistics['overview']['total_attendances']) }}</div>
-                        <div class="unit">Confirmadas</div>
-                    </div>
-                    <div class="stat-card orange">
-                        <div class="label">Pendientes</div>
-                        <div class="value">{{ number_format($statistics['overview']['pending_guests']) }}</div>
-                        <div class="unit">Sin registrar</div>
-                    </div>
-                    <div class="stat-card purple">
-                        <div class="label">Tasa Asistencia</div>
-                        <div class="value">{{ $statistics['overview']['attendance_rate'] }}%</div>
-                        <div class="unit">Del total</div>
-                    </div>
-                </div>
-            </div>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <tr>
+                    <td style="width: 25%; padding: 18px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; vertical-align: top;">
+                        <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; opacity: 0.9; font-weight: 600;">TOTAL INVITADOS</div>
+                        <div style="font-size: 32px; font-weight: bold; line-height: 1; margin-bottom: 5px;">{{ number_format($statistics['overview']['total_guests']) }}</div>
+                        <div style="font-size: 9px; opacity: 0.85;">Registrados</div>
+                    </td>
+                    <td style="width: 3%;"></td>
+                    <td style="width: 25%; padding: 18px; text-align: center; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 8px; vertical-align: top;">
+                        <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; opacity: 0.9; font-weight: 600;">ASISTENCIAS</div>
+                        <div style="font-size: 32px; font-weight: bold; line-height: 1; margin-bottom: 5px;">{{ number_format($statistics['overview']['total_attendances']) }}</div>
+                        <div style="font-size: 9px; opacity: 0.85;">Confirmadas</div>
+                    </td>
+                    <td style="width: 3%;"></td>
+                    <td style="width: 25%; padding: 18px; text-align: center; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border-radius: 8px; vertical-align: top;">
+                        <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; opacity: 0.9; font-weight: 600;">PENDIENTES</div>
+                        <div style="font-size: 32px; font-weight: bold; line-height: 1; margin-bottom: 5px;">{{ number_format($statistics['overview']['pending_guests']) }}</div>
+                        <div style="font-size: 9px; opacity: 0.85;">Sin registrar</div>
+                    </td>
+                    <td style="width: 3%;"></td>
+                    <td style="width: 25%; padding: 18px; text-align: center; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border-radius: 8px; vertical-align: top;">
+                        <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; opacity: 0.9; font-weight: 600;">TASA ASISTENCIA</div>
+                        <div style="font-size: 32px; font-weight: bold; line-height: 1; margin-bottom: 5px;">{{ $statistics['overview']['attendance_rate'] }}%</div>
+                        <div style="font-size: 9px; opacity: 0.85;">Del total</div>
+                    </td>
+                </tr>
+            </table>
         </div>
 
         <!-- Información de Rifas -->
         <div class="section">
             <div class="section-title">Información de Rifas y Premios</div>
             
-            <div class="info-grid clearfix">
-                <div class="info-row clearfix">
-                    <div class="info-cell">
-                        <strong>TOTAL DE PREMIOS</strong>
-                        <span>{{ number_format($statistics['overview']['total_prizes']) }}</span>
-                    </div>
-                    <div class="info-cell">
-                        <strong>STOCK TOTAL DISPONIBLE</strong>
-                        <span>{{ number_format($statistics['overview']['total_prize_stock']) }}</span>
-                    </div>
-                </div>
-                <div class="info-row clearfix">
-                    <div class="info-cell">
-                        <strong>PARTICIPANTES EN RIFAS</strong>
-                        <span>{{ number_format($statistics['overview']['active_raffle_entries']) }}</span>
-                    </div>
-                    <div class="info-cell">
-                        <strong>TASA DE PARTICIPACIÓN</strong>
-                        <span>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="width: 48%; padding: 15px 12px; border: 2px solid #E2E8F0; background: #F7FAFC; border-radius: 6px; vertical-align: top;">
+                        <div style="font-size: 9px; color: #2D3748; margin-bottom: 6px; letter-spacing: 0.5px; font-weight: bold;">TOTAL DE PREMIOS</div>
+                        <div style="font-size: 13px; color: #4A5568; font-weight: 600;">{{ number_format($statistics['overview']['total_prizes']) }}</div>
+                    </td>
+                    <td style="width: 4%;"></td>
+                    <td style="width: 48%; padding: 15px 12px; border: 2px solid #E2E8F0; background: #F7FAFC; border-radius: 6px; vertical-align: top;">
+                        <div style="font-size: 9px; color: #2D3748; margin-bottom: 6px; letter-spacing: 0.5px; font-weight: bold;">STOCK TOTAL DISPONIBLE</div>
+                        <div style="font-size: 13px; color: #4A5568; font-weight: 600;">{{ number_format($statistics['overview']['total_prize_stock']) }}</div>
+                    </td>
+                </tr>
+                <tr><td colspan="3" style="height: 10px;"></td></tr>
+                <tr>
+                    <td style="width: 48%; padding: 15px 12px; border: 2px solid #E2E8F0; background: #F7FAFC; border-radius: 6px; vertical-align: top;">
+                        <div style="font-size: 9px; color: #2D3748; margin-bottom: 6px; letter-spacing: 0.5px; font-weight: bold;">PARTICIPANTES EN RIFAS</div>
+                        <div style="font-size: 13px; color: #4A5568; font-weight: 600;">{{ number_format($statistics['overview']['active_raffle_entries']) }}</div>
+                    </td>
+                    <td style="width: 4%;"></td>
+                    <td style="width: 48%; padding: 15px 12px; border: 2px solid #E2E8F0; background: #F7FAFC; border-radius: 6px; vertical-align: top;">
+                        <div style="font-size: 9px; color: #2D3748; margin-bottom: 6px; letter-spacing: 0.5px; font-weight: bold;">TASA DE PARTICIPACIÓN</div>
+                        <div style="font-size: 13px; color: #4A5568; font-weight: 600;">
                             @if($statistics['overview']['total_attendances'] > 0)
                                 {{ round(($statistics['overview']['active_raffle_entries'] / $statistics['overview']['total_attendances']) * 100, 1) }}%
                             @else
                                 0%
                             @endif
-                        </span>
-                    </div>
-                </div>
-            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
         </div>
 
         <!-- Flujo de Asistencia por Hora -->
         @if(count($statistics['hourly_attendance']) > 0)
         <div class="section">
             <div class="section-title">Flujo de Asistencia por Hora</div>
-            <div class="chart-container">
-                @php
-                    $maxCount = max($statistics['hourly_attendance']);
-                    $totalHourly = array_sum($statistics['hourly_attendance']);
-                @endphp
+            
+            @php
+                $maxCount = max($statistics['hourly_attendance']);
+                $totalHourly = array_sum($statistics['hourly_attendance']);
+            @endphp
+            
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
                 @foreach($statistics['hourly_attendance'] as $hour => $count)
-                <div class="chart-row clearfix">
-                    <div class="chart-label">{{ str_pad($hour, 2, '0', STR_PAD_LEFT) }}:00</div>
-                    <div class="chart-bar-container">
-                        <div class="chart-bar" style="width: {{ $maxCount > 0 ? max(($count / $maxCount) * 380, 50) : 50 }}px;">
+                <tr style="height: 38px;">
+                    <td style="width: 80px; padding: 8px 10px; font-size: 10px; color: #4A5568; font-weight: 600; vertical-align: middle;">
+                        {{ str_pad($hour, 2, '0', STR_PAD_LEFT) }}:00
+                    </td>
+                    <td style="padding: 8px 5px; vertical-align: middle;">
+                        @php
+                            $barWidth = $maxCount > 0 ? max(($count / $maxCount) * 380, 50) : 50;
+                        @endphp
+                        <div style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 12px; border-radius: 4px; font-size: 10px; font-weight: 600; width: {{ $barWidth }}px; text-align: center;">
                             {{ $count }} ({{ $totalHourly > 0 ? round(($count / $totalHourly) * 100, 1) : 0 }}%)
                         </div>
-                    </div>
-                </div>
+                    </td>
+                </tr>
                 @endforeach
-            </div>
+            </table>
+            
             <div style="text-align: center; margin-top: 10px; font-size: 9px; color: #718096;">
                 <span class="summary-badge info">Hora pico: {{ str_pad(array_search($maxCount, $statistics['hourly_attendance']), 2, '0', STR_PAD_LEFT) }}:00 con {{ $maxCount }} asistencias</span>
             </div>
@@ -511,23 +525,31 @@
         @if(count($statistics['attendance_by_work_area']) > 0)
         <div class="section">
             <div class="section-title">Asistencia por Área Laboral (Top 10)</div>
-            <div class="chart-container">
-                @php
-                    $maxAreaCount = max($statistics['attendance_by_work_area']);
-                    $sortedAreas = collect($statistics['attendance_by_work_area'])->sortDesc()->take(10);
-                    $totalAreas = array_sum($statistics['attendance_by_work_area']);
-                @endphp
+            
+            @php
+                $maxAreaCount = max($statistics['attendance_by_work_area']);
+                $sortedAreas = collect($statistics['attendance_by_work_area'])->sortDesc()->take(10);
+                $totalAreas = array_sum($statistics['attendance_by_work_area']);
+            @endphp
+            
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
                 @foreach($sortedAreas as $area => $count)
-                <div class="chart-row clearfix">
-                    <div class="chart-label" title="{{ $area }}">{{ Str::limit($area, 20) }}</div>
-                    <div class="chart-bar-container">
-                        <div class="chart-bar chart-bar-green" style="width: {{ $maxAreaCount > 0 ? max(($count / $maxAreaCount) * 380, 50) : 50 }}px;">
+                <tr style="height: 38px;">
+                    <td style="width: 150px; padding: 8px 10px; font-size: 10px; color: #4A5568; font-weight: 600; vertical-align: middle;" title="{{ $area }}">
+                        {{ Str::limit($area, 20) }}
+                    </td>
+                    <td style="padding: 8px 5px; vertical-align: middle;">
+                        @php
+                            $barWidth = $maxAreaCount > 0 ? max(($count / $maxAreaCount) * 380, 50) : 50;
+                        @endphp
+                        <div style="background: linear-gradient(90deg, #48bb78 0%, #38a169 100%); color: white; padding: 8px 12px; border-radius: 4px; font-size: 10px; font-weight: 600; width: {{ $barWidth }}px; text-align: center;">
                             {{ $count }} ({{ $totalAreas > 0 ? round(($count / $totalAreas) * 100, 1) : 0 }}%)
                         </div>
-                    </div>
-                </div>
+                    </td>
+                </tr>
                 @endforeach
-            </div>
+            </table>
+            
             <div style="text-align: center; margin-top: 10px; font-size: 9px; color: #718096;">
                 <span class="summary-badge success">Total de áreas: {{ count($statistics['attendance_by_work_area']) }}</span>
                 <span class="summary-badge info">Área con más asistencia: {{ Str::limit(array_search($maxAreaCount, $statistics['attendance_by_work_area']), 25) }}</span>
