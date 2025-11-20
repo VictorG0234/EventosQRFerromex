@@ -540,7 +540,7 @@ export default function Scanner({ auth, event, statistics }) {
                                         )}
                                         
                                         {/* Input manual para simulación */}
-                                        {isScanning && (
+                                        {/* {isScanning && (
                                             <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                                                 <p className="text-sm text-yellow-800 mb-2">
                                                     <strong>Modo Simulación:</strong> Ingresa datos de QR para probar
@@ -571,7 +571,7 @@ export default function Scanner({ auth, event, statistics }) {
                                                     </button>
                                                 </div>
                                             </div>
-                                        )}
+                                        )} */}
                                     </div>
 
                                     {/* Registro manual */}
