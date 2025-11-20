@@ -612,27 +612,27 @@ export default function Scanner({ auth, event, statistics }) {
 
                                     {/* Resultado del escaneo */}
                                     {scanResult && (
-                                        <div className={`mt-4 p-4 rounded-lg border ${
+                                        <div className={`mt-4 p-6 rounded-lg border-2 shadow-lg ${
                                             scanResult.success 
-                                                ? 'bg-green-50 border-green-200' 
-                                                : 'bg-red-50 border-red-200'
+                                                ? 'bg-green-50 border-green-400' 
+                                                : 'bg-red-50 border-red-400'
                                         }`}>
-                                            <div className="flex">
+                                            <div className="flex items-start">
                                                 {scanResult.success ? (
-                                                    <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2" />
+                                                    <CheckCircleIcon className="w-8 h-8 text-green-600 mr-3 flex-shrink-0" />
                                                 ) : (
-                                                    <ExclamationTriangleIcon className="w-5 h-5 text-red-400 mr-2" />
+                                                    <ExclamationTriangleIcon className="w-8 h-8 text-red-600 mr-3 flex-shrink-0" />
                                                 )}
                                                 <div className="flex-1">
-                                                    <p className={`font-medium ${
-                                                        scanResult.success ? 'text-green-800' : 'text-red-800'
+                                                    <p className={`font-bold text-lg mb-2 ${
+                                                        scanResult.success ? 'text-green-900' : 'text-red-900'
                                                     }`}>
                                                         {scanResult.message}
                                                     </p>
                                                     
                                                     {scanResult.guest && (
-                                                        <div className="mt-2 text-sm text-gray-700">
-                                                            <p><strong>Nombre:</strong> {scanResult.guest.name}</p>
+                                                        <div className="mt-3 space-y-1 text-sm font-medium text-gray-800">
+                                                            <p className="text-base"><strong>Nombre:</strong> {scanResult.guest.name}</p>
                                                             <p><strong>Empleado:</strong> {scanResult.guest.employee_number}</p>
                                                             <p><strong>Área:</strong> {scanResult.guest.work_area}</p>
                                                             {scanResult.guest.attended_at && (
