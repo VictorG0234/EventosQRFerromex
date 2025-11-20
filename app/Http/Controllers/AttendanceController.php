@@ -290,7 +290,7 @@ class AttendanceController extends Controller
             'event' => [
                 'id' => $event->id,
                 'name' => $event->name,
-                'date' => $event->date->format('d/m/Y H:i'),
+                'date' => $event->event_date->format('d/m/Y H:i'),
                 'location' => $event->location,
             ],
             'attendances' => $attendances,
