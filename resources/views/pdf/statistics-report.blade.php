@@ -406,9 +406,7 @@
         <div class="event-info-box">
             <strong>{{ $event->name }}</strong>
             <div class="info-row">
-                <span style="display: inline-block; width: 15px;">📅</span> 
                 <strong>Fecha:</strong> {{ $event->event_date->format('d/m/Y') }}
-                <span style="margin-left: 20px; display: inline-block; width: 15px;">📍</span> 
                 <strong>Ubicación:</strong> {{ $event->location }}
             </div>
             @if($event->description)
@@ -422,32 +420,35 @@
         <div class="section">
             <div class="section-title">Resumen General del Evento</div>
             
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                <tr>
-                    <td style="width: 25%; padding: 18px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; vertical-align: top;">
-                        <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; opacity: 0.9; font-weight: 600;">TOTAL INVITADOS</div>
-                        <div style="font-size: 32px; font-weight: bold; line-height: 1; margin-bottom: 5px;">{{ number_format($statistics['overview']['total_guests']) }}</div>
-                        <div style="font-size: 9px; opacity: 0.85;">Registrados</div>
-                    </td>
-                    <td style="width: 3%;"></td>
-                    <td style="width: 25%; padding: 18px; text-align: center; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 8px; vertical-align: top;">
-                        <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; opacity: 0.9; font-weight: 600;">ASISTENCIAS</div>
-                        <div style="font-size: 32px; font-weight: bold; line-height: 1; margin-bottom: 5px;">{{ number_format($statistics['overview']['total_attendances']) }}</div>
-                        <div style="font-size: 9px; opacity: 0.85;">Confirmadas</div>
-                    </td>
-                    <td style="width: 3%;"></td>
-                    <td style="width: 25%; padding: 18px; text-align: center; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; border-radius: 8px; vertical-align: top;">
-                        <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; opacity: 0.9; font-weight: 600;">PENDIENTES</div>
-                        <div style="font-size: 32px; font-weight: bold; line-height: 1; margin-bottom: 5px;">{{ number_format($statistics['overview']['pending_guests']) }}</div>
-                        <div style="font-size: 9px; opacity: 0.85;">Sin registrar</div>
-                    </td>
-                    <td style="width: 3%;"></td>
-                    <td style="width: 25%; padding: 18px; text-align: center; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; border-radius: 8px; vertical-align: top;">
-                        <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; opacity: 0.9; font-weight: 600;">TASA ASISTENCIA</div>
-                        <div style="font-size: 32px; font-weight: bold; line-height: 1; margin-bottom: 5px;">{{ $statistics['overview']['attendance_rate'] }}%</div>
-                        <div style="font-size: 9px; opacity: 0.85;">Del total</div>
-                    </td>
-                </tr>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 1px solid #E2E8F0;">
+                <thead>
+                    <tr style="background: #667eea; color: white;">
+                        <th style="padding: 12px; text-align: center; font-size: 10px; font-weight: 700; border-right: 1px solid #E2E8F0;">TOTAL INVITADOS</th>
+                        <th style="padding: 12px; text-align: center; font-size: 10px; font-weight: 700; border-right: 1px solid #E2E8F0;">ASISTENCIAS</th>
+                        <th style="padding: 12px; text-align: center; font-size: 10px; font-weight: 700; border-right: 1px solid #E2E8F0;">PENDIENTES</th>
+                        <th style="padding: 12px; text-align: center; font-size: 10px; font-weight: 700;">TASA ASISTENCIA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background: #F7FAFC;">
+                        <td style="padding: 20px; text-align: center; border-right: 1px solid #E2E8F0;">
+                            <div style="font-size: 36px; font-weight: bold; color: #667eea; line-height: 1; margin-bottom: 8px;">{{ number_format($statistics['overview']['total_guests']) }}</div>
+                            <div style="font-size: 10px; color: #4A5568;">Registrados</div>
+                        </td>
+                        <td style="padding: 20px; text-align: center; border-right: 1px solid #E2E8F0;">
+                            <div style="font-size: 36px; font-weight: bold; color: #38ef7d; line-height: 1; margin-bottom: 8px;">{{ number_format($statistics['overview']['total_attendances']) }}</div>
+                            <div style="font-size: 10px; color: #4A5568;">Confirmadas</div>
+                        </td>
+                        <td style="padding: 20px; text-align: center; border-right: 1px solid #E2E8F0;">
+                            <div style="font-size: 36px; font-weight: bold; color: #f5576c; line-height: 1; margin-bottom: 8px;">{{ number_format($statistics['overview']['pending_guests']) }}</div>
+                            <div style="font-size: 10px; color: #4A5568;">Sin registrar</div>
+                        </td>
+                        <td style="padding: 20px; text-align: center;">
+                            <div style="font-size: 36px; font-weight: bold; color: #4facfe; line-height: 1; margin-bottom: 8px;">{{ $statistics['overview']['attendance_rate'] }}%</div>
+                            <div style="font-size: 10px; color: #4A5568;">Del total</div>
+                        </td>
+                    </tr>
+                </tbody>
             </table>
         </div>
 
