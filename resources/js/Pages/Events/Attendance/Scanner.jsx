@@ -31,6 +31,14 @@ export default function Scanner({ auth, event, statistics }) {
     const scanIntervalRef = useRef(null);
     const animationFrameRef = useRef(null);
 
+    // Configurar axios con el token CSRF
+    useEffect(() => {
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (token) {
+            axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
+        }
+    }, []);
+
     // Sonidos
     const playSound = (type) => {
         if (!soundEnabled) return;
@@ -246,8 +254,14 @@ export default function Scanner({ auth, event, statistics }) {
         setLastScan(qrData);
         
         try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const response = await axios.post(route('events.attendance.scan', event.id), {
                 qr_data: qrData
+            }, {
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Content-Type': 'application/json'
+                }
             });
 
             const result = response.data;
