@@ -58,6 +58,7 @@
             background: #F7FAFC;
             border-top: 3px solid #667eea;
             padding: 15px 50px;
+            margin-bottom: 20px;
             font-size: 9px;
             color: #718096;
         }
@@ -497,22 +498,36 @@
                 $totalHourly = array_sum($statistics['hourly_attendance']);
             @endphp
             
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
-                @foreach($statistics['hourly_attendance'] as $hour => $count)
-                <tr style="height: 38px;">
-                    <td style="width: 80px; padding: 8px 10px; font-size: 10px; color: #4A5568; font-weight: 600; vertical-align: middle;">
-                        {{ str_pad($hour, 2, '0', STR_PAD_LEFT) }}:00
-                    </td>
-                    <td style="padding: 8px 5px; vertical-align: middle;">
-                        @php
-                            $barWidth = $maxCount > 0 ? max(($count / $maxCount) * 380, 50) : 50;
-                        @endphp
-                        <div style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 12px; border-radius: 4px; font-size: 10px; font-weight: 600; width: {{ $barWidth }}px; text-align: center;">
-                            {{ $count }} ({{ $totalHourly > 0 ? round(($count / $totalHourly) * 100, 1) : 0 }}%)
-                        </div>
-                    </td>
-                </tr>
-                @endforeach
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; border: 1px solid #E2E8F0;">
+                <thead>
+                    <tr style="background: #F7FAFC;">
+                        <th style="padding: 12px; text-align: left; font-size: 10px; font-weight: 700; color: #2D3748; border-bottom: 2px solid #E2E8F0;">Hora</th>
+                        <th style="padding: 12px; text-align: center; font-size: 10px; font-weight: 700; color: #2D3748; border-bottom: 2px solid #E2E8F0;">Asistencias</th>
+                        <th style="padding: 12px; text-align: center; font-size: 10px; font-weight: 700; color: #2D3748; border-bottom: 2px solid #E2E8F0;">Porcentaje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($statistics['hourly_attendance'] as $hour => $count)
+                    <tr style="border-bottom: 1px solid #E2E8F0;">
+                        <td style="padding: 10px 12px; font-size: 10px; color: #4A5568; font-weight: 600;">
+                            {{ str_pad($hour, 2, '0', STR_PAD_LEFT) }}:00
+                        </td>
+                        <td style="padding: 10px 12px; text-align: center; font-size: 11px; color: #2D3748; font-weight: 700;">
+                            {{ $count }}
+                        </td>
+                        <td style="padding: 10px 12px; text-align: center; font-size: 10px; color: #4A5568;">
+                            {{ $totalHourly > 0 ? round(($count / $totalHourly) * 100, 1) : 0 }}%
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+                <tfoot>
+                    <tr style="background: #EBF4FF;">
+                        <td style="padding: 12px; font-size: 10px; font-weight: 700; color: #2D3748;">TOTAL</td>
+                        <td style="padding: 12px; text-align: center; font-size: 11px; font-weight: 700; color: #2D3748;">{{ $totalHourly }}</td>
+                        <td style="padding: 12px; text-align: center; font-size: 10px; font-weight: 700; color: #2D3748;">100%</td>
+                    </tr>
+                </tfoot>
             </table>
             
             <div style="text-align: center; margin-top: 10px; font-size: 9px; color: #718096;">
@@ -532,27 +547,34 @@
                 $totalAreas = array_sum($statistics['attendance_by_work_area']);
             @endphp
             
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
-                @foreach($sortedAreas as $area => $count)
-                <tr style="height: 38px;">
-                    <td style="width: 150px; padding: 8px 10px; font-size: 10px; color: #4A5568; font-weight: 600; vertical-align: middle;" title="{{ $area }}">
-                        {{ Str::limit($area, 20) }}
-                    </td>
-                    <td style="padding: 8px 5px; vertical-align: middle;">
-                        @php
-                            $barWidth = $maxAreaCount > 0 ? max(($count / $maxAreaCount) * 380, 50) : 50;
-                        @endphp
-                        <div style="background: linear-gradient(90deg, #48bb78 0%, #38a169 100%); color: white; padding: 8px 12px; border-radius: 4px; font-size: 10px; font-weight: 600; width: {{ $barWidth }}px; text-align: center;">
-                            {{ $count }} ({{ $totalAreas > 0 ? round(($count / $totalAreas) * 100, 1) : 0 }}%)
-                        </div>
-                    </td>
-                </tr>
-                @endforeach
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; border: 1px solid #E2E8F0;">
+                <thead>
+                    <tr style="background: #F7FAFC;">
+                        <th style="padding: 12px; text-align: left; font-size: 10px; font-weight: 700; color: #2D3748; border-bottom: 2px solid #E2E8F0;">Área Laboral</th>
+                        <th style="padding: 12px; text-align: center; font-size: 10px; font-weight: 700; color: #2D3748; border-bottom: 2px solid #E2E8F0;">Asistencias</th>
+                        <th style="padding: 12px; text-align: center; font-size: 10px; font-weight: 700; color: #2D3748; border-bottom: 2px solid #E2E8F0;">Porcentaje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($sortedAreas as $area => $count)
+                    <tr style="border-bottom: 1px solid #E2E8F0;">
+                        <td style="padding: 10px 12px; font-size: 10px; color: #4A5568; font-weight: 600;">
+                            {{ $area }}
+                        </td>
+                        <td style="padding: 10px 12px; text-align: center; font-size: 11px; color: #2D3748; font-weight: 700;">
+                            {{ $count }}
+                        </td>
+                        <td style="padding: 10px 12px; text-align: center; font-size: 10px; color: #4A5568;">
+                            {{ $totalAreas > 0 ? round(($count / $totalAreas) * 100, 1) : 0 }}%
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
             </table>
             
             <div style="text-align: center; margin-top: 10px; font-size: 9px; color: #718096;">
                 <span class="summary-badge success">Total de áreas: {{ count($statistics['attendance_by_work_area']) }}</span>
-                <span class="summary-badge info">Área con más asistencia: {{ Str::limit(array_search($maxAreaCount, $statistics['attendance_by_work_area']), 25) }}</span>
+                <span class="summary-badge info">Área con más asistencia: {{ array_search($maxAreaCount, $statistics['attendance_by_work_area']) }}</span>
             </div>
         </div>
         @endif
