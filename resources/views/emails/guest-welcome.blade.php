@@ -70,7 +70,7 @@
             padding-bottom: 10%;
         }
         .indicaciones-header {
-            background-color: #D7282F;
+            background-color: #33529F;
             padding: 15px 40px;
             text-align: center;
         }
