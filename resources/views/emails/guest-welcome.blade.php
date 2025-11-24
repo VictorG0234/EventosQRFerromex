@@ -9,7 +9,7 @@
             font-family: 'Gotham', Arial, sans-serif;
             line-height: 1.6;
             color: #33529F;
-            background-color: #f5f5f5;
+            background-color: #E5E7EB;
             margin: 0;
             padding: 0;
         }
@@ -63,14 +63,14 @@
             width: 100%;
             display: block;
         }
-.datos-evento img {
-    width: 90%;
-    display: block;
-    margin: 0 auto;
-    padding-bottom: 10%;
-}
+        .datos-evento img {
+            width: 90%;
+            display: block;
+            margin: 0 auto;
+            padding-bottom: 10%;
+        }
         .indicaciones-header {
-            background-color: #33529F;
+            background-color: #D7282F;
             padding: 15px 40px;
             text-align: center;
         }
@@ -108,6 +108,49 @@
         }
         .footer p:last-child {
             margin-bottom: 0;
+            font-weight: 600;
+        }
+        
+        /* Responsive styles */
+        @media only screen and (max-width: 600px) {
+            .container {
+                width: 100% !important;
+            }
+            .mensaje-section {
+                padding: 20px 15px;
+            }
+            .mensaje-section p {
+                font-size: 14px;
+            }
+            .qr-section {
+                padding: 30px 15px;
+            }
+            .qr-code img {
+                max-width: 200px;
+            }
+            .datos-evento img {
+                width: 95%;
+            }
+            .indicaciones-header {
+                padding: 12px 15px;
+            }
+            .indicaciones-header h2 {
+                font-size: 16px;
+            }
+            .indicaciones-content {
+                padding: 20px 15px;
+            }
+            .indicaciones-content li {
+                font-size: 14px;
+            }
+            .footer {
+                padding: 20px 15px;
+            }
+            .footer p {
+                font-size: 13px;
+            }
+        }
+    </style>
             font-weight: 600;
         }
     </style>
