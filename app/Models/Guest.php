@@ -38,6 +38,7 @@ class Guest extends Model
     protected $appends = [
         'full_name',
         'has_attended',
+        'qr_code_url',
     ];
 
     protected static function boot()
@@ -76,6 +77,15 @@ class Guest extends Model
     public function getHasAttendedAttribute(): bool
     {
         return $this->attendance !== null;
+    }
+
+    public function getQrCodeUrlAttribute(): ?string
+    {
+        if (!$this->qr_code_path) {
+            return null;
+        }
+
+        return asset('storage/' . $this->qr_code_path);
     }
 
     public function hasAttended(): bool

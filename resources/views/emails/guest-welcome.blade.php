@@ -60,12 +60,12 @@
             width: 100%;
             display: block;
         }
-        .datos-evento img {
-            width: 100%;
-            display: block;
-            margin: 0;
-            padding: 0;
-        }
+.datos-evento img {
+    width: 90%;
+    display: block;
+    margin: 0 auto;
+    padding-bottom: 10%;
+}
         .indicaciones-header {
             background-color: #33529F;
             padding: 15px 40px;
