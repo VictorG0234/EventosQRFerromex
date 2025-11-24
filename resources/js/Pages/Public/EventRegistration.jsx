@@ -77,7 +77,7 @@ export default function EventRegistration({ event, token }) {
                                     <input
                                         id="credentials"
                                         type="text"
-                                        placeholder="Ejemplo: Ferromex-12345"
+                                        placeholder="Ejemplo: GMXT12345"
                                         value={data.credentials}
                                         onChange={(e) => setData('credentials', e.target.value)}
                                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-center text-lg"
