@@ -8,10 +8,13 @@
         body {
             font-family: 'Gotham', Arial, sans-serif;
             line-height: 1.6;
-            color: #333;
+            color: #33529F;
             background-color: #f5f5f5;
             margin: 0;
             padding: 0;
+        }
+        .bold {
+            font-weight: 900;
         }
         .container {
             max-width: 600px;
@@ -38,7 +41,7 @@
             margin: 0 0 15px 0;
             font-size: 15px;
             line-height: 1.8;
-            color: #333;
+            color: #33529F;
         }
         .mensaje-section p:last-child {
             margin-bottom: 0;
@@ -90,7 +93,7 @@
             margin: 12px 0;
             font-size: 15px;
             line-height: 1.6;
-            color: #333;
+            color: #33529F;
         }
         .footer {
             background-color: #6B7280;
@@ -127,7 +130,7 @@
             
             <p>Por eso, queremos cerrar este ciclo celebrando juntos, reconociendo el trabajo que nos une y el camino que hemos construido como equipo.</p>
             
-            <p>Para tu acceso al evento, te compartimos tu código QR personal. Este código es único e intransferible; te pedimos conservarlo y presentarlo el día del evento.</p>
+            <p class="bold">Para tu acceso al evento, te compartimos tu código QR personal. Este código es único e intransferible; te pedimos conservarlo y presentarlo el día del evento.</p>
         </div>
         
         <!-- Sección del código QR -->
