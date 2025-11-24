@@ -49,7 +49,6 @@ export default function StatisticsReport({ auth, event, statistics, attendances 
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
         } catch (error) {
-            console.error('Error generando PDF:', error);
             alert('Hubo un error al generar el PDF');
         }
     };
@@ -180,7 +179,7 @@ export default function StatisticsReport({ auth, event, statistics, attendances 
                                 <div className="bg-pink-50 rounded-lg p-4">
                                     <p className="text-sm text-pink-600 font-medium">Participantes en Rifas</p>
                                     <p className="text-3xl font-bold text-pink-900 mt-1">
-                                        {statistics.overview?.active_raffle_entries || 0}
+                                        {statistics.overview?.total_participants || 0}
                                     </p>
                                 </div>
                             </div>

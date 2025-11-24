@@ -43,7 +43,7 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                     }));
                 }
             } catch (error) {
-                console.error('Error updating stats:', error);
+                // Error al actualizar estadísticas
             }
         }, 10000); // Cada 10 segundos
 
@@ -267,9 +267,9 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                                     </div>
                                     <div className="ml-4">
                                         <div className="text-2xl font-bold text-gray-900">
-                                            {liveStats.overview?.active_raffle_entries || 0}
+                                            {liveStats.overview?.total_winners || 0}
                                         </div>
-                                        <div className="text-sm text-gray-600">Participando en Rifas</div>
+                                        <div className="text-sm text-gray-600">Ganadores Totales</div>
                                     </div>
                                 </div>
                             </div>

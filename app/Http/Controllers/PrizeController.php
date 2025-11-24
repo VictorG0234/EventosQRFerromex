@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Models\Prize;
 use App\Services\RaffleService;
+use App\Services\PrizeImportService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
@@ -12,10 +13,12 @@ use Illuminate\Support\Facades\Storage;
 class PrizeController extends Controller
 {
     protected $raffleService;
+    protected $importService;
 
-    public function __construct(RaffleService $raffleService)
+    public function __construct(RaffleService $raffleService, PrizeImportService $importService)
     {
         $this->raffleService = $raffleService;
+        $this->importService = $importService;
     }
 
     /**
@@ -26,6 +29,7 @@ class PrizeController extends Controller
         $this->authorize('view', $event);
 
         $prizes = $event->prizes()
+            ->where('name', '!=', 'Rifa General') // Excluir el premio especial
             ->withCount(['raffleEntries', 'raffleEntries as winners_count' => function ($query) {
                 $query->where('status', 'won');
             }])
@@ -38,7 +42,6 @@ class PrizeController extends Controller
                     'description' => $prize->description,
                     'category' => $prize->category,
                     'stock' => $prize->stock,
-                    'initial_stock' => $prize->initial_stock,
                     'value' => $prize->value,
                     'active' => $prize->active,
                     'image' => $prize->image,
@@ -69,21 +72,11 @@ class PrizeController extends Controller
     {
         $this->authorize('update', $event);
 
-        // Get unique categories from guests' premios_rifa
-        $categories = $event->guests()
-            ->whereNotNull('premios_rifa')
-            ->pluck('premios_rifa')
-            ->flatten()
-            ->unique()
-            ->filter()
-            ->values();
-
         return Inertia::render('Events/Prizes/Create', [
             'event' => [
                 'id' => $event->id,
                 'name' => $event->name,
             ],
-            'categories' => $categories
         ]);
     }
 
@@ -97,7 +90,7 @@ class PrizeController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'category' => 'required|string|max:255',
+            'category' => 'nullable|string|max:255',
             'stock' => 'required|integer|min:1|max:1000',
             'value' => 'nullable|numeric|min:0|max:999999.99',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -105,7 +98,6 @@ class PrizeController extends Controller
         ]);
 
         $validated['event_id'] = $event->id;
-        $validated['initial_stock'] = $validated['stock'];
         $validated['active'] = $request->boolean('active', true);
 
         // Handle image upload
@@ -114,10 +106,41 @@ class PrizeController extends Controller
             $validated['image'] = $imagePath;
         }
 
-        $prize = Prize::create($validated);
+        // Crear N registros si la cantidad es mayor a 1
+        $quantity = $validated['stock'];
+        $prizes = [];
+        $totalEntriesCreated = 0;
+        
+        for ($i = 0; $i < $quantity; $i++) {
+            $prizeData = $validated;
+            $prizeData['stock'] = 1;
+            $prize = Prize::create($prizeData);
+            $prizes[] = $prize;
+            
+            // Crear participaciones automáticamente para todos los invitados elegibles
+            // Solo si el premio está activo
+            if ($prize->active) {
+                try {
+                    $result = $this->raffleService->createRaffleEntries($prize, 'general');
+                    if ($result['success']) {
+                        $totalEntriesCreated += $result['entries_created'];
+                    }
+                } catch (\Exception $e) {
+                    // Error al crear participaciones automáticas, pero no fallar la creación del premio
+                }
+            }
+        }
+
+        $message = $quantity > 1 
+            ? "Se crearon {$quantity} registros del premio exitosamente." 
+            : 'Premio creado exitosamente.';
+            
+        if ($totalEntriesCreated > 0) {
+            $message .= " Se crearon {$totalEntriesCreated} participaciones automáticamente para los invitados elegibles.";
+        }
 
         return redirect()->route('events.prizes.index', $event)
-            ->with('success', 'Premio creado exitosamente.');
+            ->with('success', $message);
     }
 
     /**
@@ -146,7 +169,6 @@ class PrizeController extends Controller
                 'description' => $prize->description,
                 'category' => $prize->category,
                 'stock' => $prize->stock,
-                'initial_stock' => $prize->initial_stock,
                 'value' => $prize->value,
                 'active' => $prize->active,
                 'image' => $prize->image,
@@ -159,7 +181,7 @@ class PrizeController extends Controller
                     'id' => $guest->id,
                     'name' => $guest->full_name,
                     'employee_number' => $guest->numero_empleado,
-                    'work_area' => $guest->area_laboral,
+                    'work_area' => $guest->puesto,
                     'attended_at' => $guest->attendance?->created_at->format('d/m/Y H:i')
                 ];
             }),
@@ -183,9 +205,8 @@ class PrizeController extends Controller
 
         // Get categories
         $categories = $event->guests()
-            ->whereNotNull('premios_rifa')
-            ->pluck('premios_rifa')
-            ->flatten()
+            ->whereNotNull('categoria_rifa')
+            ->pluck('categoria_rifa')
             ->unique()
             ->filter()
             ->values();
@@ -201,7 +222,6 @@ class PrizeController extends Controller
                 'description' => $prize->description,
                 'category' => $prize->category,
                 'stock' => $prize->stock,
-                'initial_stock' => $prize->initial_stock,
                 'value' => $prize->value,
                 'active' => $prize->active,
                 'image' => $prize->image
@@ -234,7 +254,7 @@ class PrizeController extends Controller
 
         // Only allow category and stock changes if no entries exist
         if (!$hasEntries) {
-            $rules['category'] = 'required|string|max:255';
+            $rules['category'] = 'nullable|string|max:255';
             $rules['stock'] = 'required|integer|min:1|max:1000';
         }
 
@@ -251,10 +271,6 @@ class PrizeController extends Controller
             $validated['image'] = $imagePath;
         }
 
-        // Update initial_stock if stock changed and no entries exist
-        if (!$hasEntries && isset($validated['stock'])) {
-            $validated['initial_stock'] = $validated['stock'];
-        }
 
         $prize->update($validated);
 
@@ -305,5 +321,127 @@ class PrizeController extends Controller
         $status = $prize->active ? 'activado' : 'desactivado';
 
         return back()->with('success', "Premio {$status} exitosamente.");
+    }
+
+    /**
+     * Download prize template CSV.
+     */
+    public function downloadTemplate()
+    {
+        // Agregar BOM UTF-8 para que Excel reconozca correctamente los acentos
+        $bom = "\xEF\xBB\xBF";
+        
+        $csvContent = [
+            ['Titulo', 'Descripcion', 'Categoria', 'Cantidad', 'Valor', 'Activo'],
+            ['iPhone 15 Pro', 'Smartphone de última generación', '', '5', '25000.00', 'Sí'],
+            ['Vale de Amazon', 'Para compras en línea', '', '10', '5000.00', 'Sí'],
+            ['Cena para dos', 'En restaurante de lujo', '', '3', '2000.00', 'Sí'],
+        ];
+
+        // Abrir un handle de memoria
+        $handle = fopen('php://temp', 'r+');
+        
+        // Escribir cada fila usando fputcsv que maneja correctamente la codificación
+        foreach ($csvContent as $row) {
+            fputcsv($handle, $row, ',', '"');
+        }
+        
+        // Obtener el contenido
+        rewind($handle);
+        $csv = stream_get_contents($handle);
+        fclose($handle);
+        
+        // Agregar BOM al inicio
+        $csv = $bom . $csv;
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="plantilla_premios.csv"',
+        ]);
+    }
+
+    /**
+     * Show CSV import form.
+     */
+    public function importForm(Event $event)
+    {
+        $this->authorize('view', $event);
+
+        return Inertia::render('Events/Prizes/Import', [
+            'event' => [
+                'id' => $event->id,
+                'name' => $event->name,
+                'prizes_count' => $event->prizes()->count(),
+            ]
+        ]);
+    }
+
+    /**
+     * Process CSV import.
+     */
+    public function import(Request $request, Event $event)
+    {
+        $this->authorize('update', $event);
+
+        // Aumentar tiempo de ejecución para archivos grandes
+        set_time_limit(300); // 5 minutos
+        ini_set('max_execution_time', '300');
+
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:10240', // Max 10MB
+        ]);
+
+        try {
+            $result = $this->importService->importFromCsv(
+                $request->file('csv_file'),
+                $event
+            );
+
+            $errorsCount = count($result['errors']);
+            $warningsCount = count($result['warnings'] ?? []);
+            $message = "Importación completada: {$result['imported']} premios importados.";
+            
+            if ($errorsCount > 0) {
+                $message .= " {$errorsCount} registro(s) con errores.";
+            }
+            
+            if ($warningsCount > 0) {
+                $message .= " {$warningsCount} advertencia(s).";
+            }
+
+            return redirect()->route('events.prizes.index', $event)
+                ->with('success', $message)
+                ->with('import_results', $result);
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error al importar el archivo: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Preview CSV file before import.
+     */
+    public function preview(Request $request, Event $event)
+    {
+        $this->authorize('view', $event);
+
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:10240',
+        ]);
+
+        try {
+            $preview = $this->importService->previewCsv($request->file('csv_file'));
+
+            return response()->json([
+                'success' => true,
+                'data' => $preview
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
 }

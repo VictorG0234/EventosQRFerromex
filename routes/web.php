@@ -74,16 +74,30 @@ Route::middleware('auth')->group(function () {
     Route::get('events/{event}/emails/preview', [EmailController::class, 'previewEmailTemplate'])->name('events.emails.preview');
     Route::get('admin/emails/validate-templates', [EmailController::class, 'validateEmailTemplates'])->name('emails.validate-templates');
     
-    // Rutas de premios
-    Route::resource('events.prizes', PrizeController::class)->except(['index']);
+    // Rutas de premios - Las rutas específicas DEBEN ir ANTES de las rutas con parámetros dinámicos
     Route::get('events/{event}/prizes', [PrizeController::class, 'index'])->name('events.prizes.index');
+    Route::get('events/{event}/prizes/import', [PrizeController::class, 'importForm'])->name('events.prizes.import');
+    Route::post('events/{event}/prizes/import', [PrizeController::class, 'import'])->name('events.prizes.import.process');
+    Route::post('events/{event}/prizes/preview', [PrizeController::class, 'preview'])->name('events.prizes.preview');
+    Route::get('events/{event}/prizes/create', [PrizeController::class, 'create'])->name('events.prizes.create');
+    Route::post('events/{event}/prizes', [PrizeController::class, 'store'])->name('events.prizes.store');
+    Route::get('events/{event}/prizes/{prize}', [PrizeController::class, 'show'])->name('events.prizes.show');
+    Route::get('events/{event}/prizes/{prize}/edit', [PrizeController::class, 'edit'])->name('events.prizes.edit');
+    Route::patch('events/{event}/prizes/{prize}', [PrizeController::class, 'update'])->name('events.prizes.update');
+    Route::delete('events/{event}/prizes/{prize}', [PrizeController::class, 'destroy'])->name('events.prizes.destroy');
     Route::patch('events/{event}/prizes/{prize}/toggle-active', [PrizeController::class, 'toggleActive'])->name('events.prizes.toggle-active');
+    Route::get('templates/prizes', [PrizeController::class, 'downloadTemplate'])->name('templates.prizes');
     
     // Rutas de rifas
     Route::get('events/{event}/raffle', [RaffleController::class, 'index'])->name('events.raffle.index');
+    Route::get('events/{event}/draw', [RaffleController::class, 'drawCards'])->name('events.draw.cards');
+    Route::get('events/{event}/draw-general', [RaffleController::class, 'drawGeneral'])->name('events.draw.general');
+    Route::post('events/{event}/draw-general/execute', [RaffleController::class, 'executeGeneralDraw'])->name('events.draw.general.execute');
+    Route::post('events/{event}/draw-general/reselect', [RaffleController::class, 'reselectGeneralWinner'])->name('events.draw.general.reselect');
     Route::get('events/{event}/raffle/prizes/{prize}', [RaffleController::class, 'show'])->name('events.raffle.show');
     Route::post('events/{event}/raffle/prizes/{prize}/entries', [RaffleController::class, 'createEntries'])->name('events.raffle.create-entries');
     Route::post('events/{event}/raffle/prizes/{prize}/draw', [RaffleController::class, 'draw'])->name('events.raffle.draw');
+    Route::post('events/{event}/raffle/prizes/{prize}/draw-single', [RaffleController::class, 'drawSingle'])->name('events.raffle.draw-single');
     Route::post('events/{event}/raffle/prizes/{prize}/cancel', [RaffleController::class, 'cancel'])->name('events.raffle.cancel');
     Route::get('events/{event}/raffle/prizes/{prize}/entries', [RaffleController::class, 'entries'])->name('events.raffle.entries');
     Route::patch('events/{event}/raffle/prizes/{prize}/entries/{entry}/reset', [RaffleController::class, 'resetEntry'])->name('events.raffle.reset-entry');
@@ -95,6 +109,7 @@ Route::middleware('auth')->group(function () {
     Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
     Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show');
     Route::get('audit-logs/export/csv', [AuditLogController::class, 'export'])->name('audit-logs.export');
+    Route::get('events/{event}/raffle/attendees', [RaffleController::class, 'getAttendees'])->name('events.raffle.attendees');
 });
 
 require __DIR__.'/auth.php';

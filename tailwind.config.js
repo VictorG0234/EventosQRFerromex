@@ -14,6 +14,7 @@ export default {
         extend: {
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                vintage: ['Vintage Rotter', 'cursive'],
             },
         },
     },

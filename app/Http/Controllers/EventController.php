@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Event;
+use App\Helpers\StatisticsHelper;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -94,38 +96,7 @@ class EventController extends Controller
 
         $event->load(['guests', 'prizes', 'attendances.guest']);
         
-        // Estadísticas del evento
-        $totalGuests = $event->guests->count();
-        $totalAttendances = $event->attendances->count();
-        $attendanceRate = $totalGuests > 0 ? 
-            round(($totalAttendances / $totalGuests) * 100, 2) : 0;
-        
-        $statistics = [
-            'overview' => [
-                'total_guests' => $totalGuests,
-                'total_attendances' => $totalAttendances,
-                'pending_guests' => $totalGuests - $totalAttendances,
-                'attendance_rate' => $attendanceRate,
-                'total_prizes' => $event->prizes->count(),
-                'total_prize_stock' => $event->prizes->sum('stock'),
-                'active_raffle_entries' => $event->raffleEntries()->count(),
-            ],
-            'prizes_by_category' => $event->prizes->groupBy('category')->map->sum('stock'),
-            'hourly_attendance' => $event->attendances
-                ->groupBy(function($attendance) {
-                    $timestamp = $attendance->scanned_at ?? $attendance->created_at;
-                    return $timestamp->setTimezone('America/Mexico_City')->format('H');
-                })
-                ->map->count()
-                ->sortKeys()
-                ->toArray(),
-            'attendance_by_work_area' => $event->attendances()
-                ->join('guests', 'attendances.guest_id', '=', 'guests.id')
-                ->selectRaw('guests.puesto, COUNT(*) as count')
-                ->groupBy('guests.puesto')
-                ->pluck('count', 'puesto')
-                ->toArray(),
-        ];
+        $statistics = StatisticsHelper::getCompleteEventStatistics($event);
 
         return Inertia::render('Events/Show', [
             'event' => [
@@ -249,47 +220,22 @@ class EventController extends Controller
     {
         $this->authorize('view', $event);
 
-        $totalGuests = $event->guests()->count();
-        $totalAttendances = $event->attendances()->count();
-
-        $stats = [
-            'overview' => [
-                'total_guests' => $totalGuests,
-                'total_attendances' => $totalAttendances,
-                'pending_guests' => $totalGuests - $totalAttendances,
-                'attendance_rate' => $totalGuests > 0 ? round(($totalAttendances / $totalGuests) * 100, 2) : 0,
-                'total_prizes' => $event->prizes()->count(),
-                'active_raffle_entries' => $event->raffleEntries()->count(),
-            ],
-            'hourly_attendance' => $event->attendances()
-                ->get()
-                ->groupBy(function ($attendance) {
-                    $timestamp = $attendance->scanned_at ?? $attendance->created_at;
-                    return $timestamp->setTimezone('America/Mexico_City')->format('H');
-                })
-                ->map->count()
-                ->sortKeys()
-                ->toArray(),
-            'attendance_by_area' => $event->attendances()
-                ->join('guests', 'attendances.guest_id', '=', 'guests.id')
-                ->selectRaw('guests.puesto, COUNT(*) as count')
-                ->groupBy('guests.puesto')
-                ->pluck('count', 'puesto')
-                ->toArray(),
-            'recent_attendances' => $event->attendances()
-                ->with('guest')
-                ->latest()
-                ->take(10)
-                ->get()
-                ->map(function ($attendance) {
-                    return [
-                        'id' => $attendance->id,
-                        'guest_name' => $attendance->guest->full_name,
-                        'employee_number' => $attendance->guest->numero_empleado,
-                        'attended_at' => ($attendance->scanned_at ?? $attendance->created_at)->format('d/m/Y H:i:s'),
-                    ];
-                })
-        ];
+        $stats = StatisticsHelper::getCompleteEventStatistics($event);
+        
+        // Agregar asistencias recientes
+        $stats['recent_attendances'] = $event->attendances()
+            ->with('guest')
+            ->latest()
+            ->take(10)
+            ->get()
+            ->map(function ($attendance) {
+                return [
+                    'id' => $attendance->id,
+                    'guest_name' => $attendance->guest->full_name,
+                    'employee_number' => $attendance->guest->numero_empleado,
+                    'attended_at' => ($attendance->scanned_at ?? $attendance->created_at)->format('d/m/Y H:i:s'),
+                ];
+            });
 
         return response()->json($stats);
     }
@@ -303,55 +249,15 @@ class EventController extends Controller
 
         $event->load(['guests', 'prizes', 'attendances.guest']);
         
-        // Estadísticas del evento
-        $totalGuests = $event->guests->count();
-        $totalAttendances = $event->attendances->count();
-        $attendanceRate = $totalGuests > 0 ? 
-            round(($totalAttendances / $totalGuests) * 100, 2) : 0;
+        $statistics = StatisticsHelper::getCompleteEventStatistics($event);
         
-        $statistics = [
-            'overview' => [
-                'total_guests' => $totalGuests,
-                'total_attendances' => $totalAttendances,
-                'pending_guests' => $totalGuests - $totalAttendances,
-                'attendance_rate' => $attendanceRate,
-                'total_prizes' => $event->prizes->count(),
-                'total_prize_stock' => $event->prizes->sum('stock'),
-                'active_raffle_entries' => $event->raffleEntries()->count(),
-            ],
-            'prizes_by_category' => $event->prizes->groupBy('category')->map->sum('stock'),
-            'hourly_attendance' => $event->attendances
-                ->groupBy(function($attendance) {
-                    $timestamp = $attendance->scanned_at ?? $attendance->created_at;
-                    return \Carbon\Carbon::parse($timestamp)->setTimezone('America/Mexico_City')->format('H');
-                })
-                ->map->count()
-                ->sortKeys()
-                ->toArray(),
-            'attendance_by_work_area' => $event->attendances()
-                ->join('guests', 'attendances.guest_id', '=', 'guests.id')
-                ->selectRaw('guests.puesto, COUNT(*) as count')
-                ->groupBy('guests.puesto')
-                ->pluck('count', 'puesto')
-                ->toArray(),
-        ];
-
         // Obtener todas las asistencias
-        $attendances = $event->attendances()
-            ->with('guest')
-            ->orderBy('scanned_at', 'desc')
-            ->get()
-            ->map(function ($attendance) {
-                return [
-                    'id' => $attendance->id,
-                    'guest_name' => $attendance->guest->full_name,
-                    'employee_number' => $attendance->guest->numero_empleado,
-                    'work_area' => $attendance->guest->puesto,
-                    'attended_at' => \Carbon\Carbon::parse($attendance->scanned_at ?? $attendance->created_at)
-                        ->setTimezone('America/Mexico_City')
-                        ->format('d/m/Y H:i:s'),
-                ];
-            });
+        $attendances = StatisticsHelper::formatAttendancesForDisplay(
+            $event->attendances()
+                ->with('guest')
+                ->orderBy('scanned_at', 'desc')
+                ->get()
+        );
 
         return Inertia::render('Events/StatisticsReport', [
             'event' => [
@@ -378,39 +284,9 @@ class EventController extends Controller
 
             $event->load(['guests', 'prizes', 'attendances.guest']);
             
-            // Estadísticas del evento
-            $totalGuests = $event->guests->count();
-            $totalAttendances = $event->attendances->count();
-            $attendanceRate = $totalGuests > 0 ? 
-                round(($totalAttendances / $totalGuests) * 100, 2) : 0;
-            
-            $statistics = [
-                'overview' => [
-                    'total_guests' => $totalGuests,
-                    'total_attendances' => $totalAttendances,
-                    'pending_guests' => $totalGuests - $totalAttendances,
-                    'attendance_rate' => $attendanceRate,
-                    'total_prizes' => $event->prizes->count(),
-                    'total_prize_stock' => $event->prizes->sum('stock'),
-                    'active_raffle_entries' => $event->raffleEntries()->count(),
-                ],
-                'hourly_attendance' => $event->attendances
-                    ->groupBy(function($attendance) {
-                        $timestamp = $attendance->scanned_at ?? $attendance->created_at;
-                        return \Carbon\Carbon::parse($timestamp)->setTimezone('America/Mexico_City')->format('H');
-                    })
-                    ->map->count()
-                    ->sortKeys()
-                    ->toArray(),
-                'attendance_by_work_area' => $event->attendances()
-                    ->join('guests', 'attendances.guest_id', '=', 'guests.id')
-                    ->selectRaw('guests.puesto, COUNT(*) as count')
-                    ->groupBy('guests.puesto')
-                    ->pluck('count', 'puesto')
-                    ->toArray(),
-            ];
+            $statistics = StatisticsHelper::getCompleteEventStatistics($event);
 
-            // Obtener todas las asistencias
+            // Obtener todas las asistencias formateadas para PDF
             $attendances = $event->attendances
                 ->sortByDesc('created_at')
                 ->map(function ($attendance) {
