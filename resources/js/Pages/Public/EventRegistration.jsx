@@ -84,7 +84,13 @@ export default function EventRegistration({ event, token }) {
                                         autoFocus
                                     />
                                     <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                                        Formato: Compañía-NumeroEmpleado
+                                        Ejemplo: GMXT00000
+                                    </p>
+                                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                                        Si eres parte de Grupo Mexico, tu codigo de compañia es GMXT
+                                    </p>
+                                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+                                        Si eres parte de Imex, tu codigo de compañia es IMEX
                                     </p>
                                     {errors.credentials && (
                                         <div className="mt-2 text-sm text-red-600 dark:text-red-400 text-center">
