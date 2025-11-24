@@ -84,7 +84,7 @@ export default function EventRegistration({ event, token }) {
                                         autoFocus
                                     />
                                     <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                                        Ejemplo: GMXT00000
+                                        Ejemplo: GMXT00000 Sin, guiones ni espacios.
                                     </p>
                                     <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
                                         Si eres parte de Grupo Mexico, tu codigo de compañia es GMXT
