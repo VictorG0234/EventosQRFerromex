@@ -35,6 +35,25 @@ class EmailController extends Controller
     }
 
     /**
+     * Preview invitation template in browser
+     */
+    public function previewInvitation(Event $event, Guest $guest)
+    {
+        $this->authorize('view', $event);
+
+        if ($guest->event_id !== $event->id) {
+            abort(404, 'Invitado no encontrado en este evento');
+        }
+
+        // Return the blade view directly
+        return view('emails.guest-welcome', [
+            'event' => $event,
+            'guest' => $guest,
+            'qrCodeUrl' => $guest->qr_code_url
+        ]);
+    }
+
+    /**
      * Send welcome email to specific guest
      */
     public function sendWelcomeEmail(Request $request, Event $event, Guest $guest)

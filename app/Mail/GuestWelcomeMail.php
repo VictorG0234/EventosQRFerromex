@@ -27,7 +27,7 @@ class GuestWelcomeMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '¡Bienvenido/a a ' . $this->guest->event->name . '!',
+            subject: 'Invitación Evento - Grupo México Transportes Ferromex',
         );
     }
 

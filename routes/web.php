@@ -63,6 +63,7 @@ Route::middleware('auth')->group(function () {
     
     // Rutas de email
     Route::get('events/{event}/emails', [EmailController::class, 'index'])->name('events.emails.index');
+    Route::get('events/{event}/emails/preview-invitation/{guest}', [EmailController::class, 'previewInvitation'])->name('events.emails.preview-invitation');
     Route::post('events/{event}/emails/welcome/{guest}', [EmailController::class, 'sendWelcomeEmail'])->name('events.emails.welcome');
     Route::post('events/{event}/emails/bulk-welcome', [EmailController::class, 'sendBulkWelcomeEmails'])->name('events.emails.bulk-welcome');
     Route::post('events/{event}/emails/reminder', [EmailController::class, 'sendEventReminder'])->name('events.emails.reminder');
