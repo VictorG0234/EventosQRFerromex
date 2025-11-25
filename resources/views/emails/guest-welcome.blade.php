@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Invitación - Evento Ferromex</title>
-    <>
+    <style>
         body {
             font-family: 'Gotham', Arial, sans-serif;
             line-height: 1.6;
