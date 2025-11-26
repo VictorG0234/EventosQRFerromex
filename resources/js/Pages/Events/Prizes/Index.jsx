@@ -1,12 +1,11 @@
 import React, { useEffect } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
-import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/Components/ui/alert-dialog';
 import { Progress } from '@/Components/ui/progress';
-import { Gift, Plus, Edit, Trash2, Eye, Power, Users, Trophy, Target, BarChart3, Sparkles } from 'lucide-react';
+import { Gift, Plus, Edit, Trash2, Power, Users, Trophy, Target, BarChart3, Sparkles, ArrowLeft, Upload } from 'lucide-react';
+import { DocumentArrowUpIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 
 export default function PrizesIndex({ auth, event, prizes, statistics }) {
@@ -43,49 +42,49 @@ export default function PrizesIndex({ auth, event, prizes, statistics }) {
         return icons[category] || '🎁';
     };
 
-    const getStatusBadge = (prize) => {
-        if (!prize.active) {
-            return <Badge variant="secondary">Inactivo</Badge>;
-        }
-        if (!prize.is_available) {
-            return <Badge variant="destructive">Agotado</Badge>;
-        }
-        if (prize.winners_count === 0) {
-            return <Badge variant="outline">Sin rifar</Badge>;
-        }
-        if (prize.stock_percentage === 100) {
-            return <Badge className="bg-red-100 text-red-800">Completo</Badge>;
-        }
-        return <Badge className="bg-green-100 text-green-800">Disponible</Badge>;
-    };
 
     return (
         <AuthenticatedLayout
             user={auth.user}
             header={
                 <div className="flex justify-between items-center">
-                    <div>
-                        <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
-                            Premios - {event.name}
-                        </h2>
-                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                            Gestiona los premios disponibles para rifas
-                        </p>
+                    <div className="flex items-center">
+                        <Link
+                            href={route('events.show', event.id)}
+                            className="mr-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        >
+                            <ArrowLeft className="w-5 h-5" />
+                        </Link>
+                        <div>
+                            <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
+                                Premios - {event.name}
+                            </h2>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                Gestiona los premios disponibles para rifas
+                            </p>
+                        </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <a
-                            href={route('templates.prizes')}
-                            className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white text-sm font-medium rounded-md transition-colors"
-                        >
-                            <Gift className="w-4 h-4 mr-2" />
-                            Descargar Plantilla
-                        </a>
                         <Link
-                            href={route('events.raffle.index', event.id)}
+                            href={route('events.prizes.import', event.id)}
+                            className="inline-flex items-center px-4 py-2 border border-blue-300 dark:border-blue-600 shadow-sm text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900 hover:bg-blue-100 dark:hover:bg-blue-800"
+                        >
+                            <DocumentArrowUpIcon className="w-4 h-4 mr-2" />
+                            Importar CSV
+                        </Link>
+                        <Link
+                            href={route('events.draw.cards', event.id)}
                             className="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 text-white text-sm font-medium rounded-md transition-colors"
                         >
                             <Sparkles className="w-4 h-4 mr-2" />
-                            Ir a Rifas
+                            Ir a Rifa Pública
+                        </Link>
+                        <Link
+                            href={route('events.draw.general', event.id)}
+                            className="inline-flex items-center px-4 py-2 bg-orange-600 hover:bg-orange-700 dark:bg-orange-500 dark:hover:bg-orange-600 text-white text-sm font-medium rounded-md transition-colors"
+                        >
+                            <Trophy className="w-4 h-4 mr-2" />
+                            Ir a Rifa General
                         </Link>
                         <Link
                             href={route('events.prizes.create', event.id)}
@@ -105,90 +104,86 @@ export default function PrizesIndex({ auth, event, prizes, statistics }) {
                     {/* Statistics Overview */}
                     {statistics && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                            <Card>
-                                <CardContent className="p-6">
+                            <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                                <div className="p-6">
                                     <div className="flex items-center">
-                                        <div className="p-2 bg-blue-100 rounded-lg">
-                                            <Gift className="w-6 h-6 text-blue-600" />
+                                        <div className="flex-shrink-0">
+                                            <Gift className="h-8 w-8 text-blue-500" />
                                         </div>
                                         <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">Total Premios</p>
-                                            <p className="text-2xl font-bold text-gray-900">{statistics.total_prizes}</p>
+                                            <div className="text-2xl font-bold text-gray-900">{statistics.total_prizes}</div>
+                                            <div className="text-sm text-gray-600">Total Premios</div>
                                         </div>
                                     </div>
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </div>
 
-                            <Card>
-                                <CardContent className="p-6">
+                            <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                                <div className="p-6">
                                     <div className="flex items-center">
-                                        <div className="p-2 bg-green-100 rounded-lg">
-                                            <Trophy className="w-6 h-6 text-green-600" />
+                                        <div className="flex-shrink-0">
+                                            <Trophy className="h-8 w-8 text-yellow-500" />
                                         </div>
                                         <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">Stock Total</p>
-                                            <p className="text-2xl font-bold text-gray-900">{statistics.total_stock}</p>
+                                            <div className="text-2xl font-bold text-gray-900">{statistics.available_stock}</div>
+                                            <div className="text-sm text-gray-600">Premios por Rifar</div>
                                         </div>
                                     </div>
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </div>
 
-                            <Card>
-                                <CardContent className="p-6">
+                            <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                                <div className="p-6">
                                     <div className="flex items-center">
-                                        <div className="p-2 bg-purple-100 rounded-lg">
-                                            <Users className="w-6 h-6 text-purple-600" />
+                                        <div className="flex-shrink-0">
+                                            <Users className="h-8 w-8 text-blue-500" />
                                         </div>
                                         <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">Participaciones</p>
-                                            <p className="text-2xl font-bold text-gray-900">{statistics.total_entries}</p>
+                                            <div className="text-2xl font-bold text-gray-900">{statistics.total_entries}</div>
+                                            <div className="text-sm text-gray-600">Participantes Únicos</div>
                                         </div>
                                     </div>
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </div>
 
-                            <Card>
-                                <CardContent className="p-6">
+                            <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                                <div className="p-6">
                                     <div className="flex items-center">
-                                        <div className="p-2 bg-orange-100 rounded-lg">
-                                            <Target className="w-6 h-6 text-orange-600" />
+                                        <div className="flex-shrink-0">
+                                            <Target className="h-8 w-8 text-orange-500" />
                                         </div>
                                         <div className="ml-4">
-                                            <p className="text-sm font-medium text-gray-600">Ganadores</p>
-                                            <p className="text-2xl font-bold text-gray-900">{statistics.total_winners}</p>
+                                            <div className="text-2xl font-bold text-gray-900">{statistics.total_winners}</div>
+                                            <div className="text-sm text-gray-600">Ganadores</div>
                                         </div>
                                     </div>
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </div>
                         </div>
                     )}
 
                     {/* Prizes List */}
                     {prizes.length === 0 ? (
-                        <Card>
-                            <CardContent className="p-8 text-center">
+                        <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                            <div className="p-8 text-center">
                                 <Gift className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                                 <h3 className="text-lg font-medium text-gray-900 mb-2">No hay premios creados</h3>
                                 <p className="text-gray-500 mb-6">
-                                    Crea el primer premio para comenzar con el sistema de rifas.
+                                    Importa premios desde un archivo CSV para comenzar con el sistema de rifas.
                                 </p>
                                 <Link
-                                    href={route('events.prizes.create', event.id)}
+                                    href={route('events.prizes.import', event.id)}
                                     className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md"
                                 >
-                                    <Plus className="w-4 h-4 mr-2" />
-                                    Crear Primer Premio
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    Importar Premios
                                 </Link>
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {prizes.map((prize) => (
-                                <Card key={prize.id} className="relative overflow-hidden">
-                                    <div className="absolute top-4 right-4 z-10">
-                                        {getStatusBadge(prize)}
-                                    </div>
-                                    
+                                <div key={prize.id} className="bg-white overflow-hidden shadow-sm sm:rounded-lg relative">
                                     {prize.image && (
                                         <div className="h-48 bg-gray-100 overflow-hidden">
                                             <img 
@@ -199,7 +194,7 @@ export default function PrizesIndex({ auth, event, prizes, statistics }) {
                                         </div>
                                     )}
                                     
-                                    <CardContent className="p-6">
+                                    <div className="p-6">
                                         <div className="flex items-start mb-3">
                                             <span className="text-2xl mr-3">{getPrizeIcon(prize.category)}</span>
                                             <div className="flex-1">
@@ -215,7 +210,7 @@ export default function PrizesIndex({ auth, event, prizes, statistics }) {
                                         <div className="space-y-3">
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-gray-600">Stock:</span>
-                                                <span className="font-medium">{prize.stock - prize.winners_count} / {prize.stock}</span>
+                                                <span className="font-medium">{prize.stock} / 1</span>
                                             </div>
 
                                             <Progress 
@@ -246,14 +241,6 @@ export default function PrizesIndex({ auth, event, prizes, statistics }) {
                                         </div>
 
                                         <div className="mt-6 flex flex-wrap gap-2">
-                                            <Link
-                                                href={route('events.prizes.show', [event.id, prize.id])}
-                                                className="inline-flex items-center px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded transition-colors"
-                                            >
-                                                <Eye className="w-3 h-3 mr-1" />
-                                                Ver
-                                            </Link>
-                                            
                                             <Link
                                                 href={route('events.prizes.edit', [event.id, prize.id])}
                                                 className="inline-flex items-center px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-medium rounded transition-colors"
@@ -314,8 +301,8 @@ export default function PrizesIndex({ auth, event, prizes, statistics }) {
                                                 </AlertDialogContent>
                                             </AlertDialog>
                                         </div>
-                                    </CardContent>
-                                </Card>
+                                    </div>
+                                </div>
                             ))}
                         </div>
                     )}

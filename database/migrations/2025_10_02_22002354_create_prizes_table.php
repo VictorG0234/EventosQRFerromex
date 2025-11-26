@@ -17,8 +17,7 @@ return new class extends Migration
             $table->string('name'); // Nombre del premio
             $table->text('description')->nullable(); // Descripción del premio
             $table->string('category'); // Categoría del premio (debe coincidir con premios_rifa del CSV)
-            $table->integer('stock'); // Cantidad disponible
-            $table->integer('initial_stock'); // Stock inicial (para estadísticas)
+            $table->integer('stock')->default(1); // Cantidad disponible (1 = disponible, 0 = no disponible)
             $table->decimal('value', 10, 2)->nullable(); // Valor del premio (opcional)
             $table->string('image')->nullable(); // Imagen del premio
             $table->boolean('active')->default(true); // Si el premio está activo para rifas

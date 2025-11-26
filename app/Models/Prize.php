@@ -17,7 +17,6 @@ class Prize extends Model
         'description',
         'category',
         'stock',
-        'initial_stock',
         'value',
         'image',
         'active',
@@ -66,17 +65,15 @@ class Prize extends Model
 
     public function getStockPercentage(): float
     {
-        if ($this->initial_stock === 0) {
-            return 0;
-        }
-        
-        return round(($this->stock / $this->initial_stock) * 100, 2);
+        // Para premios individuales (stock siempre es 1 o 0)
+        // Si stock > 0, está disponible (100%), si no, no está disponible (0%)
+        return $this->stock > 0 ? 100.0 : 0.0;
     }
 
     public function getEligibleGuests()
     {
+        // Todos los premios se pueden sortear con todos los usuarios que hayan asistido
         return Guest::where('event_id', $this->event_id)
-            ->whereJsonContains('premios_rifa', $this->category)
             ->whereHas('attendance')
             ->get();
     }

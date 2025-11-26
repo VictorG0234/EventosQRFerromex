@@ -64,7 +64,12 @@ class RaffleEntry extends Model
             'raffle_metadata' => array_merge($this->raffle_metadata ?? [], $metadata),
         ]);
 
-        return $this->prize->decrementStock();
+        // Solo decrementar stock si hay un premio asociado y no es el premio especial "Rifa General"
+        if ($this->prize && $this->prize->name !== 'Rifa General') {
+            return $this->prize->decrementStock();
+        }
+        
+        return true; // Para rifa general o premios especiales
     }
 
     public function markAsLoser(array $metadata = []): void

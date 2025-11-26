@@ -3,19 +3,19 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
-import { ArrowLeft, Gift, Save } from 'lucide-react';
+import { ArrowLeft, Gift, Save, AlertTriangle } from 'lucide-react';
 
-export default function PrizeCreate({ auth, event }) {
-    const { data, setData, post, processing, errors } = useForm({
-        name: '',
-        description: '',
-        stock: 1,
-        active: true
+export default function PrizeEdit({ auth, event, prize, has_entries }) {
+    const { data, setData, patch, processing, errors } = useForm({
+        name: prize.name || '',
+        description: prize.description || '',
+        stock: prize.stock || 1,
+        active: prize.active !== undefined ? prize.active : true,
     });
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post(route('events.prizes.store', event.id));
+        patch(route('events.prizes.update', [event.id, prize.id]));
     };
 
     return (
@@ -31,7 +31,7 @@ export default function PrizeCreate({ auth, event }) {
                     </Link>
                     <div>
                         <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
-                            Crear Nuevo Premio
+                            Editar Premio
                         </h2>
                         <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                             {event.name}
@@ -40,10 +40,19 @@ export default function PrizeCreate({ auth, event }) {
                 </div>
             }
         >
-            <Head title="Crear Premio" />
+            <Head title={`Editar Premio - ${event.name}`} />
 
             <div className="py-6">
                 <div className="max-w-4xl mx-auto sm:px-6 lg:px-8">
+                    {has_entries && (
+                        <div className="mb-6 p-4 border border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-800 rounded-md flex items-start">
+                            <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400 mr-3 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm text-orange-800 dark:text-orange-200">
+                                Este premio tiene participaciones registradas. No se puede modificar el stock.
+                            </p>
+                        </div>
+                    )}
+
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center">
@@ -94,6 +103,11 @@ export default function PrizeCreate({ auth, event }) {
                                     <div>
                                         <label htmlFor="stock" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                             Stock Disponible *
+                                            {has_entries && (
+                                                <span className="ml-2 text-xs text-orange-600 dark:text-orange-400">
+                                                    (No editable - tiene participaciones)
+                                                </span>
+                                            )}
                                         </label>
                                         <input
                                             type="number"
@@ -102,7 +116,10 @@ export default function PrizeCreate({ auth, event }) {
                                             max="1000"
                                             value={data.stock}
                                             onChange={(e) => setData('stock', parseInt(e.target.value))}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400"
+                                            disabled={has_entries}
+                                            className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 ${
+                                                has_entries ? 'opacity-50 cursor-not-allowed' : ''
+                                            }`}
                                         />
                                         {errors.stock && (
                                             <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.stock}</p>
@@ -146,7 +163,7 @@ export default function PrizeCreate({ auth, event }) {
                                         ) : (
                                             <>
                                                 <Save className="w-4 h-4 mr-2" />
-                                                Crear Premio
+                                                Guardar Cambios
                                             </>
                                         )}
                                     </Button>
@@ -159,3 +176,4 @@ export default function PrizeCreate({ auth, event }) {
         </AuthenticatedLayout>
     );
 }
+

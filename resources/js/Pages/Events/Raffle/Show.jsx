@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
@@ -157,7 +156,7 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
                                 Rifa: {prize.name}
                             </h2>
                             <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                                {prize.category} • Stock: {prize.stock} • Disponible: {prize.stock - results.winners_count}
+                                {prize.category} • Stock: {prize.stock} • Disponible: {prize.current_stock || 0}
                             </p>
                         </div>
                     </div>
@@ -179,8 +178,8 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
             <div className="py-6">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
                     {/* Prize Overview */}
-                    <Card className="mb-8">
-                        <CardContent className="p-6">
+                    <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-8">
+                        <div className="p-6">
                             <div className="flex items-start space-x-6">
                                 {prize.image && (
                                     <div className="w-32 h-32 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
@@ -209,7 +208,7 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
                                         </div>
                                         <div>
                                             <p className="text-sm text-gray-600">Disponible</p>
-                                            <p className="text-lg font-semibold text-green-600">{prize.stock - results.winners_count}</p>
+                                            <p className="text-lg font-semibold text-green-600">{prize.current_stock || 0}</p>
                                         </div>
                                         <div>
                                             <p className="text-sm text-gray-600">Ganadores</p>
@@ -220,24 +219,32 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
                                     <div className="mt-4">
                                         <div className="flex justify-between text-sm mb-1">
                                             <span>Progreso de la rifa</span>
-                                            <span>{Math.round((results.winners_count / prize.stock) * 100)}%</span>
+                                            <span>
+                                                {results.winners_count > 0 
+                                                    ? 'Completada' 
+                                                    : prize.stock > 0 
+                                                        ? `${Math.round((results.winners_count / prize.stock) * 100)}%`
+                                                        : '0%'
+                                                }
+                                            </span>
                                         </div>
-                                        <Progress value={(results.winners_count / prize.stock) * 100} className="h-2" />
+                                        <Progress 
+                                            value={prize.stock > 0 ? Math.min((results.winners_count / prize.stock) * 100, 100) : 0} 
+                                            className="h-2" 
+                                        />
                                     </div>
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
 
                     {/* Validation Status */}
-                    <Card className="mb-8">
-                        <CardHeader>
-                            <CardTitle className="flex items-center">
+                    <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-8">
+                        <div className="p-6">
+                            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                                 {getValidationIcon(validation.can_raffle)}
                                 <span className="ml-2">Estado de la Rifa</span>
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
+                            </h3>
                             <div className="space-y-2">
                                 {validation.messages.map((message, index) => (
                                     <div key={index} className={`p-3 rounded-md ${validation.can_raffle ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
@@ -323,7 +330,7 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
                                                                 <div className="bg-blue-50 p-3 rounded-md">
                                                                     <p className="text-sm text-blue-800">
                                                                         <strong>Participaciones pendientes:</strong> {results.pending_entries}<br />
-                                                                        <strong>Stock disponible:</strong> {prize.stock - results.winners_count}
+                                                                        <strong>Stock disponible:</strong> {prize.current_stock || 0}
                                                                     </p>
                                                                 </div>
                                                             </div>
@@ -452,34 +459,35 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
                                     )}
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
 
                     {/* Entries and Results */}
                     <Tabs defaultValue="entries" className="space-y-6">
-                        <TabsList>
-                            <TabsTrigger value="entries">
+                        <TabsList className="bg-gray-100">
+                            <TabsTrigger 
+                                value="entries"
+                                className="text-gray-700 data-[state=active]:bg-white data-[state=active]:text-gray-900"
+                            >
                                 Participaciones ({entries.length})
                             </TabsTrigger>
-                            <TabsTrigger value="winners">
+                            <TabsTrigger 
+                                value="winners"
+                                className="text-gray-700 data-[state=active]:bg-white data-[state=active]:text-gray-900"
+                            >
                                 Ganadores ({entries.filter(e => e.status === 'won').length})
-                            </TabsTrigger>
-                            <TabsTrigger value="eligible">
-                                Invitados Elegibles ({eligible_guests.length})
                             </TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="entries">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center justify-between">
+                            <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                                <div className="p-6">
+                                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center justify-between">
                                         <span>Todas las Participaciones</span>
                                         <Badge variant="outline">
                                             {entries.length} total
                                         </Badge>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
+                                    </h3>
                                     {loadingEntries ? (
                                         <div className="text-center py-8">
                                             <RefreshCw className="w-8 h-8 text-gray-400 mx-auto animate-spin mb-4" />
@@ -531,13 +539,6 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                                 {entry.drawn_at || '-'}
                                                             </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                {entry.order && (
-                                                                    <Badge className="bg-yellow-100 text-yellow-800">
-                                                                        #{entry.order}
-                                                                    </Badge>
-                                                                )}
-                                                            </td>
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                                 {entry.created_at}
                                                             </td>
@@ -547,19 +548,17 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
                                             </table>
                                         </div>
                                     )}
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </div>
                         </TabsContent>
 
                         <TabsContent value="winners">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center">
+                            <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                                <div className="p-6">
+                                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                                         <Trophy className="w-5 h-5 mr-2 text-yellow-500" />
                                         Lista de Ganadores
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
+                                    </h3>
                                     {entries.filter(e => e.status === 'won').length === 0 ? (
                                         <div className="text-center py-8">
                                             <Trophy className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -569,13 +568,17 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {entries
                                                 .filter(entry => entry.status === 'won')
-                                                .sort((a, b) => a.order - b.order)
-                                                .map((entry) => (
+                                                .sort((a, b) => {
+                                                    if (!a.drawn_at) return 1;
+                                                    if (!b.drawn_at) return -1;
+                                                    return new Date(b.drawn_at) - new Date(a.drawn_at);
+                                                })
+                                                .map((entry, index) => (
                                                     <div key={entry.id} className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
                                                         <div className="flex items-center justify-between mb-2">
                                                             <div className="flex items-center">
                                                                 <div className="w-8 h-8 bg-yellow-500 text-white rounded-full flex items-center justify-center text-sm font-bold mr-3">
-                                                                    {entry.order}
+                                                                    {index + 1}
                                                                 </div>
                                                                 <div>
                                                                     <p className="font-semibold text-gray-900">{entry.guest.name}</p>
@@ -596,66 +599,10 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
                                                 ))}
                                         </div>
                                     )}
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </div>
                         </TabsContent>
 
-                        <TabsContent value="eligible">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Invitados Elegibles</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    {eligible_guests.length === 0 ? (
-                                        <div className="text-center py-8">
-                                            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                            <p className="text-gray-500">No hay invitados elegibles para este premio</p>
-                                        </div>
-                                    ) : (
-                                        <div className="overflow-x-auto">
-                                            <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-gray-50">
-                                                    <tr>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Invitado
-                                                        </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Email
-                                                        </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Asistencia
-                                                        </th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="bg-white divide-y divide-gray-200">
-                                                    {eligible_guests.map((guest) => (
-                                                        <tr key={guest.id}>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                <div>
-                                                                    <div className="font-medium text-gray-900">{guest.name}</div>
-                                                                    <div className="text-sm text-gray-500">
-                                                                        {guest.employee_number} • {guest.work_area}
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                                {guest.email}
-                                                            </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                <div className="flex items-center">
-                                                                    <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
-                                                                    <span className="text-sm text-gray-600">{guest.attended_at}</span>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
                     </Tabs>
                 </div>
             </div>

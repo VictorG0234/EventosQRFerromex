@@ -24,7 +24,6 @@ class GuestController extends Controller
         $this->importService = $importService;
         $this->qrService = $qrService;
         $this->emailService = $emailService;
-        $this->qrService = $qrService;
     }
 
     /**
@@ -280,6 +279,10 @@ class GuestController extends Controller
     public function import(Request $request, Event $event)
     {
         $this->authorize('view', $event);
+
+        // Aumentar tiempo de ejecución para archivos grandes
+        set_time_limit(300); // 5 minutos
+        ini_set('max_execution_time', '300');
 
         $request->validate([
             'csv_file' => 'required|file|mimes:csv,txt|max:10240', // Max 10MB

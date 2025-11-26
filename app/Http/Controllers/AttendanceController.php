@@ -6,8 +6,12 @@ use App\Models\Event;
 use App\Models\Guest;
 use App\Models\Attendance;
 use App\Models\AuditLog;
+use App\Models\Prize;
+use App\Models\RaffleEntry;
 use App\Services\QrCodeService;
 use App\Services\EmailService;
+use App\Services\RaffleService;
+use App\Helpers\RaffleEntryHelper;
 use App\Jobs\SendEmailJob;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,11 +22,13 @@ class AttendanceController extends Controller
 {
     protected $qrService;
     protected $emailService;
+    protected $raffleService;
 
-    public function __construct(QrCodeService $qrService, EmailService $emailService)
+    public function __construct(QrCodeService $qrService, EmailService $emailService, RaffleService $raffleService)
     {
         $this->qrService = $qrService;
         $this->emailService = $emailService;
+        $this->raffleService = $raffleService;
     }
 
     /**
@@ -103,7 +109,7 @@ class AttendanceController extends Controller
                 'guest' => [
                     'name' => $guest->full_name,
                     'employee_number' => $guest->numero_empleado,
-                    'work_area' => $guest->area_laboral,
+                    'work_area' => $guest->puesto,
                     'attended_at' => $existingAttendance->created_at->format('d/m/Y H:i:s')
                 ]
             ]);
@@ -141,10 +147,12 @@ class AttendanceController extends Controller
                 try {
                     SendEmailJob::dispatch('attendance_confirmation', $guest, $event);
                 } catch (\Exception $emailError) {
-                    Log::warning('Error al despachar email de confirmación: ' . $emailError->getMessage());
                     // No fallar el registro si el email falla
                 }
             }
+
+            // Crear participaciones automáticamente para todos los premios activos del evento
+            RaffleEntryHelper::createAutoEntriesForGuest($guest, $event, $this->raffleService);
 
             // Estadísticas actualizadas
             $newStatistics = [
@@ -161,7 +169,7 @@ class AttendanceController extends Controller
                     'employee_number' => $guest->numero_empleado,
                     'work_area' => $guest->puesto,
                     'attended_at' => $attendance->created_at->format('d/m/Y H:i:s'),
-                    'raffle_categories' => $guest->premios_rifa
+                    'raffle_categories' => $guest->categoria_rifa
                 ],
                 'statistics' => $newStatistics
             ]);
@@ -169,7 +177,6 @@ class AttendanceController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             
-            // Log del error completo para debugging
             Log::error('Error al registrar asistencia: ' . $e->getMessage(), [
                 'exception' => $e,
                 'event_id' => $event->id,
