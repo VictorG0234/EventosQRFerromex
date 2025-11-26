@@ -45,7 +45,7 @@ class RaffleRulesHelper
         }
 
         // REGLA 3: Solo "General" o "Subdirectores"
-        if (!in_array($guest->descripcion, ['General', 'Subdirectores'])) {
+        if (!in_array($guest->descripcion, ['General', 'Subdirectores', 'IMEX'])) {
             return false;
         }
 

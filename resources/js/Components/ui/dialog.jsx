@@ -31,7 +31,7 @@ const DialogTrigger = React.forwardRef(({ className, children, ...props }, ref) 
 DialogTrigger.displayName = "DialogTrigger";
 
 const DialogContent = React.forwardRef(({ className, children, hideClose = false, ...props }, ref) => {
-    const hasFullScreenClass = className && (className.includes('w-screen') || className.includes('h-screen'));
+    const hasFullScreenClass = className && (className.includes('w-screen') || className.includes('h-screen') || className.includes('raffle-modal'));
     
     return (
         <div

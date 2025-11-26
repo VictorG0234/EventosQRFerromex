@@ -89,6 +89,7 @@
         margin-bottom: 20px;
         color: #33529F;
         transition: font-size 0.5s ease, line-height 0.5s ease, margin-bottom 0.5s ease;
+        text-align: center;
     }
 
     .raffle-subtitle-large {
@@ -97,6 +98,7 @@
         line-height: 180px;
         color: #33529F;
         transition: font-size 0.5s ease, line-height 0.5s ease, margin-bottom 0.5s ease;
+        text-align: center;
     }
 
     .raffle-employee-number-box {
@@ -148,6 +150,7 @@
         font-size: 80px;
         line-height: 70px;
         font-weight: 400;
+        text-align: center;
     }
 
     .raffle-start-button {
@@ -204,6 +207,157 @@
             opacity: 1;
             transform: translateY(0);
         }
+    }
+}
+
+/* Breakpoint para pantallas menores a 1440px */
+@media (max-width: 1439px) {
+    .raffle-subtitle-large {
+        font-size: 120px !important;
+        line-height: 120px !important;
+    }
+
+    .raffle-prize-text {
+        font-size: 60px !important;
+        line-height: 50px !important;
+    }
+}
+
+
+
+/* Breakpoints responsive para el modal de rifa */
+/* Breakpoint para tablets y pantallas menores a 1024px */
+@media (max-width: 1023px) {
+    .raffle-modal {
+        background-size: cover !important;
+    }
+}
+
+
+/* Breakpoint para tablets (769px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .raffle-modal {
+        padding: 60px !important;
+    }
+
+    .raffle-modal-inner {
+        padding: 2rem !important;
+    }
+
+    .raffle-logo {
+        max-height: 50px !important;
+    }
+
+    .raffle-logo-large {
+        max-height: 70px !important;
+    }
+
+    .raffle-subtitle {
+        font-size: 60px !important;
+        line-height: 60px !important;
+        margin-bottom: 18px !important;
+    }
+
+    .raffle-subtitle-large {
+        font-size: 70px !important;
+        line-height: 70px !important;
+    }
+
+    .raffle-employee-number-label,
+    .raffle-employee-number-large,
+    .raffle-employee-number-animated {
+        font-size: 60px !important;
+        line-height: 50px !important;
+    }
+
+    .raffle-prize-box {
+        padding: 0 40px !important;
+    }
+
+    .raffle-prize-text {
+        font-size: 50px !important;
+        line-height: 45px !important;
+    }
+
+    .raffle-winner-text {
+        font-size: 70px !important;
+        line-height: 70px !important;
+    }
+
+    .raffle-winner-name {
+        font-size: 36px !important;
+        line-height: 36px !important;
+    }
+}
+
+/* Breakpoint para mobile (hasta 768px) */
+@media (max-width: 768px) {
+    .raffle-modal {
+        padding: 20px !important;
+    }
+
+    .raffle-modal-inner {
+        padding: 1.5rem !important;
+    }
+
+    .raffle-modal-close {
+        right: 0.75rem !important;
+        top: 0.75rem !important;
+        width: 2rem !important;
+        height: 2rem !important;
+    }
+
+    .raffle-logo {
+        max-height: 40px !important;
+    }
+
+    .raffle-logo-large {
+        max-height: 50px !important;
+    }
+
+    .raffle-subtitle {
+        font-size: 40px !important;
+        line-height: 40px !important;
+        margin-bottom: 15px !important;
+    }
+
+    .raffle-subtitle-large {
+        font-size: 50px !important;
+        line-height: 50px !important;
+    }
+
+    .raffle-employee-number-box {
+        padding: 0.75rem 1rem !important;
+        margin-bottom: 15px !important;
+        gap: 10px !important;
+    }
+
+    .raffle-employee-number-label,
+    .raffle-employee-number-large,
+    .raffle-employee-number-animated {
+        font-size: 32px !important;
+        line-height: 32px !important;
+    }
+
+    .raffle-prize-box {
+        padding: 0 20px !important;
+        margin-bottom: 15px !important;
+    }
+
+    .raffle-prize-text {
+        font-size: 28px !important;
+        line-height: 28px !important;
+    }
+
+    .raffle-winner-text {
+        font-size: 48px !important;
+        line-height: 48px !important;
+        margin-bottom: 15px !important;
+    }
+
+    .raffle-winner-name {
+        font-size: 24px !important;
+        line-height: 24px !important;
     }
 }
 

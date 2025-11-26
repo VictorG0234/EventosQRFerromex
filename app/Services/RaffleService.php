@@ -603,7 +603,7 @@ class RaffleService
         // REGLA 3: Si Descripción del Guest es "General" puede participar en la rifa
         // REGLA 3b: Si Descripción del Guest es "Subdirectores" también puede participar
         // Solo los que tienen descripción "General" o "Subdirectores" pueden participar
-        $query->whereIn('descripcion', ['General', 'Subdirectores']);
+        $query->whereIn('descripcion', ['General', 'Subdirectores', 'IMEX']);
 
         // REGLA 9: Si Compañía del Guest es "INV" no puede participar
         $query->where('compania', '!=', 'INV');
@@ -622,16 +622,11 @@ class RaffleService
 
         // REGLA 2: No pueden participar ganadores de la Rifa Pública
         // Un ganador de la rifa pública es alguien que ganó en cualquier premio que no sea "Rifa General"
+        // Los ganadores de la rifa general pueden volver a participar si se borran
         $generalPrizeId = $this->getOrCreateGeneralRafflePrize($event)->id;
         $query->whereDoesntHave('raffleEntries', function ($q) use ($generalPrizeId) {
-            $q->where('prize_id', '!=', $generalPrizeId)
-              ->where('status', 'won'); // Excluir guests que ya ganaron en rifa pública
-        });
-
-        // REGLA 4: Un Guest no puede ser ganador de más de 1 premio
-        // Excluir guests que ya ganaron cualquier premio (incluyendo rifa general)
-        $query->whereDoesntHave('raffleEntries', function ($q) {
-            $q->where('status', 'won'); // Excluir guests que ya ganaron cualquier premio
+            $q->where('prize_id', '!=', $generalPrizeId) // Excluir solo premios que NO sean "Rifa General"
+              ->where('status', 'won'); // Excluir guests que ya ganaron en rifa pública (solo status 'won')
         });
 
         return $query->get();
@@ -724,30 +719,23 @@ class RaffleService
             // Obtener o crear el premio especial "Rifa General"
             $generalPrize = $this->getOrCreateGeneralRafflePrize($event);
 
+            // Asegurar que todos los elegibles tengan entradas creadas
+            // Esto garantiza que si se borraron ganadores, todos los elegibles puedan participar
+            $createResult = $this->createGeneralRaffleEntries($event);
+            if (!$createResult['success'] && $createResult['total_eligible'] > 0) {
+                // Si hay elegibles pero no se pudieron crear entradas, es un error
+                return [
+                    'success' => false,
+                    'error' => 'Error al crear entradas: ' . ($createResult['error'] ?? 'Error desconocido')
+                ];
+            }
+            
             // Obtener entradas pendientes de la rifa general (usando el premio especial)
             $pendingEntries = RaffleEntry::where('event_id', $event->id)
                 ->where('prize_id', $generalPrize->id)
                 ->where('status', 'pending')
                 ->with('guest')
                 ->get();
-
-            if ($pendingEntries->isEmpty()) {
-                // Intentar crear entradas si no hay
-                $createResult = $this->createGeneralRaffleEntries($event);
-                if (!$createResult['success']) {
-                    return [
-                        'success' => false,
-                        'error' => 'No hay participaciones pendientes. ' . $createResult['error']
-                    ];
-                }
-                
-                // Recargar entradas pendientes
-                $pendingEntries = RaffleEntry::where('event_id', $event->id)
-                    ->where('prize_id', $generalPrize->id)
-                    ->where('status', 'pending')
-                    ->with('guest')
-                    ->get();
-            }
 
             $eligibleEntries = $pendingEntries;
 
