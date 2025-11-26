@@ -702,13 +702,13 @@ class RaffleController extends Controller
         $this->authorize('update', $event);
 
         $validated = $request->validate([
-            'winners_count' => 'nullable|integer|min:1|max:50',
+            'winners_count' => 'nullable|integer|min:1|max:100',
             'send_notification' => 'boolean',
             'reset_previous' => 'boolean'
         ]);
 
         try {
-            $winnersCount = $validated['winners_count'] ?? 15;
+            $winnersCount = $validated['winners_count'] ?? 76;
             $sendNotification = $validated['send_notification'] ?? false;
             $resetPrevious = $validated['reset_previous'] ?? false;
 
