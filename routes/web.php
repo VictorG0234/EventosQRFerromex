@@ -74,6 +74,23 @@ Route::middleware('auth')->group(function () {
     Route::get('events/{event}/emails/preview', [EmailController::class, 'previewEmailTemplate'])->name('events.emails.preview');
     Route::get('admin/emails/validate-templates', [EmailController::class, 'validateEmailTemplates'])->name('emails.validate-templates');
     
+    // Ruta temporal para previsualizar plantilla de concierto
+    Route::get('/preview-concert-email', function () {
+        // Obtener un invitado de ejemplo con QR
+        $guest = \App\Models\Guest::with('event')->whereNotNull('qr_code_path')->first();
+        
+        if (!$guest) {
+            return 'No hay invitados con código QR disponibles para previsualizar.';
+        }
+        
+        $qrCodeUrl = $guest->qr_code_url;
+        
+        return view('emails.concert-invitation', [
+            'qrCodeUrl' => $qrCodeUrl,
+            'guest' => $guest
+        ]);
+    })->name('preview.concert.email');
+    
     // Rutas de premios - Las rutas específicas DEBEN ir ANTES de las rutas con parámetros dinámicos
     Route::get('events/{event}/prizes', [PrizeController::class, 'index'])->name('events.prizes.index');
     Route::get('events/{event}/prizes/import', [PrizeController::class, 'importForm'])->name('events.prizes.import');
