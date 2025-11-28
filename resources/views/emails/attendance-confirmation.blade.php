@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Asistencia Confirmada</title>
     <style>
+        @import url('https://fonts.cdnfonts.com/css/gotham');
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Gotham', 'Helvetica Neue', Arial, sans-serif;
             line-height: 1.6;
             color: #333;
             background-color: #f8f9fa;
@@ -22,10 +24,14 @@
             overflow: hidden;
         }
         .header {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            background: #D7282F;
             color: white;
             padding: 30px;
             text-align: center;
+        }
+        .header img {
+            max-width: 200px;
+            margin-bottom: 15px;
         }
         .header h1 {
             margin: 0;
@@ -36,7 +42,7 @@
             padding: 30px;
         }
         .success-badge {
-            background: #28a745;
+            background: #D7282F;
             color: white;
             padding: 20px;
             margin: 20px 0;
@@ -47,14 +53,14 @@
         }
         .event-info {
             background: #f8f9fa;
-            border-left: 4px solid #28a745;
+            border-left: 4px solid #D7282F;
             padding: 20px;
             margin: 20px 0;
             border-radius: 5px;
         }
         .attendance-info {
-            background: #e8f5e8;
-            border: 2px solid #28a745;
+            background: #fde8e9;
+            border: 2px solid #D7282F;
             padding: 25px;
             margin: 20px 0;
             border-radius: 10px;
@@ -62,7 +68,7 @@
         }
         .btn {
             display: inline-block;
-            background: #28a745;
+            background: #D7282F;
             color: white;
             padding: 12px 25px;
             text-decoration: none;
@@ -72,7 +78,7 @@
             transition: background-color 0.3s;
         }
         .btn:hover {
-            background: #1e7e34;
+            background: #b01f24;
         }
         .footer {
             background: #f8f9fa;
@@ -83,7 +89,7 @@
             border-top: 1px solid #e9ecef;
         }
         .highlight {
-            color: #28a745;
+            color: #D7282F;
             font-weight: 600;
         }
         .emoji {
@@ -102,6 +108,7 @@
 <body>
     <div class="container">
         <div class="header">
+            <img src="{{ asset('images/emails/invitacion/LogoGMT.svg') }}" alt="Grupo México Transportes">
             <h1>✅ Asistencia Confirmada</h1>
             <p>¡Bienvenido/a al evento!</p>
         </div>
@@ -130,7 +137,7 @@
                 <p><strong>Hora de llegada:</strong> {{ \Carbon\Carbon::parse($attendance->created_at)->format('H:i') }}</p>
                 <p><strong>Fecha de registro:</strong> {{ \Carbon\Carbon::parse($attendance->created_at)->format('d/m/Y') }}</p>
                 @endif
-                <p><strong>Estado:</strong> <span style="color: #28a745; font-weight: bold;">CONFIRMADO ✓</span></p>
+                <p><strong>Estado:</strong> <span style="color: #D7282F; font-weight: bold;">CONFIRMADO ✓</span></p>
             </div>
 
             <div class="next-steps">
@@ -158,8 +165,7 @@
         </div>
 
         <div class="footer">
-            <p>Confirmación enviada por <strong>QR Eventos</strong></p>
-            <p>Organizador: {{ $event->user->name ?? 'Sistema de Eventos' }}</p>
+            <p><strong>Grupo México Transportes Ferromex</strong></p>
             <p style="font-size: 12px; color: #999;">
                 Este email confirma tu participación en el evento. Gracias por asistir.
             </p>
