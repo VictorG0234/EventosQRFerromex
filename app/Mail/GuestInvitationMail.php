@@ -41,7 +41,7 @@ class GuestInvitationMail extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            view: 'emails.guest-invitation',
+            view: 'emails.concert-invitation',
             with: [
                 'guest' => $this->guest,
                 'event' => $this->event,
