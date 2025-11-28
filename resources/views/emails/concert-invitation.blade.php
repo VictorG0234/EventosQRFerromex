@@ -59,7 +59,7 @@
             max-width: 250px;
             width: 100%;
             height: auto;
-            margin: 0 auto 20px;
+            /* margin: 0 auto 20px; */
         }
         
         .event-details {
@@ -72,6 +72,18 @@
         
         .event-details p {
             margin: 5px 0;
+        }
+
+        p.Fecha {
+            font-size: 30px;
+        }
+
+        p.Hora {
+            font-size: 24px;
+        }
+
+        p.Evento {
+            font-size: 20px;
         }
         
         .access-header {
