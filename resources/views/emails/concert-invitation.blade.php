@@ -116,9 +116,9 @@
         
         .violin-image {
             position: absolute;
-            top: -55px;
-            left: 0;
-            width: 180px;
+            top: -140px;
+            left: -30px;
+            width: 580px;
             height: auto;
         }
         
@@ -230,8 +230,8 @@
             
             <div class="event-details">
                 <p class="Fecha"><strong>Diciembre 2, 2025</strong></p>
-                <p class="Hora"><strong>16:00 hrs</strong></p>
-                <p class="Evento"><strong>El Cantoral</strong></p>
+                <p class="Hora">16:00 hrs</p>
+                <p class="Evento">El Cantoral</p>
                 <p>Puente Xoco s/n-Puerta A, Xoco, Benito Juárez, 03330 Ciudad de México, CDMX</p>
             </div>
         </div>
