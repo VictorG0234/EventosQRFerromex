@@ -126,6 +126,7 @@
             display: table-cell;
             vertical-align: top;
             padding-left: 20px;
+            font-weight: 500
         }
         
         .text-column p {
@@ -143,11 +144,12 @@
             background-color: #6B7280;
             padding: 25px 30px;
             text-align: center;
+            font-weight: 700;
         }
         
         .footer-section p {
             color: #ffffff;
-            font-size: 14px;
+            font-size: 16px;
             margin: 0;
         }
         
@@ -261,7 +263,7 @@
         
         <!-- Footer Section -->
         <div class="footer-section">
-            <p>Grupo México Transportes Ferromex</p>
+            <p>Grupo México Transportes <br>Ferromex</p>
         </div>
     </div>
 </body>
