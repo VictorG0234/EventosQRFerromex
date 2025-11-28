@@ -42,10 +42,11 @@
         }
         
         .message-section p {
-            font-size: 16px;
+            font-size: 18px;
             line-height: 1.8;
             color: #33529F;
             margin: 0;
+            text-align: justify;
         }
         
         .qr-section {
@@ -216,9 +217,9 @@
             <img src="{{ $qrCodeUrl }}" alt="Código QR">
             
             <div class="event-details">
-                <p><strong>Diciembre 2, 2025</strong></p>
-                <p><strong>16:00 hrs</strong></p>
-                <p><strong>El Cantoral</strong></p>
+                <p class="Fecha"><strong>Diciembre 2, 2025</strong></p>
+                <p class="Hora"><strong>16:00 hrs</strong></p>
+                <p class="Evento"><strong>El Cantoral</strong></p>
                 <p>Puente Xoco s/n-Puerta A, Xoco, Benito Juárez, 03330 Ciudad de México, CDMX</p>
             </div>
         </div>
