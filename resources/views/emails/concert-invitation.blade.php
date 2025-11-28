@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Invitación Concierto Sinfónico</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;700&display=swap');
+        @import url('https://fonts.cdnfonts.com/css/gotham');
         
         * {
             margin: 0;
@@ -14,9 +14,9 @@
         }
         
         body {
-            font-family: 'Raleway', 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Gotham', 'Helvetica Neue', Arial, sans-serif;
             line-height: 1.6;
-            color: #333333;
+            color: #33529F;
             background-color: #f4f4f4;
         }
         
@@ -44,7 +44,7 @@
         .message-section p {
             font-size: 16px;
             line-height: 1.8;
-            color: #333333;
+            color: #33529F;
             margin: 0;
         }
         
@@ -64,7 +64,7 @@
         .event-details {
             font-size: 15px;
             line-height: 1.8;
-            color: #333333;
+            color: #33529F;
             text-align: center;
             margin-top: 20px;
         }
@@ -118,7 +118,7 @@
         .text-column p {
             font-size: 14px;
             line-height: 1.8;
-            color: #333333;
+            color: #33529F;
             margin-bottom: 15px;
         }
         
