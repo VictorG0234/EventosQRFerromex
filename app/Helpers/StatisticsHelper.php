@@ -126,12 +126,19 @@ class StatisticsHelper
             return trim($prize->name) !== 'Rifa General';
         });
         
+        // Contar entradas activas en rifas
+        $activeRaffleEntries = DB::table('raffle_entries')
+            ->where('event_id', $event->id)
+            ->whereIn('status', ['pending', 'won'])
+            ->count();
+        
         return [
             'overview' => array_merge($attendanceStats, [
                 'total_prizes' => $prizesExcludingGeneral->count(),
                 'total_prize_stock' => $prizesExcludingGeneral->sum('stock'),
                 'total_winners' => $winnersStats['total_winners'],
                 'total_participants' => $winnersStats['total_participants'],
+                'active_raffle_entries' => $activeRaffleEntries,
             ]),
             'prizes_by_category' => $prizesExcludingGeneral->groupBy('category')->map->sum('stock'),
             'hourly_attendance' => self::getHourlyAttendance($event),
