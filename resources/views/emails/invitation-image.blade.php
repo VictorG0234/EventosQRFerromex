@@ -15,11 +15,14 @@
             max-width: 600px;
             margin: 0 auto;
             background-color: #ffffff;
+            text-align: center;
+            padding: 20px;
         }
         .invitation-image {
-            width: 100%;
+            max-width: 100%;
             height: auto;
-            display: block;
+            display: inline-block;
+            margin: 0 auto;
         }
         .footer {
             text-align: center;
@@ -33,10 +36,10 @@
     <div class="email-container">
         <img src="{{ $invitationImageUrl }}" alt="Invitación {{ $event->name }}" class="invitation-image">
         
-        <div class="footer">
+        {{-- <div class="footer">
             <p>Grupo México Transportes Ferromex</p>
             <p>{{ $event->name }}</p>
-        </div>
+        </div> --}}
     </div>
 </body>
 </html>
