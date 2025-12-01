@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\Guest;
 use App\Models\Event;
+use App\Services\InvitationImageService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -39,12 +40,16 @@ class GuestInvitationMail extends Mailable
      */
     public function content(): Content
     {
+        // Generar la imagen de invitación con QR
+        $invitationService = new InvitationImageService();
+        $invitationPath = $invitationService->generateInvitationWithQR($this->guest);
+        
         return new Content(
-            view: 'emails.concert-invitation',
+            view: 'emails.invitation-image',
             with: [
                 'guest' => $this->guest,
                 'event' => $this->event,
-                'qrCodeUrl' => $this->guest->qr_code_path ? asset('storage/' . $this->guest->qr_code_path) : null,
+                'invitationImageUrl' => asset('storage/' . $invitationPath),
             ]
         );
     }
@@ -56,11 +61,20 @@ class GuestInvitationMail extends Mailable
     {
         $attachments = [];
         
-        // Adjuntar el código QR si existe
-        if ($this->guest->qr_code_path && Storage::disk('public')->exists($this->guest->qr_code_path)) {
-            $attachments[] = Attachment::fromStorageDisk('public', $this->guest->qr_code_path)
-                ->as('codigo-qr-' . $this->guest->numero_empleado . '.png')
-                ->withMime('image/png');
+        // Generar la imagen de invitación con QR
+        try {
+            $invitationService = new InvitationImageService();
+            $invitationPath = $invitationService->generateInvitationWithQR($this->guest);
+            
+            // Adjuntar la imagen de invitación
+            if (Storage::disk('public')->exists($invitationPath)) {
+                $attachments[] = Attachment::fromStorageDisk('public', $invitationPath)
+                    ->as('invitacion-' . $this->guest->numero_empleado . '.png')
+                    ->withMime('image/png');
+            }
+        } catch (\Exception $e) {
+            // Log del error pero no bloqueamos el envío
+            \Log::error('Error generando imagen de invitación: ' . $e->getMessage());
         }
         
         return $attachments;
