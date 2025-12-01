@@ -32,6 +32,23 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
+    // 🧪 RUTA DE PRUEBA - Generar invitación con QR (eliminar después)
+    Route::get('/test-invitation-image', function () {
+        // Obtener un invitado al azar que tenga QR
+        $guest = \App\Models\Guest::whereNotNull('qr_code_path')->inRandomOrder()->first();
+        
+        if (!$guest) {
+            return response()->json(['error' => 'No hay invitados con QR disponibles'], 404);
+        }
+        
+        try {
+            $service = new \App\Services\InvitationImageService();
+            return $service->downloadInvitationWithQR($guest);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    })->name('test.invitation.image');
+    
     // Rutas de eventos
     Route::resource('events', EventController::class);
     Route::patch('events/{event}/toggle-active', [EventController::class, 'toggleActive'])->name('events.toggle-active');
