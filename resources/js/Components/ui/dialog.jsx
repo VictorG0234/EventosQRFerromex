@@ -39,7 +39,7 @@ const DialogContent = React.forwardRef(({ className, children, hideClose = false
             className={cn(
                 hasFullScreenClass 
                     ? "relative z-50 grid w-full h-full scale-100 gap-4 bg-background shadow-lg duration-200"
-                    : "relative z-50 grid w-full max-w-lg scale-100 gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg",
+                    : "relative z-50 grid w-full max-w-lg scale-100 gap-4 border bg-white dark:bg-gray-800 p-6 shadow-lg duration-200 rounded-lg mx-auto",
                 !hasFullScreenClass && "animate-in fade-in-0 zoom-in-95 slide-in-from-left-1/2 slide-in-from-top-[48%]",
                 className
             )}

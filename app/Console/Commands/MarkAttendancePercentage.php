@@ -163,25 +163,30 @@ class MarkAttendancePercentage extends Command
 
                     // Crear participaciones automáticamente para todos los premios activos del evento
                     // Solo si el invitado es elegible para cada premio (igual que en AttendanceController)
+                    // Optimizado: verificar elegibilidad directamente sin cargar todos los elegibles
                     foreach ($activePrizes as $prize) {
                         try {
-                            // Verificar si el invitado es elegible para este premio
-                            $eligibleGuests = $this->raffleService->getEligibleGuests($prize, 'general');
-                            if ($eligibleGuests->contains('id', $guest->id)) {
-                                // Verificar si ya tiene una entrada para este premio
-                                $existingEntry = RaffleEntry::where('guest_id', $guest->id)
-                                    ->where('prize_id', $prize->id)
-                                    ->first();
-                                
-                                // Si no tiene entrada, crearla
-                                if (!$existingEntry) {
-                                    RaffleEntry::enterRaffle($guest, $prize, [
-                                        'auto_entered' => true,
-                                        'entered_by' => 'attendance_scan',
-                                        'attendance_id' => $attendance->id
-                                    ]);
-                                    $raffleEntriesCreated++;
-                                }
+                            // Verificar si ya tiene una entrada para este premio
+                            $existingEntry = RaffleEntry::where('guest_id', $guest->id)
+                                ->where('prize_id', $prize->id)
+                                ->first();
+                            
+                            // Si ya tiene entrada, saltar
+                            if ($existingEntry) {
+                                continue;
+                            }
+                            
+                            // Verificar elegibilidad de forma más eficiente
+                            // Solo verificar las reglas básicas sin cargar todos los elegibles
+                            $isEligible = $this->isGuestEligibleForPrize($guest, $prize, 'general');
+                            
+                            if ($isEligible) {
+                                RaffleEntry::enterRaffle($guest, $prize, [
+                                    'auto_entered' => true,
+                                    'entered_by' => 'attendance_scan',
+                                    'attendance_id' => $attendance->id
+                                ]);
+                                $raffleEntriesCreated++;
                             }
                         } catch (\Exception $raffleError) {
                             // Log el error pero no fallar el registro de asistencia
@@ -272,6 +277,43 @@ class MarkAttendancePercentage extends Command
             'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         ];
         return $userAgents[array_rand($userAgents)];
+    }
+
+    /**
+     * Verifica si un invitado es elegible para un premio de forma eficiente
+     * Sin cargar todos los elegibles, solo verifica las reglas básicas
+     */
+    private function isGuestEligibleForPrize(Guest $guest, Prize $prize, string $raffleType = 'general'): bool
+    {
+        // REGLA COMÚN: Debe tener asistencia (ya la tiene porque estamos en el proceso de marcarla)
+        
+        // REGLAS DE RIFA GENERAL
+        if ($raffleType === 'general') {
+            // REGLA 3: Solo "General", "Subdirectores" o "IMEX"
+            if (!in_array($guest->descripcion, ['General', 'Subdirectores', 'IMEX'])) {
+                return false;
+            }
+            
+            // REGLA 9: No puede ser INV
+            if ($guest->compania === 'INV') {
+                return false;
+            }
+            
+            // REGLA 2: No pueden participar ganadores de la Rifa Pública
+            $hasWonPublicPrize = RaffleEntry::where('guest_id', $guest->id)
+                ->whereHas('prize', function ($q) use ($prize) {
+                    $q->where('event_id', $prize->event_id)
+                      ->where('name', '!=', 'Rifa General');
+                })
+                ->where('status', 'won')
+                ->exists();
+            
+            if ($hasWonPublicPrize) {
+                return false;
+            }
+        }
+        
+        return true;
     }
 }
 

@@ -104,8 +104,6 @@ export default function DrawCards({ auth, event, prizes }) {
             }
         >
             <Head title={`Rifa Pública - ${event.name}`}>
-                <link rel="preload" href="/images/raffle-border-background.jpg" as="image" />
-                <link rel="preload" href="/images/logo-gm.png" as="image" />
                 <link rel="preload" href="/fonts/vintage-rotter.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
             </Head>
 
@@ -149,9 +147,9 @@ export default function DrawCards({ auth, event, prizes }) {
                                             </p>
                                         </div>
 
-                                        <div className="flex-grow">
+                                        <div className="">
                                             {card.isWon && card.winner ? (
-                                                <div className="mb-4 p-3 bg-green-100 rounded-md">
+                                                <div className="p-3 bg-green-100 rounded-md">
                                                     <p className="text-sm font-medium text-green-800 mb-1">
                                                         Ganador:
                                                     </p>
@@ -182,28 +180,23 @@ export default function DrawCards({ auth, event, prizes }) {
                                             )}
                                         </div>
 
-                                        <div className="mt-auto pt-4">
-                                            <Button
-                                                onClick={() => handleOpenRaffleModal(card)}
-                                                disabled={!card.canRaffle}
-                                                className={`w-full ${
-                                                    card.isWon
-                                                        ? 'bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 disabled:cursor-not-allowed'
-                                                        : 'bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed'
-                                                }`}
-                                            >
-                                                {card.isWon ? (
-                                                    <>
-                                                        <RotateCcw className="w-4 h-4 mr-2" />
-                                                        Volver a rifar
-                                                    </>
-                                                ) : (
-                                                    <>
+                                        <div className="">
+                                            {
+                                                card.isWon ? null : (
+                                                    <Button
+                                                        onClick={() => handleOpenRaffleModal(card)}
+                                                        disabled={!card.canRaffle}
+                                                        className={`w-full ${
+                                                            card.isWon
+                                                                ? 'bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 disabled:cursor-not-allowed'
+                                                                : 'bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed'
+                                                        }`}
+                                                    >
                                                         <Sparkles className="w-4 h-4 mr-2" />
                                                         Rifar
-                                                    </>
-                                                )}
-                                            </Button>
+                                                    </Button>
+                                                )
+                                            }
                                         </div>
                                     </div>
                                 </div>

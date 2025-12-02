@@ -23,6 +23,7 @@ class Event extends Model
         'status',
         'settings',
         'public_token',
+        'imex_prize_id',
     ];
 
     protected $casts = [
