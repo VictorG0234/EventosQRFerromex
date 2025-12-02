@@ -132,6 +132,7 @@ Route::middleware('auth')->group(function () {
     Route::post('events/{event}/raffle/prizes/{prize}/entries', [RaffleController::class, 'createEntries'])->name('events.raffle.create-entries');
     Route::post('events/{event}/raffle/prizes/{prize}/draw', [RaffleController::class, 'draw'])->name('events.raffle.draw');
     Route::post('events/{event}/raffle/prizes/{prize}/draw-single', [RaffleController::class, 'drawSingle'])->name('events.raffle.draw-single');
+    Route::post('events/{event}/raffle/prizes/{prize}/confirm-winner', [RaffleController::class, 'confirmWinner'])->name('events.raffle.confirm-winner');
     Route::post('events/{event}/raffle/prizes/{prize}/cancel', [RaffleController::class, 'cancel'])->name('events.raffle.cancel');
     Route::get('events/{event}/raffle/prizes/{prize}/entries', [RaffleController::class, 'entries'])->name('events.raffle.entries');
     Route::patch('events/{event}/raffle/prizes/{prize}/entries/{entry}/reset', [RaffleController::class, 'resetEntry'])->name('events.raffle.reset-entry');

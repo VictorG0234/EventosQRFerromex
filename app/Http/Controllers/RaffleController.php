@@ -522,11 +522,43 @@ class RaffleController extends Controller
 
     /**
      * Get all attendees (guests with attendance) for an event.
+     * If prize_id is provided, only return eligible guests for that prize.
      */
-    public function getAttendees(Event $event)
+    public function getAttendees(Event $event, Request $request)
     {
         $this->authorize('view', $event);
 
+        $prizeId = $request->query('prize_id');
+        $raffleType = $request->query('raffle_type', 'public'); // 'public' o 'general'
+
+        // Si se proporciona un prize_id, usar las reglas de elegibilidad
+        if ($prizeId) {
+            $prize = Prize::where('event_id', $event->id)
+                ->where('id', $prizeId)
+                ->first();
+
+            if ($prize) {
+                // Obtener guests elegibles usando las mismas reglas que se usan para la rifa
+                $eligibleGuests = $this->raffleService->getEligibleGuests($prize, $raffleType);
+                
+                $attendees = $eligibleGuests->map(function ($guest) {
+                    return [
+                        'id' => $guest->id,
+                        'name' => $guest->nombre_completo,
+                        'employee_number' => $guest->numero_empleado,
+                        'email' => $guest->correo,
+                        'compania' => $guest->compania,	
+                    ];
+                });
+
+                return response()->json([
+                    'attendees' => $attendees,
+                    'total' => $attendees->count()
+                ]);
+            }
+        }
+
+        // Si no hay prize_id, devolver todos los asistentes (comportamiento original)
         $attendees = $event->guests()
             ->whereHas('attendance')
             ->get()
@@ -571,8 +603,6 @@ class RaffleController extends Controller
         }
 
         try {
-            DB::beginTransaction();
-
             // Resetear ganador anterior si es necesario
             if ($validated['reset_previous'] ?? false) {
                 $this->resetPreviousWinner($prize, $validated['card_index'] ?? 0);
@@ -581,19 +611,17 @@ class RaffleController extends Controller
             // Asegurar que hay participaciones pendientes
             $pendingEntries = $this->ensurePendingEntries($prize);
             if ($pendingEntries === false) {
-                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'No se pudieron crear participaciones pendientes para este premio.'
                 ], 422);
             }
 
-            // Realizar la rifa
+            // Seleccionar ganador temporalmente (sin guardar en BD)
             $prize->refresh();
-            $result = $this->raffleService->drawRaffle($prize, 1, false, 'public');
+            $result = $this->raffleService->selectWinnerTemporary($prize, 'public');
 
             if (!$result['success']) {
-                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => $result['error'] ?? 'Error al realizar la rifa',
@@ -601,20 +629,19 @@ class RaffleController extends Controller
                 ], 422);
             }
 
-            DB::commit();
-
+            $winnerEntry = $result['winner'];
             $prize->refresh();
-            $winner = $result['winners'][0];
 
             return response()->json([
                 'success' => true,
                 'winner' => [
-                    'id' => $winner->guest->id,
-                    'name' => $winner->guest->nombre_completo,
-                    'employee_number' => $winner->guest->numero_empleado,
-                    'email' => $winner->guest->correo,
-                    'compania' => $winner->guest->compania,
+                    'id' => $winnerEntry->guest->id,
+                    'name' => $winnerEntry->guest->nombre_completo,
+                    'employee_number' => $winnerEntry->guest->numero_empleado,
+                    'email' => $winnerEntry->guest->correo,
+                    'compania' => $winnerEntry->guest->compania,
                 ],
+                'entry_id' => $winnerEntry->id, // ID de la entrada para confirmar después
                 'remaining_stock' => $prize->stock,
                 'winners_count' => $prize->raffleEntries()->where('status', 'won')->count()
             ]);
@@ -640,6 +667,78 @@ class RaffleController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al realizar la rifa: ' . $e->getMessage(),
+                'error_type' => get_class($e)
+            ], 422);
+        }
+    }
+
+    /**
+     * Confirm and save a previously selected winner to database.
+     */
+    public function confirmWinner(Request $request, Event $event, Prize $prize)
+    {
+        $this->authorize('update', $event);
+
+        if ($prize->event_id !== $event->id) {
+            abort(404);
+        }
+
+        try {
+            $validated = $request->validate([
+                'entry_id' => 'required|integer|exists:raffle_entries,id',
+                'send_notification' => 'boolean'
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación: ' . $e->getMessage(),
+                'errors' => $e->errors()
+            ], 422);
+        }
+
+        try {
+            $result = $this->raffleService->confirmWinner(
+                $prize, 
+                $validated['entry_id'], 
+                $validated['send_notification'] ?? true
+            );
+
+            if (!$result['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['error'] ?? 'Error al confirmar el ganador'
+                ], 422);
+            }
+
+            $prize->refresh();
+            $winner = $result['winner'];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Ganador confirmado exitosamente',
+                'winner' => [
+                    'id' => $winner->guest->id,
+                    'name' => $winner->guest->nombre_completo,
+                    'employee_number' => $winner->guest->numero_empleado,
+                    'email' => $winner->guest->correo,
+                    'compania' => $winner->guest->compania,
+                ],
+                'remaining_stock' => $prize->stock,
+                'winners_count' => $prize->raffleEntries()->where('status', 'won')->count()
+            ]);
+
+        } catch (Exception $e) {
+            \Log::error('Error en confirmWinner', [
+                'event_id' => $event->id,
+                'prize_id' => $prize->id,
+                'entry_id' => $validated['entry_id'] ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al confirmar el ganador: ' . $e->getMessage(),
                 'error_type' => get_class($e)
             ], 422);
         }
@@ -701,14 +800,18 @@ class RaffleController extends Controller
     {
         $this->authorize('update', $event);
 
+        // Obtener invitados elegibles para validar el máximo
+        $eligibleGuests = $this->raffleService->getEligibleGuestsForGeneralRaffle($event);
+        $maxWinners = $eligibleGuests->count();
+
         $validated = $request->validate([
-            'winners_count' => 'nullable|integer|min:1|max:100',
+            'winners_count' => 'required|integer|min:1|max:' . $maxWinners,
             'send_notification' => 'boolean',
             'reset_previous' => 'boolean'
         ]);
 
         try {
-            $winnersCount = $validated['winners_count'] ?? 76;
+            $winnersCount = $validated['winners_count'];
             $sendNotification = $validated['send_notification'] ?? false;
             $resetPrevious = $validated['reset_previous'] ?? false;
 
@@ -792,6 +895,7 @@ class RaffleController extends Controller
         ]);
 
         try {
+            DB::beginTransaction();
             // Obtener el premio especial "Rifa General"
             $generalPrize = $this->raffleService->getOrCreateGeneralRafflePrize($event);
 
@@ -833,20 +937,71 @@ class RaffleController extends Controller
             ]);
             $currentWinnerEntry->refresh();
 
-            // Obtener invitados elegibles para la rifa general (excluyendo los otros 14 ganadores)
+            // Obtener invitados elegibles para la rifa general (excluyendo los otros ganadores)
             $eligibleGuests = $this->raffleService->getEligibleGuestsForGeneralRaffle($event)
                 ->whereNotIn('id', $otherWinnersIds);
 
-            // Obtener entradas pendientes de los elegibles (excluyendo los otros ganadores)
-            // Incluir también la entrada del guest que se está reemplazando (ya está como pending)
+            // Obtener IDs de elegibles
+            $eligibleGuestIds = $eligibleGuests->pluck('id')->toArray();
+            
+            if (empty($eligibleGuestIds)) {
+                // Restaurar el ganador original si no hay elegibles
+                $currentWinnerEntry->update([
+                    'status' => 'won',
+                    'drawn_at' => now()
+                ]);
+                DB::commit();
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay participantes elegibles disponibles para reemplazar este ganador. Se mantiene el ganador original.'
+                ], 422);
+            }
+            
+            // Obtener entradas existentes para estos elegibles
+            $existingEntries = RaffleEntry::where('event_id', $event->id)
+                ->where('prize_id', $generalPrize->id)
+                ->whereIn('guest_id', $eligibleGuestIds)
+                ->get()
+                ->keyBy('guest_id');
+            
+            // Crear entradas solo para elegibles que no las tengan
+            $guestsToCreateEntries = $eligibleGuests->filter(function ($guest) use ($existingEntries) {
+                return !$existingEntries->has($guest->id);
+            });
+            
+            // Crear entradas en batch si hay algunas que faltan
+            if ($guestsToCreateEntries->isNotEmpty()) {
+                foreach ($guestsToCreateEntries as $guest) {
+                    RaffleEntry::enterRaffle($guest, $generalPrize, [
+                        'auto_entered' => true,
+                        'entered_by' => 'system',
+                        'raffle_type' => 'general'
+                    ]);
+                }
+            }
+            
+            // Resetear entradas que no estén en estado 'pending' (excepto las de otros ganadores)
+            RaffleEntry::where('event_id', $event->id)
+                ->where('prize_id', $generalPrize->id)
+                ->whereIn('guest_id', $eligibleGuestIds)
+                ->where('status', '!=', 'pending')
+                ->whereNotIn('guest_id', $otherWinnersIds)
+                ->update([
+                    'status' => 'pending',
+                    'drawn_at' => null
+                ]);
+            
+            // Obtener todas las entradas pendientes de los elegibles (excluyendo los otros ganadores)
             $pendingEntries = RaffleEntry::where('event_id', $event->id)
                 ->where('prize_id', $generalPrize->id)
                 ->where('status', 'pending')
+                ->whereIn('guest_id', $eligibleGuestIds)
                 ->whereNotIn('guest_id', $otherWinnersIds)
                 ->with('guest')
                 ->get();
 
-            // Si la entrada del guest actual no está en las pendientes (por alguna razón), agregarla
+            // Asegurar que la entrada del guest actual esté incluida (ya está como pending)
             if (!$pendingEntries->contains('id', $currentWinnerEntry->id)) {
                 $currentWinnerEntry->load('guest');
                 $pendingEntries->push($currentWinnerEntry);
@@ -907,6 +1062,8 @@ class RaffleController extends Controller
                     'status' => 'won',
                     'drawn_at' => now()
                 ]);
+                
+                DB::commit();
 
                 return response()->json([
                     'success' => false,
@@ -917,17 +1074,36 @@ class RaffleController extends Controller
             // Seleccionar un nuevo ganador aleatoriamente (excluyendo al ganador actual)
             $newWinnerEntry = $eligibleEntries->random();
 
-            // Marcar el nuevo ganador
-            $newWinnerEntry->update([
-                'status' => 'won',
-                'drawn_at' => Carbon::now(),
-                'raffle_metadata' => array_merge($newWinnerEntry->raffle_metadata ?? [], [
-                    'raffle_type' => 'general',
-                    'drawn_at' => now(),
-                    'reselect' => true,
-                    'replaced_guest_id' => $guest->id
-                ]),
+            // Preparar metadata
+            $existingMetadata = $newWinnerEntry->raffle_metadata ?? [];
+            $newMetadata = array_merge($existingMetadata, [
+                'raffle_type' => 'general',
+                'drawn_at' => now()->toIso8601String(),
+                'reselect' => true,
+                'replaced_guest_id' => $guest->id
             ]);
+
+            // Marcar el nuevo ganador
+            $newWinnerEntry->status = 'won';
+            $newWinnerEntry->drawn_at = Carbon::now();
+            $newWinnerEntry->raffle_metadata = $newMetadata;
+            $newWinnerEntry->save();
+            
+            // Refrescar la entrada para obtener los datos actualizados
+            $newWinnerEntry->refresh();
+            $newWinnerEntry->load('guest');
+
+            // Confirmar la transacción
+            DB::commit();
+            
+            // Verificar que se guardó correctamente
+            $newWinnerEntry->refresh();
+            if ($newWinnerEntry->status !== 'won') {
+                \Log::error('Error: El ganador no se guardó correctamente', [
+                    'entry_id' => $newWinnerEntry->id,
+                    'status' => $newWinnerEntry->status
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
@@ -943,15 +1119,17 @@ class RaffleController extends Controller
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación: ' . $e->getMessage(),
                 'errors' => $e->errors()
             ], 422);
         } catch (Exception $e) {
+            DB::rollBack();
             \Log::error('Error en reselectGeneralWinner', [
                 'event_id' => $event->id,
-                'guest_id' => $validated['guest_id'] ?? null,
+                'guest_id' => $request->input('guest_id'),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -959,7 +1137,7 @@ class RaffleController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al re-seleccionar ganador: ' . $e->getMessage()
-            ], 422);
+            ], 500);
         }
     }
 

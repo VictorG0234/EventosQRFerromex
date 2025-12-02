@@ -212,7 +212,7 @@ export default function RaffleIndex({ auth, event, prizes, statistics, public_ra
                                         </div>
                                         <div>
                                             <h3 className="text-lg font-semibold text-gray-900">Rifa General</h3>
-                                            <p className="text-sm text-gray-500">15 ganadores</p>
+                                            <p className="text-sm text-gray-500">Selecciona ganadores</p>
                                         </div>
                                     </div>
                                 </div>
