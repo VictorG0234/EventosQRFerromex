@@ -109,7 +109,7 @@ class SendEventInvitations extends Command
 
                 // Enviar correo (solo si no es modo test)
                 if (!$testMode) {
-                    Mail::to($guest->correo)->send(new GuestInvitationMail($guest));
+                    Mail::to($guest->correo)->send(new GuestInvitationMail($guest, $event));
                     
                     // Marcar como enviado
                     $guest->update(['email_sent' => true]);
