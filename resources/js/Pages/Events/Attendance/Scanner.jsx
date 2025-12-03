@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { 
     QrCodeIcon, 
     CameraIcon, 
@@ -15,6 +15,7 @@ import jsQR from 'jsqr';
 import axios from 'axios';
 
 export default function Scanner({ auth, event, statistics }) {
+    const { flash } = usePage().props;
     const [isScanning, setIsScanning] = useState(false);
     const [lastScan, setLastScan] = useState(null);
     const [scanResult, setScanResult] = useState(null);
@@ -30,6 +31,25 @@ export default function Scanner({ auth, event, statistics }) {
     const streamRef = useRef(null);
     const scanIntervalRef = useRef(null);
     const animationFrameRef = useRef(null);
+
+    // Manejar mensajes flash de Laravel
+    useEffect(() => {
+        if (flash?.success || flash?.error || flash?.warning) {
+            const type = flash.success ? 'success' : (flash.warning ? 'warning' : 'error');
+            const message = flash.success || flash.warning || flash.error;
+            
+            setScanResult({
+                success: type === 'success',
+                type: type,
+                message: message
+            });
+            
+            playSound(type === 'success' ? 'success' : 'error');
+            
+            // Limpiar el mensaje después de 5 segundos
+            setTimeout(() => setScanResult(null), 5000);
+        }
+    }, [flash]);
 
     // Configurar axios con el token CSRF
     useEffect(() => {
@@ -343,37 +363,22 @@ export default function Scanner({ auth, event, statistics }) {
         
         setIsProcessing(true);
         
-        try {
-            const response = await fetch(route('events.attendance.manual', event.id), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        router.post(
+            route('events.attendance.manual', event.id),
+            { 
+                employee_number: manualEmployeeNumber.trim(),
+                reason: 'Registro manual desde escáner'
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setManualEmployeeNumber('');
                 },
-                body: JSON.stringify({ 
-                    employee_number: manualEmployeeNumber.trim(),
-                    reason: 'QR no funciona'
-                })
-            });
-
-            if (response.ok) {
-                playSound('success');
-                setManualEmployeeNumber('');
-                setManualMode(false);
-                // Refrescar página para ver cambios
-                router.reload({ only: ['statistics'] });
-            } else {
-                const errorData = await response.json();
-                alert(errorData.message || 'Error al registrar asistencia');
-                playSound('error');
+                onFinish: () => {
+                    setIsProcessing(false);
+                }
             }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error de conexión');
-            playSound('error');
-        } finally {
-            setIsProcessing(false);
-        }
+        );
     };
 
     // Cleanup al desmontar
@@ -594,6 +599,27 @@ export default function Scanner({ auth, event, statistics }) {
                                             <h4 className="text-md font-medium text-gray-900 mb-2">
                                                 Registro Manual
                                             </h4>
+                                            
+                                            {/* Mensajes de retroalimentación */}
+                                            {scanResult && (
+                                                <div className={`mb-3 p-3 rounded-md border ${
+                                                    scanResult.success 
+                                                        ? 'bg-green-50 border-green-300 text-green-800' 
+                                                        : scanResult.type === 'warning'
+                                                        ? 'bg-yellow-50 border-yellow-300 text-yellow-800'
+                                                        : 'bg-red-50 border-red-300 text-red-800'
+                                                }`}>
+                                                    <div className="flex items-start">
+                                                        {scanResult.success ? (
+                                                            <CheckCircleIcon className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+                                                        ) : (
+                                                            <ExclamationTriangleIcon className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+                                                        )}
+                                                        <p className="text-sm font-medium">{scanResult.message}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
                                             <form onSubmit={handleManualRegister} className="flex space-x-2">
                                                 <input
                                                     type="text"
