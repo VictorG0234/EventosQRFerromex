@@ -266,9 +266,15 @@ export default function Scanner({ auth, event, statistics }) {
         console.log('✅ Bucle de renderizado iniciado');
     };
 
-    // Procesar código QR
+    // Procesar código QR con debounce mejorado
     const processScan = async (qrData) => {
         if (isProcessing || !qrData) return;
+        
+        // Verificar si es el mismo QR que acabamos de escanear (debounce)
+        if (lastScan === qrData) {
+            console.log('⏭️ QR duplicado ignorado (debounce)');
+            return;
+        }
         
         setIsProcessing(true);
         setLastScan(qrData);
@@ -306,12 +312,14 @@ export default function Scanner({ auth, event, statistics }) {
                 // Agregar nueva asistencia a la lista (al principio)
                 if (result.guest) {
                     const newAttendance = {
-                        id: Date.now(), // Temporal hasta que se recargue
+                        id: Date.now(),
                         guest_name: result.guest.name,
                         employee_number: result.guest.employee_number,
                         work_area: result.guest.work_area,
                         attended_at: new Date().toLocaleTimeString('es-ES'),
-                        time_ago: 'Justo ahora'
+                        time_ago: 'Justo ahora',
+                        scan_count: result.guest.scan_count || 1,
+                        exceeded_limit: result.exceeded_limit || false
                     };
                     setRecentAttendances(prev => [newAttendance, ...prev.slice(0, 9)]);
                 }
@@ -754,15 +762,38 @@ export default function Scanner({ auth, event, statistics }) {
                                             recentAttendances.map((attendance, index) => (
                                                 <div 
                                                     key={attendance.id || index}
-                                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                                                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                                                        attendance.exceeded_limit 
+                                                            ? 'bg-red-50 border-red-300 hover:bg-red-100' 
+                                                            : attendance.scan_count > 1
+                                                            ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
+                                                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                                                    }`}
                                                 >
                                                     <div className="flex items-center space-x-3">
                                                         <div className="flex-shrink-0">
-                                                            <CheckCircleIcon className="w-5 h-5 text-green-500" />
+                                                            {attendance.exceeded_limit ? (
+                                                                <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
+                                                            ) : (
+                                                                <CheckCircleIcon className={`w-5 h-5 ${
+                                                                    attendance.scan_count > 1 ? 'text-yellow-600' : 'text-green-500'
+                                                                }`} />
+                                                            )}
                                                         </div>
                                                         <div>
-                                                            <p className="text-sm font-medium text-gray-900">
+                                                            <p className={`text-sm font-medium ${
+                                                                attendance.exceeded_limit ? 'text-red-900' : 'text-gray-900'
+                                                            }`}>
                                                                 {attendance.guest_name}
+                                                                {attendance.scan_count > 1 && (
+                                                                    <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                                                                        attendance.exceeded_limit 
+                                                                            ? 'bg-red-200 text-red-800' 
+                                                                            : 'bg-yellow-200 text-yellow-800'
+                                                                    }`}>
+                                                                        {attendance.scan_count}× escaneos
+                                                                    </span>
+                                                                )}
                                                             </p>
                                                             <p className="text-xs text-gray-500">
                                                                 {attendance.employee_number} • {attendance.work_area}

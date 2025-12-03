@@ -55,6 +55,8 @@ class AttendanceController extends Controller
                         'work_area' => $attendance->guest->puesto,
                         'attended_at' => $attendance->created_at->format('H:i:s'),
                         'time_ago' => $attendance->created_at->diffForHumans(),
+                        'scan_count' => $attendance->scan_count,
+                        'exceeded_limit' => $attendance->hasExceededLimit(),
                     ];
                 })
         ];
@@ -101,21 +103,73 @@ class AttendanceController extends Controller
             ->first();
 
         if ($existingAttendance) {
-            return response()->json([
-                'success' => false,
-                'message' => "El invitado {$guest->full_name} ya registró su asistencia el " . 
-                           $existingAttendance->created_at->format('d/m/Y H:i:s'),
-                'type' => 'warning',
-                'guest' => [
-                    'name' => $guest->full_name,
-                    'employee_number' => $guest->numero_empleado,
-                    'work_area' => $guest->puesto,
-                    'attended_at' => $existingAttendance->created_at->format('d/m/Y H:i:s')
-                ]
-            ]);
+            // Verificar si ha alcanzado el límite de escaneos
+            if ($existingAttendance->scan_count >= Attendance::MAX_SCAN_COUNT) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "⚠️ LÍMITE EXCEDIDO: {$guest->full_name} ya utilizó sus {$existingAttendance->scan_count} escaneos permitidos. Primera asistencia: " . 
+                               $existingAttendance->created_at->format('d/m/Y H:i:s'),
+                    'type' => 'error',
+                    'exceeded_limit' => true,
+                    'guest' => [
+                        'name' => $guest->full_name,
+                        'employee_number' => $guest->numero_empleado,
+                        'work_area' => $guest->puesto,
+                        'attended_at' => $existingAttendance->created_at->format('d/m/Y H:i:s'),
+                        'scan_count' => $existingAttendance->scan_count,
+                        'last_scanned_at' => $existingAttendance->last_scanned_at?->format('d/m/Y H:i:s')
+                    ]
+                ], 422);
+            }
+
+            // Permitir escaneo adicional (acompañante)
+            try {
+                DB::beginTransaction();
+
+                $existingAttendance->incrementScanCount();
+
+                DB::commit();
+
+                // Registrar en auditoría
+                AuditLog::log(
+                    action: 'scan',
+                    model: 'Attendance',
+                    modelId: $existingAttendance->id,
+                    description: "Escaneo adicional #{$existingAttendance->scan_count}: {$guest->full_name} ({$guest->numero_empleado}) - Acompañante"
+                );
+
+                return response()->json([
+                    'success' => true,
+                    'message' => "✓ Acompañante registrado para {$guest->full_name}. Escaneo #{$existingAttendance->scan_count} de " . Attendance::MAX_SCAN_COUNT,
+                    'type' => 'success',
+                    'is_additional_scan' => true,
+                    'guest' => [
+                        'name' => $guest->full_name,
+                        'employee_number' => $guest->numero_empleado,
+                        'work_area' => $guest->puesto,
+                        'attended_at' => $existingAttendance->created_at->format('d/m/Y H:i:s'),
+                        'scan_count' => $existingAttendance->scan_count,
+                        'last_scanned_at' => now()->format('d/m/Y H:i:s')
+                    ]
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                
+                Log::error('Error al incrementar scan_count: ' . $e->getMessage(), [
+                    'exception' => $e,
+                    'attendance_id' => $existingAttendance->id
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error al registrar el escaneo adicional.',
+                    'type' => 'error'
+                ], 500);
+            }
         }
 
-        // Registrar asistencia
+        // Registrar asistencia (primera vez)
         try {
             DB::beginTransaction();
 
@@ -124,6 +178,8 @@ class AttendanceController extends Controller
                 'guest_id' => $guest->id,
                 'scanned_at' => now(),
                 'scanned_by' => auth()->user()->name ?? 'Scanner QR',
+                'scan_count' => 1,
+                'last_scanned_at' => now(),
                 'scan_metadata' => [
                     'method' => 'qr_scan',
                     'ip' => $request->ip(),
@@ -220,13 +276,47 @@ class AttendanceController extends Controller
             ->first();
 
         if ($existingAttendance) {
-            return back()->with('warning', 
-                "El invitado {$guest->full_name} ya registró su asistencia el " . 
-                $existingAttendance->created_at->format('d/m/Y H:i:s')
-            );
+            // Verificar si ha alcanzado el límite de escaneos
+            if ($existingAttendance->scan_count >= Attendance::MAX_SCAN_COUNT) {
+                return back()->with('error', 
+                    "⚠️ LÍMITE EXCEDIDO: {$guest->full_name} ya utilizó sus {$existingAttendance->scan_count} escaneos permitidos. Primera asistencia: " . 
+                    $existingAttendance->created_at->format('d/m/Y H:i:s')
+                );
+            }
+
+            // Permitir registro adicional (acompañante)
+            try {
+                DB::beginTransaction();
+
+                $existingAttendance->incrementScanCount();
+
+                DB::commit();
+
+                // Registrar en auditoría
+                AuditLog::log(
+                    action: 'manual_registration',
+                    model: 'Attendance',
+                    modelId: $existingAttendance->id,
+                    description: "Registro manual adicional #{$existingAttendance->scan_count}: {$guest->full_name} ({$guest->numero_empleado}) - Acompañante"
+                );
+
+                return back()->with('success', 
+                    "✓ Acompañante registrado para {$guest->full_name}. Registro #{$existingAttendance->scan_count} de " . Attendance::MAX_SCAN_COUNT
+                );
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                
+                Log::error('Error al incrementar scan_count (manual): ' . $e->getMessage(), [
+                    'exception' => $e,
+                    'attendance_id' => $existingAttendance->id
+                ]);
+                
+                return back()->with('error', 'Error al registrar el escaneo adicional.');
+            }
         }
 
-        // Registrar asistencia manual
+        // Registrar asistencia manual (primera vez)
         try {
             DB::beginTransaction();
 
@@ -235,6 +325,8 @@ class AttendanceController extends Controller
                 'guest_id' => $guest->id,
                 'scanned_at' => now(),
                 'scanned_by' => auth()->user()->name ?? 'Registro Manual',
+                'scan_count' => 1,
+                'last_scanned_at' => now(),
                 'scan_metadata' => [
                     'method' => 'manual_registration',
                     'reason' => $request->reason ?? 'Sin especificar',

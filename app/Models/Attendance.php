@@ -17,12 +17,18 @@ class Attendance extends Model
         'scanned_at',
         'scanned_by',
         'scan_metadata',
+        'scan_count',
+        'last_scanned_at',
     ];
 
     protected $casts = [
         'scanned_at' => 'datetime',
+        'last_scanned_at' => 'datetime',
         'scan_metadata' => 'array',
     ];
+
+    // Constante para el límite de escaneos
+    public const MAX_SCAN_COUNT = 2;
 
     // Relaciones
     public function event(): BelongsTo
@@ -55,5 +61,22 @@ class Attendance extends Model
     public function isRecentScan(): bool
     {
         return $this->scanned_at->diffInMinutes(Carbon::now()) <= 5;
+    }
+
+    /**
+     * Verificar si ha excedido el límite de escaneos
+     */
+    public function hasExceededLimit(): bool
+    {
+        return $this->scan_count > self::MAX_SCAN_COUNT;
+    }
+
+    /**
+     * Incrementar el contador de escaneos
+     */
+    public function incrementScanCount(): void
+    {
+        $this->increment('scan_count');
+        $this->update(['last_scanned_at' => Carbon::now()]);
     }
 }
