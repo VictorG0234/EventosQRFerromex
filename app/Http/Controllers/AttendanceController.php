@@ -211,7 +211,7 @@ class AttendanceController extends Controller
             ->first();
 
         if (!$guest) {
-            return back()->with('error', 'No se encontró un invitado con ese número de empleado.');
+            return back()->with('error', 'El número de empleado no aparece en la lista de invitados.');
         }
 
         // Verificar si ya está registrado
@@ -220,7 +220,7 @@ class AttendanceController extends Controller
             ->first();
 
         if ($existingAttendance) {
-            return back()->with('error', 
+            return back()->with('warning', 
                 "El invitado {$guest->full_name} ya registró su asistencia el " . 
                 $existingAttendance->created_at->format('d/m/Y H:i:s')
             );
@@ -228,7 +228,9 @@ class AttendanceController extends Controller
 
         // Registrar asistencia manual
         try {
-            Attendance::create([
+            DB::beginTransaction();
+
+            $attendance = Attendance::create([
                 'event_id' => $event->id,
                 'guest_id' => $guest->id,
                 'scanned_at' => now(),
@@ -241,8 +243,18 @@ class AttendanceController extends Controller
                 ]
             ]);
 
+            DB::commit();
+
+            // Registrar en auditoría
+            AuditLog::log(
+                action: 'manual_registration',
+                model: 'Attendance',
+                modelId: $attendance->id,
+                description: "Registro manual: {$guest->full_name} ({$guest->numero_empleado}) en evento {$event->name}"
+            );
+
             // Enviar email de confirmación de asistencia si el invitado tiene email
-            if (!empty($guest->email)) {
+            if (!empty($guest->correo)) {
                 try {
                     SendEmailJob::dispatch('attendance_confirmation', $guest, $event);
                 } catch (\Exception $emailError) {
@@ -250,12 +262,24 @@ class AttendanceController extends Controller
                 }
             }
 
+            // Crear participaciones automáticamente para todos los premios activos del evento
+            RaffleEntryHelper::createAutoEntriesForGuest($guest, $event, $this->raffleService);
+
             return back()->with('success', 
-                "Asistencia registrada manualmente para {$guest->full_name}."
+                "¡Bienvenido {$guest->full_name}! Asistencia registrada exitosamente."
             );
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Error al registrar la asistencia manual.');
+            DB::rollBack();
+            
+            Log::error('Error al registrar asistencia manual: ' . $e->getMessage(), [
+                'exception' => $e,
+                'event_id' => $event->id,
+                'guest_id' => $guest->id ?? null,
+                'employee_number' => $request->employee_number
+            ]);
+
+            return back()->with('error', 'Error al registrar la asistencia. Intente nuevamente.');
         }
     }
 
