@@ -122,6 +122,24 @@ class AttendanceController extends Controller
                 ], 422);
             }
 
+            // PROTECCIÓN: Verificar tiempo mínimo entre escaneos (3 segundos)
+            if ($existingAttendance->last_scanned_at) {
+                $secondsSinceLastScan = now()->diffInSeconds($existingAttendance->last_scanned_at);
+                if ($secondsSinceLastScan < 3) {
+                    Log::warning('Intento de escaneo muy rápido bloqueado', [
+                        'guest_id' => $guest->id,
+                        'seconds_since_last' => $secondsSinceLastScan,
+                        'ip' => $request->ip()
+                    ]);
+                    
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Escaneo demasiado rápido. Espera unos segundos antes de escanear nuevamente.",
+                        'type' => 'warning'
+                    ], 429);
+                }
+            }
+
             // Permitir escaneo adicional (acompañante)
             try {
                 DB::beginTransaction();
@@ -282,6 +300,22 @@ class AttendanceController extends Controller
                     "⚠️ LÍMITE EXCEDIDO: {$guest->full_name} ya utilizó sus {$existingAttendance->scan_count} escaneos permitidos. Primera asistencia: " . 
                     $existingAttendance->created_at->format('d/m/Y H:i:s')
                 );
+            }
+
+            // PROTECCIÓN: Verificar tiempo mínimo entre registros (3 segundos)
+            if ($existingAttendance->last_scanned_at) {
+                $secondsSinceLastScan = now()->diffInSeconds($existingAttendance->last_scanned_at);
+                if ($secondsSinceLastScan < 3) {
+                    Log::warning('Intento de registro manual muy rápido bloqueado', [
+                        'guest_id' => $guest->id,
+                        'seconds_since_last' => $secondsSinceLastScan,
+                        'user' => auth()->user()->name ?? 'Anónimo'
+                    ]);
+                    
+                    return back()->with('warning', 
+                        "Registro demasiado rápido. Espera unos segundos antes de registrar nuevamente."
+                    );
+                }
             }
 
             // Permitir registro adicional (acompañante)

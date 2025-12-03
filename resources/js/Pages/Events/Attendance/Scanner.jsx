@@ -18,6 +18,7 @@ export default function Scanner({ auth, event, statistics }) {
     const { flash } = usePage().props;
     const [isScanning, setIsScanning] = useState(false);
     const [lastScan, setLastScan] = useState(null);
+    const [lastScanTime, setLastScanTime] = useState(0);
     const [scanResult, setScanResult] = useState(null);
     const [stats, setStats] = useState(statistics);
     const [recentAttendances, setRecentAttendances] = useState(statistics.recent_attendances || []);
@@ -31,6 +32,11 @@ export default function Scanner({ auth, event, statistics }) {
     const streamRef = useRef(null);
     const scanIntervalRef = useRef(null);
     const animationFrameRef = useRef(null);
+    const lastProcessedQrRef = useRef(null);
+    const lastProcessedTimeRef = useRef(0);
+
+    // Constante de cooldown: 3 segundos mínimo entre escaneos
+    const SCAN_COOLDOWN_MS = 3000;
 
     // Manejar mensajes flash de Laravel
     useEffect(() => {
@@ -270,14 +276,35 @@ export default function Scanner({ auth, event, statistics }) {
     const processScan = async (qrData) => {
         if (isProcessing || !qrData) return;
         
-        // Verificar si es el mismo QR que acabamos de escanear (debounce)
-        if (lastScan === qrData) {
-            console.log('⏭️ QR duplicado ignorado (debounce)');
+        const now = Date.now();
+        
+        // PROTECCIÓN 1: Verificar cooldown de tiempo
+        if (now - lastProcessedTimeRef.current < SCAN_COOLDOWN_MS) {
+            console.log(`⏭️ Cooldown activo. Faltan ${Math.ceil((SCAN_COOLDOWN_MS - (now - lastProcessedTimeRef.current)) / 1000)}s`);
             return;
         }
         
+        // PROTECCIÓN 2: Verificar si es el mismo QR
+        if (lastProcessedQrRef.current === qrData) {
+            console.log('⏭️ QR duplicado ignorado (mismo código)');
+            return;
+        }
+        
+        // PROTECCIÓN 3: Verificar si ya está procesando
+        if (lastScan === qrData) {
+            console.log('⏭️ QR en procesamiento (debounce)');
+            return;
+        }
+        
+        // Actualizar referencias ANTES de procesar
+        lastProcessedQrRef.current = qrData;
+        lastProcessedTimeRef.current = now;
+        
         setIsProcessing(true);
         setLastScan(qrData);
+        setLastScanTime(now);
+        
+        console.log(`🔒 QR bloqueado por ${SCAN_COOLDOWN_MS/1000}s:`, qrData.substring(0, 20) + '...');
         
         try {
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -333,14 +360,16 @@ export default function Scanner({ auth, event, statistics }) {
                 }, 5000);
             } else {
                 playSound('error');
-                // Si no fue exitoso, pausar 5 segundos y continuar escaneando
-                console.log('⏸️ Pausando escaneo por 5 segundos (error)...');
+                // Si no fue exitoso, pausar y continuar escaneando
+                console.log('⏸️ Pausando escaneo por 3 segundos (error)...');
                 setTimeout(() => {
                     setIsProcessing(false);
                     setScanResult(null);
                     setLastScan(null);
+                    // Resetear refs para permitir nuevo escaneo
+                    lastProcessedQrRef.current = null;
                     console.log('▶️ Reanudando escaneo');
-                }, 5000);
+                }, 3000);
             }
             
             
