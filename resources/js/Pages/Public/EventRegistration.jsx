@@ -76,13 +76,13 @@ export default function EventRegistration({ event, token }) {
                                     <label htmlFor="credentials" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                         Ingresa tus credenciales de invitado
                                     </label>
-                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300 text-center">
+                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
                                         Ejemplo: GMXT00000 Sin, guiones ni espacios.
                                     </p>
-                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300 text-center">
+                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
                                         Si eres parte de Grupo Mexico, tu codigo de compañia es GMXT
                                     </p>
-                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300 text-center">
+                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
                                         Si eres parte de Imex, tu codigo de compañia es IMEX
                                     </p>
                                     <input
@@ -91,7 +91,7 @@ export default function EventRegistration({ event, token }) {
                                         placeholder="Ejemplo: GMXT12345"
                                         value={data.credentials}
                                         onChange={(e) => setData('credentials', e.target.value)}
-                                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-center text-lg"
+                                        className="w-full mt-3 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-center text-lg"
                                         autoFocus
                                     />
                                     {errors.credentials && (
