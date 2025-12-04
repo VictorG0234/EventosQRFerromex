@@ -73,7 +73,7 @@ export default function EventRegistration({ event, token }) {
                             
                             <form onSubmit={submit}>
                                 <div className="mb-4">
-                                    <label htmlFor="credentials" className="block text-sm font-medium text-gray-700 dark:text-gray-600 mb-2">
+                                    <label htmlFor="credentials" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                                         <strong>Para registrarte al evento es necesario ingresar el código de tu compañia y tu numero de empleado sin espacios ni guiones.</strong>
                                     </label>
                                     <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
