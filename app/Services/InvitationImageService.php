@@ -41,13 +41,13 @@ class InvitationImageService
         
         // Cargar el QR y redimensionarlo
         // La imagen mide 714 × 1179 píxeles
-        $qrSize = 325; // Tamaño del QR en píxeles (325x325)
+        $qrSize = 380; // Tamaño del QR en píxeles (380x380) - aumentado para mejor visibilidad
         $qrImage = Image::make($qrPath)->resize($qrSize, $qrSize);
         
         // Calcular posición para centrar el QR horizontalmente
-        // Centrado: (714 - 325) / 2 = 194.5
-        $qrX = ($baseWidth - $qrSize) / 2; // Centrado horizontal (≈195px)
-        $qrY = 250; // Posición vertical desde arriba (ajustable según diseño)
+        // Centrado: (714 - 380) / 2 = 167
+        $qrX = ($baseWidth - $qrSize) / 2; // Centrado horizontal
+        $qrY = 220; // Posición vertical desde arriba (ajustada para QR más grande)
         
         // Insertar el QR en la imagen base
         $invitationImage->insert($qrImage, 'top-left', (int)$qrX, (int)$qrY);
@@ -88,11 +88,11 @@ class InvitationImageService
         $invitationImage = Image::make($baseImagePath);
         
         $baseWidth = $invitationImage->width();
-        $qrSize = 325;
+        $qrSize = 380;
         $qrImage = Image::make($qrPath)->resize($qrSize, $qrSize);
         
         $qrX = ($baseWidth - $qrSize) / 2;
-        $qrY = 250; // Misma posición que en generateInvitationWithQR
+        $qrY = 220; // Misma posición que en generateInvitationWithQR
         
         $invitationImage->insert($qrImage, 'top-left', (int)$qrX, (int)$qrY);
         
