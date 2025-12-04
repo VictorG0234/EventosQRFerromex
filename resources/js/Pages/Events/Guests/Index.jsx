@@ -59,9 +59,6 @@ export default function Index({ auth, event, guests, filters }) {
             });
         }
     };
-            });
-        }
-    };
 
     // Usar estadísticas del evento completo, no solo de la página actual
     const stats = {
