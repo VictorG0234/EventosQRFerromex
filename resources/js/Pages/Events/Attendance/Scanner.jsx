@@ -794,7 +794,7 @@ export default function Scanner({ auth, event, statistics }) {
                                                     className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
                                                         attendance.exceeded_limit 
                                                             ? 'bg-red-50 border-red-300 hover:bg-red-100' 
-                                                            : attendance.scan_count > 1
+                                                            : attendance.scan_count === 2
                                                             ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
                                                             : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                                                     }`}
@@ -805,7 +805,7 @@ export default function Scanner({ auth, event, statistics }) {
                                                                 <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
                                                             ) : (
                                                                 <CheckCircleIcon className={`w-5 h-5 ${
-                                                                    attendance.scan_count > 1 ? 'text-yellow-600' : 'text-green-500'
+                                                                    attendance.scan_count === 2 ? 'text-yellow-600' : 'text-green-500'
                                                                 }`} />
                                                             )}
                                                         </div>

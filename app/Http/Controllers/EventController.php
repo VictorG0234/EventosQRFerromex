@@ -320,4 +320,59 @@ class EventController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Mostrar logs de invitaciones enviadas en tiempo real
+     */
+    public function realtimeLogs(Event $event)
+    {
+        $this->authorize('view', $event);
+
+        // Leer el archivo de log de Laravel
+        $logPath = storage_path('logs/laravel.log');
+        $logs = [];
+
+        if (file_exists($logPath)) {
+            $logContent = file_get_contents($logPath);
+            
+            // Buscar líneas que contengan "Email de invitación enviado" y el event_id
+            $pattern = '/\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\].*Email de invitación enviado ({.*?"event_id":' . $event->id . '.*?})/i';
+            
+            if (preg_match_all($pattern, $logContent, $matches, PREG_SET_ORDER)) {
+                foreach ($matches as $match) {
+                    $timestamp = $match[1];
+                    $jsonData = $match[2];
+                    
+                    // Decodificar el JSON
+                    $data = json_decode($jsonData, true);
+                    
+                    if ($data && isset($data['guest_id'])) {
+                        $logs[] = [
+                            'timestamp' => $timestamp,
+                            'guest_id' => $data['guest_id'],
+                            'guest_name' => $data['guest_name'] ?? 'N/A',
+                            'email' => $data['email'] ?? 'N/A',
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Ordenar por timestamp descendente (más recientes primero)
+        usort($logs, function($a, $b) {
+            return strcmp($b['timestamp'], $a['timestamp']);
+        });
+
+        return Inertia::render('Events/RealtimeLogs', [
+            'event' => [
+                'id' => $event->id,
+                'name' => $event->name,
+                'date' => $event->event_date->format('d/m/Y'),
+                'location' => $event->location,
+            ],
+            'logs' => $logs,
+            'total_logs' => count($logs),
+        ]);
+    }
 }
+

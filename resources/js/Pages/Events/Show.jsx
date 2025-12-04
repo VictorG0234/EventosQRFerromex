@@ -261,17 +261,27 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
 
                         <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                             <div className="p-6">
-                                <div className="flex items-center">
-                                    <div className="flex-shrink-0">
-                                        <TrophyIcon className="h-8 w-8 text-yellow-500" />
-                                    </div>
-                                    <div className="ml-4">
-                                        <div className="text-2xl font-bold text-gray-900">
-                                            {liveStats.overview?.total_winners || 0}
+                                <Link
+                                    href={route('events.realtime-logs', event.id)}
+                                    className="flex items-center justify-between group hover:bg-gray-50 -m-6 p-6 rounded-lg transition-colors"
+                                >
+                                    <div className="flex items-center">
+                                        <div className="flex-shrink-0">
+                                            <svg className="h-8 w-8 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                            </svg>
                                         </div>
-                                        <div className="text-sm text-gray-600">Ganadores Totales</div>
+                                        <div className="ml-4">
+                                            <div className="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
+                                                Registros en Tiempo Real
+                                            </div>
+                                            <div className="text-sm text-gray-500">Ver logs de invitaciones enviadas</div>
+                                        </div>
                                     </div>
-                                </div>
+                                    <svg className="h-5 w-5 text-gray-400 group-hover:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </Link>
                             </div>
                         </div>
                     </div>
