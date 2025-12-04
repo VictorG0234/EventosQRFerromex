@@ -66,58 +66,59 @@ export default function EventRegistration({ event, token }) {
                         </div>
 
                         {/* Formulario de acceso */}
-                        <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 text-center">
-                                Registro de Invitados
-                            </h2>
-                                    
-                            <form onSubmit={submit}>
-                                < className="mb-4">
-                                    <label htmlFor="credentials" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-                                        <strong>Para registrarte al evento es necesario ingresar el código de tu compañía y tu número de empleado sin espacios ni guiones.</strong>
-                                    </label>
-                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
-                                        Los códigos de compañía son:
-                                    </p>
-                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
-                                        Si eres parte de Grupo México, tu código de compañía es GMXT
-                                    </p>
-                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
-                                        Si formas parte de IMEX, tu código de compañía es IMEX
-                                    </p>
-                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
-                                        Si tienes dudas sobre tu número de empleado, puedes consultar con el equipo de RH.
-                                    </p>
-                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
-                                        Así es como se debe ver tu registro: GMXT00001
-                                    </p>
-                                    <input
-                                        id="credentials"
-                                        type="text"
-                                        placeholder="Ejemplo: GMXT12345"
-                                        value={data.credentials}
-                                        onChange={(e) => setData('credentials', e.target.value)}
-                                        className="w-full mt-3 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-center text-lg"
-                                        autoFocus
-                                    />
-                                    {errors.credentials && (
-                                        <div className="mt-2 text-sm text-red-600 dark:text-red-400 text-center">
-                                            {errors.credentials}
-                                        </div>
-                                    )}
-                                    
-                                <button
-                                    type="submit"
-                                    disabled={processing}
-                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {processing ? 'Verificando...' : 'Acceder'}
-                                </button>
-                            </form>
-                        </div>
-                    </div>
+                                                <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+                                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 text-center">
+                                                        Registro de Invitados
+                                                    </h2>
+                                                    
+                                                    <form onSubmit={submit}>
+                                                        <div className="mb-4">
+                                                            <label htmlFor="credentials" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                                                                <strong>Para registrarte al evento es necesario ingresar el código de tu compañía y tu número de empleado sin espacios ni guiones.</strong>
+                                                            </label>
+                                                            <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
+                                                                Los códigos de compañía son:
+                                                            </p>
+                                                            <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
+                                                                Si eres parte de Grupo México, tu código de compañía es GMXT
+                                                            </p>
+                                                            <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
+                                                                Si formas parte de IMEX, tu código de compañía es IMEX
+                                                            </p>
+                                                            <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
+                                                                Si tienes dudas sobre tu número de empleado, puedes consultar con el equipo de RH.
+                                                            </p>
+                                                            <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
+                                                                Así es como se debe ver tu registro: GMXT00001
+                                                            </p>
+                                                            <input
+                                                                id="credentials"
+                                                                type="text"
+                                                                placeholder="Ejemplo: GMXT12345"
+                                                                value={data.credentials}
+                                                                onChange={(e) => setData('credentials', e.target.value)}
+                                                                className="w-full mt-3 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-center text-lg"
+                                                                autoFocus
+                                                            />
+                                                            {errors.credentials && (
+                                                                <div className="mt-2 text-sm text-red-600 dark:text-red-400 text-center">
+                                                                    {errors.credentials}
+                                                                </div>
+                                                            )}
+                                                        </div>
 
-                    {/* Footer */}
+                                                        <button
+                                                            type="submit"
+                                                            disabled={processing}
+                                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        >
+                                                            {processing ? 'Verificando...' : 'Acceder'}
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+
+                                            {/* Footer */}
                     <div className="text-center text-sm text-gray-600 dark:text-gray-400">
                         <p>Sistema de Registro de Eventos</p>
                     </div>
