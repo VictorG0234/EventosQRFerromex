@@ -73,17 +73,23 @@ export default function EventRegistration({ event, token }) {
                             
                             <form onSubmit={submit}>
                                 <div className="mb-4">
-                                    <label htmlFor="credentials" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Ingresa tus credenciales de invitado
+                                    <label htmlFor="credentials" className="block text-sm font-medium text-gray-700 dark:text-gray-600 mb-2">
+                                        <strong>Para registrarte al evento es necesario ingresar el código de tu compañia y tu numero de empleado sin espacios ni guiones.</strong>
                                     </label>
                                     <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
-                                        Ejemplo: GMXT00000 Sin, guiones ni espacios.
+                                        Los códigos de compañía son:
                                     </p>
                                     <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
-                                        Si eres parte de Grupo Mexico, tu codigo de compañia es GMXT
+                                        Si eres parte de Grupo México, tu código de compañía es GMXT
                                     </p>
                                     <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
-                                        Si eres parte de Imex, tu codigo de compañia es IMEX
+                                        Si formas parte de IMEX, tu código de compañía es IMEX
+                                    </p>
+                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
+                                        Si tienes dudas sobre tu número de empleado, puedes consultar con el equipo de RH.
+                                    </p>
+                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
+                                        Así es como se debe ver tu registro: GMXT00001
                                     </p>
                                     <input
                                         id="credentials"

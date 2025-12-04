@@ -30,7 +30,7 @@ export default function GuestDetails({ event, guest, token }) {
 
                     {/* Header con estado */}
                     <div className="text-center mb-8">
-                        {guest.has_attended ? (
+                        {/* {guest.has_attended ? (
                             <div className="inline-flex items-center justify-center w-20 h-20 bg-green-500 rounded-full mb-4">
                                 <CheckCircleIcon className="w-12 h-12 text-white" />
                             </div>
@@ -38,7 +38,7 @@ export default function GuestDetails({ event, guest, token }) {
                             <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-400 rounded-full mb-4">
                                 <XCircleIcon className="w-12 h-12 text-white" />
                             </div>
-                        )}
+                        )} */}
                         
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                             ¡Bienvenido, {guest.full_name}!
