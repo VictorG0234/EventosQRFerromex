@@ -29,13 +29,36 @@ class GuestController extends Controller
     /**
      * Display a listing of guests for a specific event.
      */
-    public function index(Event $event)
+    public function index(Request $request, Event $event)
     {
         $this->authorize('view', $event);
 
-        $guests = $event->guests()
-            ->with(['attendance'])
-            ->paginate(50)
+        // Obtener parámetros de búsqueda y filtro
+        $search = $request->input('search');
+        $filter = $request->input('filter', 'all');
+
+        // Construir query con filtros
+        $query = $event->guests()->with(['attendance']);
+
+        // Aplicar búsqueda si existe
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('nombre_completo', 'like', '%' . $search . '%')
+                  ->orWhere('numero_empleado', 'like', '%' . $search . '%')
+                  ->orWhere('puesto', 'like', '%' . $search . '%')
+                  ->orWhere('localidad', 'like', '%' . $search . '%');
+            });
+        }
+
+        // Aplicar filtro de asistencia
+        if ($filter === 'attended') {
+            $query->has('attendance');
+        } elseif ($filter === 'not_attended') {
+            $query->doesntHave('attendance');
+        }
+
+        $guests = $query->paginate(50)
+            ->withQueryString() // Mantener parámetros de búsqueda en paginación
             ->through(function ($guest) {
                 // Generar QR si no existe
                 if (!$guest->qr_code_path || !Storage::disk('public')->exists($guest->qr_code_path)) {
@@ -70,7 +93,11 @@ class GuestController extends Controller
                 'attendances_count' => $totalAttendances,
                 'guests_with_attendance' => $guestsWithAttendance,
             ],
-            'guests' => $guests
+            'guests' => $guests,
+            'filters' => [
+                'search' => $search,
+                'filter' => $filter,
+            ]
         ]);
     }
 

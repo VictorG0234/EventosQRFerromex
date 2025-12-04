@@ -12,33 +12,53 @@ import {
     PencilIcon,
     TrashIcon
 } from '@heroicons/react/24/outline';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useDebouncedCallback } from 'use-debounce';
 
-export default function Index({ auth, event, guests }) {
-    const [search, setSearch] = useState('');
-    const [filter, setFilter] = useState('all'); // all, attended, not_attended
+export default function Index({ auth, event, guests, filters }) {
+    const [search, setSearch] = useState(filters?.search || '');
+    const [filter, setFilter] = useState(filters?.filter || 'all');
     const [processing, setProcessing] = useState(false);
 
-    // Filtrar invitados por nombre completo principalmente
-    const filteredGuests = guests?.data?.filter(guest => {
-        const matchesSearch = !search || 
-            guest.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-            (guest.numero_empleado && guest.numero_empleado.toString().toLowerCase().includes(search.toLowerCase())) ||
-            (guest.puesto && guest.puesto.toLowerCase().includes(search.toLowerCase())) ||
-            (guest.localidad && guest.localidad.toLowerCase().includes(search.toLowerCase()));
-        
-        const matchesFilter = filter === 'all' || 
-            (filter === 'attended' && guest.has_attended) ||
-            (filter === 'not_attended' && !guest.has_attended);
-            
-        return matchesSearch && matchesFilter;
-    }) || [];
+    // Debounce para la búsqueda (esperar 500ms después de que el usuario deje de escribir)
+    const debouncedSearch = useDebouncedCallback((value) => {
+        router.get(
+            route('events.guests.index', event.id),
+            { search: value, filter: filter },
+            { 
+                preserveState: true,
+                preserveScroll: true,
+                replace: true
+            }
+        );
+    }, 500);
+
+    // Aplicar búsqueda con debounce
+    useEffect(() => {
+        debouncedSearch(search);
+    }, [search]);
+
+    // Aplicar filtro inmediatamente
+    useEffect(() => {
+        router.get(
+            route('events.guests.index', event.id),
+            { search: search, filter: filter },
+            { 
+                preserveState: true,
+                preserveScroll: true,
+                replace: true
+            }
+        );
+    }, [filter]);
 
     const handleDelete = (guest) => {
         if (confirm(`¿Estás seguro de eliminar a ${guest.full_name}?`)) {
             setProcessing(true);
             router.delete(route('events.guests.destroy', [event.id, guest.id]), {
                 onFinish: () => setProcessing(false)
+            });
+        }
+    };
             });
         }
     };
@@ -171,22 +191,22 @@ export default function Index({ auth, event, guests }) {
 
                     {/* Lista de invitados */}
                     <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                        {filteredGuests.length === 0 ? (
+                        {guests?.data?.length === 0 ? (
                             <div className="p-8 sm:p-12 text-center">
                                 <UserIcon className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
                                 <h3 className="mt-3 sm:mt-4 text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100">
-                                    {guests?.data?.length === 0 
+                                    {!search && filter === 'all'
                                         ? 'No hay invitados aún'
                                         : 'No se encontraron invitados'
                                     }
                                 </h3>
                                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                                    {guests?.data?.length === 0 
+                                    {!search && filter === 'all'
                                         ? 'Comienza importando invitados desde un archivo CSV'
                                         : 'Intenta ajustar los filtros de búsqueda'
                                     }
                                 </p>
-                                {guests?.data?.length === 0 && (
+                                {!search && filter === 'all' && (
                                     <div className="mt-6">
                                         <Link
                                             href={route('events.guests.import', event.id)}
@@ -214,7 +234,7 @@ export default function Index({ auth, event, guests }) {
 
                                 {/* Filas de invitados */}
                                 <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                                    {filteredGuests.map((guest) => (
+                                    {guests?.data?.map((guest) => (
                                         <div key={guest.id} className="px-4 sm:px-6 py-3 sm:py-4 hover:bg-gray-50 dark:hover:bg-gray-700 group">
                                             {/* Vista móvil - formato tarjeta */}
                                             <div className="lg:hidden space-y-2">
