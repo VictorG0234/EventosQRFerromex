@@ -429,19 +429,19 @@ export default function Scanner({ auth, event, statistics }) {
         <AuthenticatedLayout
             user={auth.user}
             header={
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
                         <Link
                             href={route('events.show', event.id)}
-                            className="mr-4 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                            className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white text-sm sm:mr-4"
                         >
-                            ← Volver al evento
+                            ← Volver
                         </Link>
                         <div>
-                            <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
+                            <h2 className="font-semibold text-lg sm:text-xl text-gray-800 dark:text-white leading-tight">
                                 Escáner QR - {event.name}
                             </h2>
-                            <p className="text-sm text-gray-600 dark:text-gray-300">{event.location}</p>
+                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">{event.location}</p>
                         </div>
                     </div>
                     
@@ -450,35 +450,28 @@ export default function Scanner({ auth, event, statistics }) {
                             onClick={() => setSoundEnabled(!soundEnabled)}
                             className={`p-2 rounded-md ${soundEnabled ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}
                         >
-                            {soundEnabled ? <SpeakerWaveIcon className="w-5 h-5" /> : <SpeakerXMarkIcon className="w-5 h-5" />}
+                            {soundEnabled ? <SpeakerWaveIcon className="w-4 h-4 sm:w-5 sm:h-5" /> : <SpeakerXMarkIcon className="w-4 h-4 sm:w-5 sm:h-5" />}
                         </button>
-                        
-                        {/* <Link
-                            href={route('events.attendance.index', event.id)}
-                            className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-                        >
-                            Ver Asistencias
-                        </Link> */}
                     </div>
                 </div>
             }
         >
             <Head title={`Escáner QR - ${event.name}`} />
 
-            <div className="py-6">
+            <div className="py-4 sm:py-6">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                         
                         {/* Panel principal del escáner */}
                         <div className="lg:col-span-2">
-                            <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                                <div className="p-6">
+                            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                                <div className="p-4 sm:p-6">
                                     {/* Controles del escáner */}
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h3 className="text-lg font-medium text-gray-900">
+                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
+                                        <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100">
                                             Control de Asistencia
                                         </h3>
-                                        <div className="flex space-x-2">
+                                        <div className="flex flex-wrap gap-2">
                                             {!isScanning ? (
                                                 <>
                                                     <button
@@ -508,34 +501,35 @@ export default function Scanner({ auth, event, statistics }) {
                                                                 alert(`Error en diagnóstico: ${error.message}`);
                                                             }
                                                         }}
-                                                        className="inline-flex items-center px-3 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition"
+                                                        className="inline-flex items-center px-2 sm:px-3 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition"
                                                         title="Ver información de cámara"
                                                     >
                                                         ℹ️
                                                     </button>
                                                     <button
                                                         onClick={startCamera}
-                                                        className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150"
+                                                        className="inline-flex items-center px-3 sm:px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150"
                                                     >
-                                                        <CameraIcon className="w-4 h-4 mr-2" />
-                                                        Iniciar Escáner
+                                                        <CameraIcon className="w-4 h-4 sm:mr-2" />
+                                                        <span className="hidden sm:inline">Iniciar Escáner</span>
                                                     </button>
                                                 </>
                                             ) : (
                                                 <button
                                                     onClick={stopCamera}
-                                                    className="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-700 focus:bg-red-700 active:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition ease-in-out duration-150"
+                                                    className="inline-flex items-center px-3 sm:px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-700 focus:bg-red-700 active:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition ease-in-out duration-150"
                                                 >
-                                                    <XCircleIcon className="w-4 h-4 mr-2" />
-                                                    Detener
+                                                    <XCircleIcon className="w-4 h-4 sm:mr-2" />
+                                                    <span className="hidden sm:inline">Detener</span>
                                                 </button>
                                             )}
                                             
                                             <button
                                                 onClick={() => setManualMode(!manualMode)}
-                                                className="inline-flex items-center px-4 py-2 bg-yellow-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-yellow-700 focus:bg-yellow-700 active:bg-yellow-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition ease-in-out duration-150"
+                                                className="inline-flex items-center px-3 sm:px-4 py-2 bg-yellow-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-yellow-700 focus:bg-yellow-700 active:bg-yellow-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition ease-in-out duration-150 flex-1 sm:flex-none justify-center"
                                             >
-                                                Registro Manual
+                                                <span className="sm:hidden">Manual</span>
+                                                <span className="hidden sm:inline">Registro Manual</span>
                                             </button>
                                         </div>
                                     </div>
@@ -554,7 +548,7 @@ export default function Scanner({ auth, event, statistics }) {
                                             ref={canvasRef}
                                             className="w-full h-auto rounded-lg"
                                             style={{ 
-                                                minHeight: '400px',
+                                                minHeight: '300px',
                                                 maxHeight: '600px',
                                                 width: '100%',
                                                 display: isScanning ? 'block' : 'none',
@@ -582,14 +576,14 @@ export default function Scanner({ auth, event, statistics }) {
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="flex items-center justify-center h-64 bg-gray-100 rounded-lg">
-                                                <div className="text-center">
-                                                    <QrCodeIcon className="mx-auto h-12 w-12 text-gray-400" />
-                                                    <h3 className="mt-2 text-sm font-medium text-gray-900">
+                                            <div className="flex items-center justify-center h-48 sm:h-64 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                                                <div className="text-center px-4">
+                                                    <QrCodeIcon className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400 dark:text-gray-500" />
+                                                    <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
                                                         Escáner QR Detenido
                                                     </h3>
-                                                    <p className="mt-1 text-sm text-gray-500">
-                                                        Haz clic en "Iniciar Escáner" para comenzar
+                                                    <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                                                        Toca "Iniciar Escáner" para comenzar
                                                     </p>
                                                 </div>
                                             </div>
@@ -632,8 +626,8 @@ export default function Scanner({ auth, event, statistics }) {
 
                                     {/* Registro manual */}
                                     {manualMode && (
-                                        <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
-                                            <h4 className="text-md font-medium text-gray-900 mb-2">
+                                        <div className="mt-4 p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                                            <h4 className="text-sm sm:text-md font-medium text-gray-900 dark:text-gray-100 mb-2">
                                                 Registro Manual
                                             </h4>
                                             
@@ -657,19 +651,19 @@ export default function Scanner({ auth, event, statistics }) {
                                                 </div>
                                             )}
                                             
-                                            <form onSubmit={handleManualRegister} className="flex space-x-2">
+                                            <form onSubmit={handleManualRegister} className="flex flex-col sm:flex-row gap-2">
                                                 <input
                                                     type="text"
                                                     value={manualEmployeeNumber}
                                                     onChange={(e) => setManualEmployeeNumber(e.target.value)}
                                                     placeholder="Número de empleado"
-                                                    className="flex-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                    className="flex-1 text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-100 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                                     disabled={isProcessing}
                                                 />
                                                 <button
                                                     type="submit"
                                                     disabled={isProcessing || !manualEmployeeNumber.trim()}
-                                                    className="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 disabled:opacity-50"
+                                                    className="inline-flex items-center justify-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700 disabled:opacity-50 w-full sm:w-auto"
                                                 >
                                                     {isProcessing ? 'Registrando...' : 'Registrar'}
                                                 </button>
@@ -716,47 +710,47 @@ export default function Scanner({ auth, event, statistics }) {
                         </div>
 
                         {/* Panel de estadísticas */}
-                        <div className="space-y-6">
+                        <div className="space-y-4 sm:space-y-6">
                             {/* Stats en tiempo real */}
-                            <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                                <div className="p-6">
-                                    <h3 className="text-lg font-medium text-gray-900 mb-4">
+                            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                                <div className="p-4 sm:p-6">
+                                    <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">
                                         Estadísticas en Vivo
                                     </h3>
                                     
-                                    <div className="space-y-4">
+                                    <div className="space-y-3 sm:space-y-4">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-sm text-gray-600">Total Invitados</span>
-                                            <span className="text-lg font-semibold text-gray-900">
+                                            <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Invitados</span>
+                                            <span className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100">
                                                 {stats?.total_guests || 0}
                                             </span>
                                         </div>
                                         
                                         <div className="flex justify-between items-center">
-                                            <span className="text-sm text-gray-600">Asistencias</span>
-                                            <span className="text-lg font-semibold text-green-600">
+                                            <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Asistencias</span>
+                                            <span className="text-base sm:text-lg font-semibold text-green-600 dark:text-green-400">
                                                 {stats?.total_attendances || 0}
                                             </span>
                                         </div>
                                         
                                         <div className="flex justify-between items-center">
-                                            <span className="text-sm text-gray-600">Porcentaje</span>
-                                            <span className="text-lg font-semibold text-blue-600">
+                                            <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Porcentaje</span>
+                                            <span className="text-base sm:text-lg font-semibold text-blue-600 dark:text-blue-400">
                                                 {stats?.attendance_rate || 0}%
                                             </span>
                                         </div>
                                         
-                                        <div className="w-full bg-gray-200 rounded-full h-3">
+                                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 sm:h-3">
                                             <div 
-                                                className="bg-gradient-to-r from-green-500 to-blue-500 h-3 rounded-full transition-all duration-500"
+                                                className="bg-gradient-to-r from-green-500 to-blue-500 h-2 sm:h-3 rounded-full transition-all duration-500"
                                                 style={{ width: `${stats?.attendance_rate || 0}%` }}
                                             ></div>
                                         </div>
                                         
                                         {stats?.latest_scan && (
-                                            <div className="pt-2 border-t border-gray-200">
-                                                <span className="text-xs text-gray-500">Último escaneo</span>
-                                                <p className="text-sm font-medium text-gray-900">
+                                            <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                                <span className="text-xs text-gray-500 dark:text-gray-500">Último escaneo</span>
+                                                <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-gray-100">
                                                     {stats.latest_scan}
                                                 </p>
                                             </div>
@@ -766,12 +760,12 @@ export default function Scanner({ auth, event, statistics }) {
                             </div>
 
                             {/* Instrucciones */}
-                            <div className="bg-blue-50 overflow-hidden shadow-sm sm:rounded-lg border border-blue-200">
-                                <div className="p-6">
-                                    <h3 className="text-lg font-medium text-blue-900 mb-3">
+                            <div className="bg-blue-50 dark:bg-blue-900/30 overflow-hidden shadow-sm sm:rounded-lg border border-blue-200 dark:border-blue-700">
+                                <div className="p-4 sm:p-6">
+                                    <h3 className="text-base sm:text-lg font-medium text-blue-900 dark:text-blue-300 mb-2 sm:mb-3">
                                         Instrucciones
                                     </h3>
-                                    <div className="space-y-2 text-sm text-blue-800">
+                                    <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm text-blue-800 dark:text-blue-200">
                                         <p>• Posiciona el código QR frente a la cámara</p>
                                         <p>• El escaneo es automático</p>
                                         <p>• Los sonidos confirman el registro</p>
@@ -781,68 +775,68 @@ export default function Scanner({ auth, event, statistics }) {
                             </div>
                             
                             {/* Últimas Asistencias */}
-                            <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                                <div className="p-6">
-                                    <h3 className="text-lg font-medium text-gray-900 mb-4">
-                                        Últimas Asistencias Registradas
+                            <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                                <div className="p-4 sm:p-6">
+                                    <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">
+                                        Últimas Asistencias
                                     </h3>
-                                    <div className="space-y-3">
+                                    <div className="space-y-2 sm:space-y-3">
                                         {recentAttendances.length > 0 ? (
                                             recentAttendances.map((attendance, index) => (
                                                 <div 
                                                     key={attendance.id || index}
-                                                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                                                    className={`flex items-start sm:items-center justify-between p-2 sm:p-3 rounded-lg border transition-colors ${
                                                         attendance.exceeded_limit 
-                                                            ? 'bg-red-50 border-red-300 hover:bg-red-100' 
+                                                            ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/30' 
                                                             : attendance.scan_count === 2
-                                                            ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
-                                                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                                                            ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
+                                                            : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
                                                     }`}
                                                 >
-                                                    <div className="flex items-center space-x-3">
-                                                        <div className="flex-shrink-0">
+                                                    <div className="flex items-start space-x-2 sm:space-x-3 flex-1 min-w-0">
+                                                        <div className="flex-shrink-0 mt-0.5">
                                                             {attendance.exceeded_limit ? (
-                                                                <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />
+                                                                <ExclamationTriangleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
                                                             ) : (
-                                                                <CheckCircleIcon className={`w-5 h-5 ${
+                                                                <CheckCircleIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${
                                                                     attendance.scan_count === 2 ? 'text-yellow-600' : 'text-green-500'
                                                                 }`} />
                                                             )}
                                                         </div>
-                                                        <div>
-                                                            <p className={`text-sm font-medium ${
-                                                                attendance.exceeded_limit ? 'text-red-900' : 'text-gray-900'
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className={`text-xs sm:text-sm font-medium truncate ${
+                                                                attendance.exceeded_limit ? 'text-red-900 dark:text-red-300' : 'text-gray-900 dark:text-gray-100'
                                                             }`}>
                                                                 {attendance.guest_name}
                                                                 {attendance.scan_count > 1 && (
-                                                                    <span className={`ml-2 text-xs px-2 py-0.5 rounded-full ${
+                                                                    <span className={`ml-1 sm:ml-2 text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 rounded-full whitespace-nowrap ${
                                                                         attendance.exceeded_limit 
                                                                             ? 'bg-red-200 text-red-800' 
                                                                             : 'bg-yellow-200 text-yellow-800'
                                                                     }`}>
-                                                                        {attendance.scan_count}× escaneos
+                                                                        {attendance.scan_count}×
                                                                     </span>
                                                                 )}
                                                             </p>
-                                                            <p className="text-xs text-gray-500">
+                                                            <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate">
                                                                 {attendance.employee_number} • {attendance.work_area}
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <p className="text-xs text-gray-600">
+                                                    <div className="text-right flex-shrink-0 ml-2">
+                                                        <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400">
                                                             {attendance.attended_at}
                                                         </p>
-                                                        <p className="text-xs text-gray-400">
+                                                        <p className="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 hidden sm:block">
                                                             {attendance.time_ago}
                                                         </p>
                                                     </div>
                                                 </div>
                                             ))
                                         ) : (
-                                            <div className="text-center py-8 text-gray-500">
-                                                <UserIcon className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                                                <p className="text-sm">Aún no hay asistencias registradas</p>
+                                            <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400">
+                                                <UserIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+                                                <p className="text-xs sm:text-sm">Aún no hay asistencias registradas</p>
                                             </div>
                                         )}
                                     </div>
