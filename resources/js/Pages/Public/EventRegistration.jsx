@@ -70,11 +70,11 @@ export default function EventRegistration({ event, token }) {
                             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 text-center">
                                 Registro de Invitados
                             </h2>
-                            
+                                    
                             <form onSubmit={submit}>
-                                <div className="mb-4">
+                                < className="mb-4">
                                     <label htmlFor="credentials" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-                                        <strong>Para registrarte al evento es necesario ingresar el código de tu compañia y tu numero de empleado sin espacios ni guiones.</strong>
+                                        <strong>Para registrarte al evento es necesario ingresar el código de tu compañía y tu número de empleado sin espacios ni guiones.</strong>
                                     </label>
                                     <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
                                         Los códigos de compañía son:
@@ -105,8 +105,7 @@ export default function EventRegistration({ event, token }) {
                                             {errors.credentials}
                                         </div>
                                     )}
-                                </div>
-
+                                    
                                 <button
                                     type="submit"
                                     disabled={processing}
