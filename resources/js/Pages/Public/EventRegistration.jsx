@@ -68,14 +68,23 @@ export default function EventRegistration({ event, token }) {
                         {/* Formulario de acceso */}
                         <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
                             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 text-center">
-                                Acceso para Invitados
+                                Registro de Invitados
                             </h2>
                             
                             <form onSubmit={submit}>
                                 <div className="mb-4">
                                     <label htmlFor="credentials" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                        Ingresa tu credencial
+                                        Ingresa tus credenciales de invitado
                                     </label>
+                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300 text-center">
+                                        Ejemplo: GMXT00000 Sin, guiones ni espacios.
+                                    </p>
+                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300 text-center">
+                                        Si eres parte de Grupo Mexico, tu codigo de compañia es GMXT
+                                    </p>
+                                    <p className="mt-2 text-sm text-gray-800 dark:text-gray-300 text-center">
+                                        Si eres parte de Imex, tu codigo de compañia es IMEX
+                                    </p>
                                     <input
                                         id="credentials"
                                         type="text"
@@ -85,15 +94,6 @@ export default function EventRegistration({ event, token }) {
                                         className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-center text-lg"
                                         autoFocus
                                     />
-                                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                                        Ejemplo: GMXT00000 Sin, guiones ni espacios.
-                                    </p>
-                                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                                        Si eres parte de Grupo Mexico, tu codigo de compañia es GMXT
-                                    </p>
-                                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                                        Si eres parte de Imex, tu codigo de compañia es IMEX
-                                    </p>
                                     {errors.credentials && (
                                         <div className="mt-2 text-sm text-red-600 dark:text-red-400 text-center">
                                             {errors.credentials}
