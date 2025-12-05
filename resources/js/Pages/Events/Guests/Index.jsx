@@ -93,7 +93,8 @@ export default function Index({ auth, event, guests, filters }) {
                         <div className="flex items-center gap-2">
                             <Link
                                 href={route('events.guests.import', event.id)}
-                                className="inline-flex items-center px-2 sm:px-3 py-2 border border-blue-300 dark:border-blue-600 shadow-sm text-xs sm:text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900 hover:bg-blue-100 dark:hover:bg-blue-800"
+                                className="inline-flex items-center px-2 sm:px-3 py-2 border border-transparent shadow-sm text-xs sm:text-sm leading-4 font-medium rounded-md text-white hover:opacity-90 transition-opacity"
+                                style={{ backgroundColor: '#2D8C9E' }}
                             >
                                 <DocumentArrowUpIcon className="w-4 h-4 sm:mr-2" />
                                 <span className="hidden sm:inline">Importar CSV</span>
@@ -101,7 +102,8 @@ export default function Index({ auth, event, guests, filters }) {
                             
                             <Link
                                 href={route('events.guests.create', event.id)}
-                                className="inline-flex items-center px-3 sm:px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-gray-800 uppercase tracking-widest hover:opacity-90 transition-opacity"
+                                style={{ backgroundColor: '#9CDBD9' }}
                             >
                                 <PlusIcon className="w-4 h-4 sm:mr-2" />
                                 <span className="hidden sm:inline">Nuevo Invitado</span>
