@@ -308,8 +308,10 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                             <div className="w-full bg-gray-200 rounded-full h-3 sm:h-4 mb-2">
                                 <div 
                                     className="h-3 sm:h-4 rounded-full transition-all duration-1000 flex items-center justify-end pr-1 sm:pr-2"
-                                    style={{ background: 'linear-gradient(to right, #0076A8, #2D8C9E, #9CDBD9)' }}
-                                    style={{ width: `${Math.max(liveStats.overview?.attendance_rate || 0, 5)}%` }}
+                                    style={{ 
+                                        background: 'linear-gradient(to right, #2D8C9E, #9CDBD9)',
+                                        width: `${Math.max(liveStats.overview?.attendance_rate || 0, 5)}%` 
+                                    }}
                                 >
                                     {liveStats.overview?.attendance_rate > 10 && (
                                         <span className="text-[10px] sm:text-xs font-medium text-white">
