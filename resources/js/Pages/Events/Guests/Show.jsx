@@ -89,7 +89,7 @@ export default function Show({ auth, event, guest }) {
                                 </div>
                             </div>
 
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* Información personal */}
                                 <div>
                                     <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">

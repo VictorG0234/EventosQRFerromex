@@ -82,7 +82,20 @@ class StatisticsHelper
     }
 
     /**
-     * Obtener asistencia por área de trabajo
+     * Obtener asistencia por nivel de puesto (para dashboard)
+     */
+    public static function getAttendanceByJobLevel(Event $event): array
+    {
+        return $event->attendances()
+            ->join('guests', 'attendances.guest_id', '=', 'guests.id')
+            ->selectRaw('guests.nivel_de_puesto, COUNT(*) as count')
+            ->groupBy('guests.nivel_de_puesto')
+            ->pluck('count', 'nivel_de_puesto')
+            ->toArray();
+    }
+
+    /**
+     * Obtener asistencia por puesto (para reporte de estadísticas)
      */
     public static function getAttendanceByWorkArea(Event $event): array
     {
@@ -114,9 +127,42 @@ class StatisticsHelper
     }
 
     /**
-     * Obtener estadísticas completas del evento (usado en múltiples lugares)
+     * Obtener estadísticas completas del evento (usado en dashboard - usa nivel_de_puesto)
      */
     public static function getCompleteEventStatistics(Event $event): array
+    {
+        $attendanceStats = self::calculateAttendanceStatistics($event);
+        $winnersStats = self::getWinnersStatistics($event);
+        
+        // Excluir el premio especial "Rifa General" del conteo
+        $prizesExcludingGeneral = $event->prizes->filter(function ($prize) {
+            return trim($prize->name) !== 'Rifa General';
+        });
+        
+        // Contar entradas activas en rifas
+        $activeRaffleEntries = DB::table('raffle_entries')
+            ->where('event_id', $event->id)
+            ->whereIn('status', ['pending', 'won'])
+            ->count();
+        
+        return [
+            'overview' => array_merge($attendanceStats, [
+                'total_prizes' => $prizesExcludingGeneral->count(),
+                'total_prize_stock' => $prizesExcludingGeneral->sum('stock'),
+                'total_winners' => $winnersStats['total_winners'],
+                'total_participants' => $winnersStats['total_participants'],
+                'active_raffle_entries' => $activeRaffleEntries,
+            ]),
+            'prizes_by_category' => $prizesExcludingGeneral->groupBy('category')->map->sum('stock'),
+            'hourly_attendance' => self::getHourlyAttendance($event),
+            'attendance_by_work_area' => self::getAttendanceByJobLevel($event),
+        ];
+    }
+
+    /**
+     * Obtener estadísticas completas para reporte (usa puesto)
+     */
+    public static function getCompleteEventStatisticsForReport(Event $event): array
     {
         $attendanceStats = self::calculateAttendanceStatistics($event);
         $winnersStats = self::getWinnersStatistics($event);

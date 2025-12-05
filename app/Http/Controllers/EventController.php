@@ -249,7 +249,7 @@ class EventController extends Controller
 
         $event->load(['guests', 'prizes', 'attendances.guest']);
         
-        $statistics = StatisticsHelper::getCompleteEventStatistics($event);
+        $statistics = StatisticsHelper::getCompleteEventStatisticsForReport($event);
         
         // Obtener todas las asistencias
         $attendances = StatisticsHelper::formatAttendancesForDisplay(
@@ -284,7 +284,7 @@ class EventController extends Controller
 
             $event->load(['guests', 'prizes', 'attendances.guest']);
             
-            $statistics = StatisticsHelper::getCompleteEventStatistics($event);
+            $statistics = StatisticsHelper::getCompleteEventStatisticsForReport($event);
 
             // Obtener todas las asistencias formateadas para PDF
             $attendances = $event->attendances
