@@ -68,7 +68,7 @@ export default function EventRegistration({ event, token }) {
                         {/* Formulario de acceso */}
                                                 <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
                                                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 text-center">
-                                                        Registro de Invitados
+                                                        Indicaciones para tu registro
                                                     </h2>
                                                     
                                                     <form onSubmit={submit}>
