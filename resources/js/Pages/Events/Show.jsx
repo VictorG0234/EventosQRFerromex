@@ -347,8 +347,9 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                                                     <div className="flex items-center">
                                                         <div className="flex-1 bg-gray-200 rounded-full h-5 sm:h-6">
                                                             <div
-                                                                className="bg-blue-500 h-5 sm:h-6 rounded-full flex items-center justify-end pr-1 sm:pr-2 transition-all duration-300"
+                                                                className="h-5 sm:h-6 rounded-full flex items-center justify-end pr-1 sm:pr-2 transition-all duration-300"
                                                                 style={{
+                                                                    backgroundColor: '#2D8C9E',
                                                                     width: `${Math.max((count / maxHourlyCount) * 100, count > 0 ? 10 : 0)}%`
                                                                 }}
                                                             >
@@ -397,8 +398,9 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                                                             <div className="flex items-center">
                                                                 <div className="flex-1 bg-gray-200 rounded-full h-5 sm:h-6">
                                                                     <div
-                                                                        className="bg-green-500 h-5 sm:h-6 rounded-full flex items-center justify-end pr-1 sm:pr-2 transition-all duration-300"
+                                                                        className="h-5 sm:h-6 rounded-full flex items-center justify-end pr-1 sm:pr-2 transition-all duration-300"
                                                                         style={{
+                                                                            backgroundColor: '#0076A8',
                                                                             width: `${Math.max(percentage, count > 0 ? 15 : 0)}%`
                                                                         }}
                                                                     >
