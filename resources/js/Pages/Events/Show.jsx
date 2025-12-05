@@ -136,7 +136,7 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                         <Link
                             href={route('events.raffle.index', event.id)}
                             className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white hover:opacity-90 transition-opacity"
-                            style={{ backgroundColor: '#BE4D00' }}
+                            style={{ backgroundColor: '#D22730' }}
                         >
                             <GiftIcon className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">Rifas</span>
@@ -145,7 +145,7 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                         {liveStats.overview?.total_guests > 0 && (
                             <Link
                                 href={route('events.attendance.scanner', event.id)}
-                                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:opacity-90 transition-opacity"
+                                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-black uppercase tracking-widest hover:opacity-90 transition-opacity"
                                 style={{ backgroundColor: '#BABC16' }}
                             >
                                 <QrCodeIcon className="w-4 h-4 sm:mr-2" />
