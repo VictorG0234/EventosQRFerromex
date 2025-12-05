@@ -118,33 +118,33 @@ export default function Index({ auth, event, guests, filters }) {
                     
                     {/* Estadísticas rápidas */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-                        <div className="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 overflow-hidden shadow-lg sm:rounded-lg">
+                        <div className="overflow-hidden shadow-lg sm:rounded-lg" style={{ background: 'linear-gradient(to bottom right, #0076A8, #005a85)' }}>
                             <div className="p-4 sm:p-6 text-center">
                                 <div className="text-2xl sm:text-3xl font-bold text-white">{stats.total}</div>
-                                <div className="text-xs sm:text-sm text-blue-100 dark:text-blue-200 mt-1">Total Invitados</div>
+                                <div className="text-xs sm:text-sm text-white/90 mt-1">Total Invitados</div>
                             </div>
                         </div>
                         
-                        <div className="bg-gradient-to-br from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 overflow-hidden shadow-lg sm:rounded-lg">
+                        <div className="overflow-hidden shadow-lg sm:rounded-lg" style={{ background: 'linear-gradient(to bottom right, #2D8C9E, #237482)' }}>
                             <div className="p-4 sm:p-6 text-center">
                                 <div className="text-2xl sm:text-3xl font-bold text-white">{stats.attended}</div>
-                                <div className="text-xs sm:text-sm text-green-100 dark:text-green-200 mt-1">Con Asistencia</div>
+                                <div className="text-xs sm:text-sm text-white/90 mt-1">Con Asistencia</div>
                             </div>
                         </div>
                         
-                        <div className="bg-gradient-to-br from-orange-500 to-orange-600 dark:from-orange-600 dark:to-orange-700 overflow-hidden shadow-lg sm:rounded-lg">
+                        <div className="overflow-hidden shadow-lg sm:rounded-lg" style={{ background: 'linear-gradient(to bottom right, #ffb600, #cc9200)' }}>
                             <div className="p-4 sm:p-6 text-center">
                                 <div className="text-2xl sm:text-3xl font-bold text-white">{stats.not_attended}</div>
-                                <div className="text-xs sm:text-sm text-orange-100 dark:text-orange-200 mt-1">Sin Asistencia</div>
+                                <div className="text-xs sm:text-sm text-white/90 mt-1">Sin Asistencia</div>
                             </div>
                         </div>
                         
-                        <div className="bg-gradient-to-br from-purple-500 to-purple-600 dark:from-purple-600 dark:to-purple-700 overflow-hidden shadow-lg sm:rounded-lg">
+                        <div className="overflow-hidden shadow-lg sm:rounded-lg" style={{ background: 'linear-gradient(to bottom right, #BABC16, #959711)' }}>
                             <div className="p-4 sm:p-6 text-center">
                                 <div className="text-2xl sm:text-3xl font-bold text-white">
                                     {stats.total > 0 ? Math.round((stats.attended / stats.total) * 100) : 0}%
                                 </div>
-                                <div className="text-xs sm:text-sm text-purple-100 dark:text-purple-200 mt-1">Tasa de Asistencia</div>
+                                <div className="text-xs sm:text-sm text-white/90 mt-1">Tasa de Asistencia</div>
                             </div>
                         </div>
                     </div>
