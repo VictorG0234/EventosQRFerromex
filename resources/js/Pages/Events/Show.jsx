@@ -157,7 +157,7 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6">
                     
                     {/* URL Pública del Evento */}
-                    <div className="bg-gradient-to-r from-blue-500 to-indigo-600 overflow-hidden shadow-lg sm:rounded-lg">
+                    <div className="overflow-hidden shadow-lg sm:rounded-lg" style={{ background: 'linear-gradient(to right, #0076A8, #2D8C9E, #9CDBD9)' }}>
                         <div className="p-4 sm:p-6">
                             <div className="flex flex-col">
                                 <div className="flex-1">
@@ -307,7 +307,8 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-3 sm:h-4 mb-2">
                                 <div 
-                                    className="bg-gradient-to-r from-blue-500 to-green-500 h-3 sm:h-4 rounded-full transition-all duration-1000 flex items-center justify-end pr-1 sm:pr-2"
+                                    className="h-3 sm:h-4 rounded-full transition-all duration-1000 flex items-center justify-end pr-1 sm:pr-2"
+                                    style={{ background: 'linear-gradient(to right, #0076A8, #2D8C9E, #9CDBD9)' }}
                                     style={{ width: `${Math.max(liveStats.overview?.attendance_rate || 0, 5)}%` }}
                                 >
                                     {liveStats.overview?.attendance_rate > 10 && (
