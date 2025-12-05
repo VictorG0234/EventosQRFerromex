@@ -108,7 +108,8 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                     <div className="flex flex-wrap items-center gap-2">
                         <Link
                             href={route('events.edit', event.id)}
-                            className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                            className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white hover:opacity-90 transition-opacity"
+                            style={{ backgroundColor: '#B2B4B2' }}
                         >
                             <PencilIcon className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">Editar</span>
@@ -116,7 +117,8 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                         
                         <Link
                             href={route('events.guests.index', event.id)}
-                            className="inline-flex items-center px-3 py-2 border border-blue-300 dark:border-blue-600 shadow-sm text-sm leading-4 font-medium rounded-md text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900 hover:bg-blue-100 dark:hover:bg-blue-800"
+                            className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white hover:opacity-90 transition-opacity"
+                            style={{ backgroundColor: '#0076A8' }}
                         >
                             <UsersIcon className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">Invitados</span>
@@ -124,7 +126,8 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                         
                         <Link
                             href={route('events.statistics.report', event.id)}
-                            className="inline-flex items-center px-3 py-2 border border-purple-300 dark:border-purple-600 shadow-sm text-sm leading-4 font-medium rounded-md text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900 hover:bg-purple-100 dark:hover:bg-purple-800"
+                            className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white hover:opacity-90 transition-opacity"
+                            style={{ backgroundColor: '#FFB600' }}
                         >
                             <ChartBarIcon className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">Estadísticas</span>
@@ -132,7 +135,8 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                         
                         <Link
                             href={route('events.raffle.index', event.id)}
-                            className="inline-flex items-center px-3 py-2 border border-orange-300 dark:border-orange-600 shadow-sm text-sm leading-4 font-medium rounded-md text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900 hover:bg-orange-100 dark:hover:bg-orange-800"
+                            className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white hover:opacity-90 transition-opacity"
+                            style={{ backgroundColor: '#BE4D00' }}
                         >
                             <GiftIcon className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">Rifas</span>
@@ -141,7 +145,8 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                         {liveStats.overview?.total_guests > 0 && (
                             <Link
                                 href={route('events.attendance.scanner', event.id)}
-                                className="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700"
+                                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:opacity-90 transition-opacity"
+                                style={{ backgroundColor: '#BABC16' }}
                             >
                                 <QrCodeIcon className="w-4 h-4 sm:mr-2" />
                                 <span className="hidden sm:inline">Escáner</span>
