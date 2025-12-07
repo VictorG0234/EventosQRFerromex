@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/ui/badge';
-import { Gift, Trophy, Sparkles, Target, ArrowLeft, Users } from 'lucide-react';
+import { Gift, Trophy, Sparkles, Target, ArrowLeft, Users, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function RaffleIndex({ auth, event, prizes, statistics, public_raffle_status, public_raffle_completed, public_raffle_total, general_raffle_status, general_winners_count, total_prizes }) {
@@ -76,6 +76,13 @@ export default function RaffleIndex({ auth, event, prizes, statistics, public_ra
                         >
                             <Gift className="w-4 h-4 mr-2" />
                             Gestionar Premios
+                        </Link>
+                        <Link
+                            href={route('events.raffle.logs-page', event.id)}
+                            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white text-sm font-medium rounded-md transition-colors"
+                        >
+                            <Eye className="w-4 h-4 mr-2" />
+                            Ver Logs
                         </Link>
                     </div>
                 </div>

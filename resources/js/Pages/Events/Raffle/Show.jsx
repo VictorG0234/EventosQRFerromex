@@ -15,6 +15,8 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
     const { flash } = usePage().props;
     const [entries, setEntries] = useState([]);
     const [loadingEntries, setLoadingEntries] = useState(false);
+    const [logs, setLogs] = useState([]);
+    const [loadingLogs, setLoadingLogs] = useState(false);
     const [selectedWinner, setSelectedWinner] = useState('');
     const [isDrawing, setIsDrawing] = useState(false);
     
@@ -50,14 +52,31 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
         }
     };
 
+    const loadLogs = async () => {
+        setLoadingLogs(true);
+        try {
+            const response = await fetch(route('events.raffle.logs', event.id));
+            const data = await response.json();
+            // Filtrar logs solo para este premio
+            const prizeLogs = data.logs.filter(log => log.prize.id === prize.id);
+            setLogs(prizeLogs);
+        } catch (error) {
+            toast.error('Error al cargar los logs de rifas');
+        } finally {
+            setLoadingLogs(false);
+        }
+    };
+
     useEffect(() => {
         loadEntries();
+        loadLogs();
     }, []);
 
     const handleCreateEntries = () => {
         post(route('events.raffle.create-entries', [event.id, prize.id]), {
             onSuccess: () => {
                 loadEntries();
+                loadLogs();
             },
             onError: () => {
                 toast.error('Error al crear las participaciones');
@@ -86,6 +105,7 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
             if (result.success) {
                 toast.success(result.message);
                 loadEntries();
+                loadLogs();
             } else {
                 toast.error(result.message);
             }
@@ -102,6 +122,7 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
                 manualWinnerForm.reset();
                 setSelectedWinner('');
                 loadEntries();
+                loadLogs();
             },
             onError: () => {
                 toast.error('Error al seleccionar ganador');
@@ -113,6 +134,7 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
         post(route('events.raffle.cancel', [event.id, prize.id]), {
             onSuccess: () => {
                 loadEntries();
+                loadLogs();
             },
             onError: () => {
                 toast.error('Error al cancelar la rifa');
@@ -462,14 +484,14 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
                         </div>
                     </div>
 
-                    {/* Entries and Results */}
-                    <Tabs defaultValue="entries" className="space-y-6">
+                    {/* Logs and Results */}
+                    <Tabs defaultValue="logs" className="space-y-6">
                         <TabsList className="bg-gray-100">
                             <TabsTrigger 
-                                value="entries"
+                                value="logs"
                                 className="text-gray-700 data-[state=active]:bg-white data-[state=active]:text-gray-900"
                             >
-                                Participaciones ({entries.length})
+                                Logs de Rifas ({logs.length})
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="winners"
@@ -479,24 +501,24 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
                             </TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="entries">
+                        <TabsContent value="logs">
                             <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                                 <div className="p-6">
                                     <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center justify-between">
-                                        <span>Todas las Participaciones</span>
+                                        <span>Historial de Selecciones de Ganadores</span>
                                         <Badge variant="outline">
-                                            {entries.length} total
+                                            {logs.length} registros
                                         </Badge>
                                     </h3>
-                                    {loadingEntries ? (
+                                    {loadingLogs ? (
                                         <div className="text-center py-8">
                                             <RefreshCw className="w-8 h-8 text-gray-400 mx-auto animate-spin mb-4" />
-                                            <p className="text-gray-500">Cargando participaciones...</p>
+                                            <p className="text-gray-500">Cargando logs...</p>
                                         </div>
-                                    ) : entries.length === 0 ? (
+                                    ) : logs.length === 0 ? (
                                         <div className="text-center py-8">
-                                            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                                            <p className="text-gray-500">No hay participaciones registradas</p>
+                                            <Eye className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                            <p className="text-gray-500">No hay logs de rifas registrados</p>
                                         </div>
                                     ) : (
                                         <div className="overflow-x-auto">
@@ -504,43 +526,55 @@ export default function RaffleShow({ auth, event, prize, eligible_guests, valida
                                                 <thead className="bg-gray-50">
                                                     <tr>
                                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Invitado
+                                                            Tipo de Rifa
+                                                        </th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Número de Empleado
+                                                        </th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Nombre del Ganador
+                                                        </th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Empresa
+                                                        </th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Premio
                                                         </th>
                                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Estado
                                                         </th>
                                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Fecha Rifa
-                                                        </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Orden
-                                                        </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Creado
+                                                            Fecha
                                                         </th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="bg-white divide-y divide-gray-200">
-                                                    {entries.map((entry) => (
-                                                        <tr key={entry.id} className={entry.status === 'won' ? 'bg-green-50' : ''}>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                <div>
-                                                                    <div className="font-medium text-gray-900">
-                                                                        {entry.guest.name}
-                                                                    </div>
-                                                                    <div className="text-sm text-gray-500">
-                                                                        {entry.guest.employee_number} • {entry.guest.work_area}
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                {getStatusBadge(entry.status)}
+                                                    {logs.map((log) => (
+                                                        <tr key={log.id} className={log.confirmed ? 'bg-green-50' : 'bg-yellow-50'}>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                {log.raffle_type === 'public' ? 'Pública' : 'General'}
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                                {entry.drawn_at || '-'}
+                                                                {log.guest?.employee_number || 'N/A'}
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <div className="font-medium text-gray-900">
+                                                                    {log.guest?.name || 'N/A'}
+                                                                </div>
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                                {entry.created_at}
+                                                                {log.guest?.compania || 'N/A'}
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                {log.prize?.name || 'N/A'}
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <span className={log.confirmed ? 'text-green-600 font-medium' : 'text-gray-900'}>
+                                                                    {log.confirmed ? 'Ganador' : 'Seleccionado'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                {log.created_at}
                                                             </td>
                                                         </tr>
                                                     ))}

@@ -6,9 +6,11 @@ use App\Models\Event;
 use App\Models\Guest;
 use App\Models\Prize;
 use App\Models\RaffleEntry;
+use App\Models\RaffleLog;
 use App\Jobs\SendEmailJob;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Collection;
 use Carbon\Carbon;
 
@@ -126,6 +128,22 @@ class RaffleService
 
             // Refrescar el premio para obtener el stock actualizado
             $prize->refresh();
+            
+            // CORRECCIÓN AUTOMÁTICA: Si el stock es 0 pero no hay ganadores registrados,
+            // restaurar el stock automáticamente (corrige datos corrompidos)
+            if ($prize->stock <= 0) {
+                $winnersCount = $prize->raffleEntries()->where('status', 'won')->count();
+                if ($winnersCount === 0) {
+                    // No hay ganadores registrados pero el stock es 0 - restaurar stock
+                    $prize->restoreStockFromWinners();
+                    $prize->refresh();
+                    Log::info('Stock restaurado automáticamente para premio sin ganadores', [
+                        'prize_id' => $prize->id,
+                        'prize_name' => $prize->name,
+                        'restored_stock' => $prize->stock
+                    ]);
+                }
+            }
             
             // Check if we have enough stock
             // Si el stock siempre es 1, verificar que haya al menos 1 disponible
@@ -373,6 +391,9 @@ class RaffleService
                 // Decrement stock for each winner
                 $prize->decrementStock(1);
 
+                // Crear log del ganador (confirmado directamente)
+                $this->createRaffleLog($prize, $winnerEntry, $raffleType, true);
+
                 $winnerEntries[] = $winnerEntry;
 
                 // Send winner notification email if requested
@@ -444,6 +465,22 @@ class RaffleService
 
             // Refrescar el premio para obtener el stock actualizado
             $prize->refresh();
+            
+            // CORRECCIÓN AUTOMÁTICA: Si el stock es 0 pero no hay ganadores registrados,
+            // restaurar el stock automáticamente (corrige datos corrompidos)
+            if ($prize->stock <= 0) {
+                $winnersCount = $prize->raffleEntries()->where('status', 'won')->count();
+                if ($winnersCount === 0) {
+                    // No hay ganadores registrados pero el stock es 0 - restaurar stock
+                    $prize->restoreStockFromWinners();
+                    $prize->refresh();
+                    Log::info('Stock restaurado automáticamente para premio sin ganadores (selectWinnerTemporary)', [
+                        'prize_id' => $prize->id,
+                        'prize_name' => $prize->name,
+                        'restored_stock' => $prize->stock
+                    ]);
+                }
+            }
             
             // Check if we have enough stock
             $availableStock = max($prize->stock, 0);
@@ -573,6 +610,9 @@ class RaffleService
                 $winnerEntry = $eligibleEntries->random(1)->first();
             }
 
+            // Crear log de la selección (aún no confirmado)
+            $this->createRaffleLog($prize, $winnerEntry, $raffleType, false);
+
             // NO guardar en BD, solo devolver el ganador seleccionado
             return [
                 'success' => true,
@@ -631,6 +671,22 @@ class RaffleService
 
             // Decrement stock
             $prize->decrementStock(1);
+
+            // Marcar el log más reciente de este ganador como confirmado
+            // O crear uno nuevo si no existe
+            $raffleType = $prize->name === 'Rifa General' ? 'general' : 'public';
+            $log = RaffleLog::where('prize_id', $prize->id)
+                ->where('guest_id', $winnerEntry->guest_id)
+                ->where('confirmed', false)
+                ->latest()
+                ->first();
+            
+            if ($log) {
+                $log->update(['confirmed' => true]);
+            } else {
+                // Si no hay log previo, crear uno confirmado
+                $this->createRaffleLog($prize, $winnerEntry, $raffleType, true);
+            }
 
             // Mark other entries as losers
             RaffleEntry::where('prize_id', $prize->id)
@@ -1168,6 +1224,9 @@ class RaffleService
                         'drawn_at' => now()
                     ]),
                 ]);
+
+                // Crear log del ganador (confirmado directamente)
+                $this->createRaffleLog($generalPrize, $entry, 'general', true);
             }
 
             // Marcar el resto como perdedores
@@ -1199,5 +1258,25 @@ class RaffleService
                 'error' => 'Error al realizar la rifa: ' . $e->getMessage()
             ];
         }
+    }
+
+    /**
+     * Crear un log de rifa cuando se selecciona un ganador
+     * @param Prize $prize
+     * @param RaffleEntry $winnerEntry
+     * @param string $raffleType
+     * @param bool $confirmed
+     * @return RaffleLog
+     */
+    private function createRaffleLog(Prize $prize, RaffleEntry $winnerEntry, string $raffleType = 'public', bool $confirmed = false): RaffleLog
+    {
+        return RaffleLog::create([
+            'event_id' => $prize->event_id,
+            'user_id' => Auth::id(),
+            'prize_id' => $prize->id,
+            'guest_id' => $winnerEntry->guest_id,
+            'raffle_type' => $raffleType,
+            'confirmed' => $confirmed,
+        ]);
     }
 }
