@@ -99,7 +99,7 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                                 </div>
                                 <div className="flex items-center sm:ml-4">
                                     <MapPinIcon className="w-4 h-4 mr-1" />
-                                    <span className="truncate">{event.location}</span>
+                                    <span className="">{event.location}</span>
                                 </div>
                             </div>
                         </div>

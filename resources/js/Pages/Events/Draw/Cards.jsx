@@ -131,11 +131,11 @@ export default function DrawCards({ auth, event, prizes }) {
                             {prizeCards.map((card) => (
                                 <div
                                     key={card.id}
-                                    className={`bg-white overflow-hidden shadow-sm sm:rounded-lg border-2 transition-all hover:shadow-lg flex flex-col ${
-                                        card.isWon
-                                            ? 'border-green-300 bg-green-50'
-                                            : 'border-gray-200 hover:border-blue-300'
-                                    }`}
+                                    className="bg-white overflow-hidden shadow-sm sm:rounded-lg border-2 transition-all hover:shadow-lg flex flex-col"
+                                    style={{
+                                        borderColor: card.isWon ? '#10b981' : '#D22730',
+                                        backgroundColor: card.isWon ? '#f0fdf4' : '#ffffff'
+                                    }}
                                 >
                                     <div className="p-6 flex flex-col flex-grow">
                                         <div className="mb-4 text-center">
@@ -186,11 +186,11 @@ export default function DrawCards({ auth, event, prizes }) {
                                                     <Button
                                                         onClick={() => handleOpenRaffleModal(card)}
                                                         disabled={!card.canRaffle}
-                                                        className={`w-full ${
-                                                            card.isWon
-                                                                ? 'bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 disabled:cursor-not-allowed'
-                                                                : 'bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed'
-                                                        }`}
+                                                        className="w-full text-white disabled:cursor-not-allowed"
+                                                        style={{
+                                                            backgroundColor: card.canRaffle ? '#D22730' : '#d1d5db',
+                                                            opacity: card.canRaffle ? 1 : 0.6
+                                                        }}
                                                     >
                                                         <Sparkles className="w-4 h-4 mr-2" />
                                                         Rifar
