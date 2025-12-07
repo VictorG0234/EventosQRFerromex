@@ -286,7 +286,9 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                                             <div className="text-sm sm:text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
                                                 Registros
                                             </div>
-                                            <div className="text-xs sm:text-sm text-gray-500">Ver logs</div>
+                                            <div className="text-xs sm:text-sm text-gray-500">
+                                                {liveStats.overview?.registered_guests || 0} registrados ({liveStats.overview?.registration_rate || 0}%)
+                                            </div>
                                         </div>
                                     </div>
                                     <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 group-hover:text-indigo-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
