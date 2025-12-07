@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import { ClockIcon, EnvelopeIcon, UserIcon } from '@heroicons/react/24/outline';
 
-export default function RealtimeLogs({ auth, event, logs, total_logs }) {
+export default function RealtimeLogs({ auth, event, logs, total_logs, total_guests }) {
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -40,12 +40,12 @@ export default function RealtimeLogs({ auth, event, logs, total_logs }) {
                                             Invitaciones Enviadas
                                         </h3>
                                         <p className="text-sm text-gray-600 dark:text-gray-300">
-                                            Total de registros encontrados en logs
+                                            {total_logs} / {total_guests} invitaciones
                                         </p>
                                     </div>
                                 </div>
                                 <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
-                                    {total_logs}
+                                    {total_guests > 0 ? Math.round((total_logs / total_guests) * 100) : 0}%
                                 </div>
                             </div>
                         </div>

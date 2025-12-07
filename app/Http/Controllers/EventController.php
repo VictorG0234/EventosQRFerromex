@@ -372,6 +372,7 @@ class EventController extends Controller
             ],
             'logs' => $logs,
             'total_logs' => count($logs),
+            'total_guests' => $event->guests()->count(),
         ]);
     }
 }
