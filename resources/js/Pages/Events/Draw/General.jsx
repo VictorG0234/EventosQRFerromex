@@ -288,12 +288,18 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                     {winnersList.map((winner, index) => (
                                         <div
                                             key={winner.id}
-                                            className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-2 border-yellow-300 rounded-lg p-4 relative"
+                                            className="rounded-lg p-4 relative"
+                                            style={{
+                                                background: 'linear-gradient(to bottom right, #FEE2E2, #FECACA)',
+                                                border: '2px solid #D22730'
+                                            }}
                                         >
                                             <div className="flex items-start justify-between">
                                                 <div className="flex-1">
                                                     <div className="flex items-center mb-2">
-                                                        <span className="bg-yellow-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm mr-2">
+                                                        <span className="text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm mr-2"
+                                                            style={{ backgroundColor: '#D22730' }}
+                                                        >
                                                             {index + 1}
                                                         </span>
                                                         <h4 className="font-bold text-gray-900 text-lg">
@@ -313,13 +319,17 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="mt-3 pt-3 border-t border-yellow-200">
+                                            <div className="mt-3 pt-3" style={{ borderTop: '1px solid #D22730' }}>
                                                 <Button
                                                     onClick={() => handleReselectWinner(winner.id)}
                                                     disabled={reselectingWinner === winner.id || isDrawing}
                                                     variant="outline"
                                                     size="sm"
-                                                    className="w-full bg-white hover:bg-yellow-50 border-yellow-300 text-yellow-700 hover:text-yellow-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    className="w-full bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    style={{
+                                                        borderColor: '#D22730',
+                                                        color: '#D22730'
+                                                    }}
                                                 >
                                                     {reselectingWinner === winner.id ? (
                                                         <>
@@ -420,7 +430,8 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                 <Button
                                     onClick={handleOpenDrawModal}
                                     disabled={isDrawing || !can_raffle}
-                                    className="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors"
+                                    className="inline-flex items-center px-4 py-2 text-white text-sm font-medium rounded-md transition-colors"
+                                    style={{ backgroundColor: '#D22730' }}
                                 >
                                     <Sparkles className="w-4 h-4 mr-2" />
                                     Realizar Rifa General
