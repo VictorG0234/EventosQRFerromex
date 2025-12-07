@@ -14,8 +14,12 @@ class StatisticsHelper
     {
         $totalGuests = $event->guests()->count();
         $totalAttendances = $event->attendances()->count();
+        $registeredGuests = $event->guests()->where('email_sent', true)->count();
         $attendanceRate = $totalGuests > 0 
             ? round(($totalAttendances / $totalGuests) * 100, 2) 
+            : 0;
+        $registrationRate = $totalGuests > 0
+            ? round(($registeredGuests / $totalGuests) * 100, 2)
             : 0;
 
         return [
@@ -23,6 +27,8 @@ class StatisticsHelper
             'total_attendances' => $totalAttendances,
             'pending_guests' => $totalGuests - $totalAttendances,
             'attendance_rate' => $attendanceRate,
+            'registered_guests' => $registeredGuests,
+            'registration_rate' => $registrationRate,
         ];
     }
 
