@@ -140,6 +140,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('events/{event}/raffle/prizes/{prize}/entries/{entry}', [RaffleController::class, 'deleteEntry'])->name('events.raffle.delete-entry');
     Route::post('events/{event}/raffle/prizes/{prize}/select-winner', [RaffleController::class, 'selectWinner'])->name('events.raffle.select-winner');
     Route::get('events/{event}/raffle/live-data', [RaffleController::class, 'liveData'])->name('events.raffle.live-data');
+    Route::get('events/{event}/raffle/logs', [RaffleController::class, 'logs'])->name('events.raffle.logs');
+    Route::get('events/{event}/raffle/logs-page', [RaffleController::class, 'logsPage'])->name('events.raffle.logs-page');
     
     // Rutas de auditoría
     Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');

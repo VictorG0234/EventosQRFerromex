@@ -6,6 +6,7 @@ use App\Models\Event;
 use App\Models\Prize;
 use App\Models\Guest;
 use App\Models\RaffleEntry;
+use App\Models\RaffleLog;
 use App\Services\RaffleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -1227,6 +1228,91 @@ class RaffleController extends Controller
         }
         
         return true;
+    }
+
+    /**
+     * Get raffle logs for an event (JSON API)
+     */
+    public function logs(Event $event)
+    {
+        $this->authorize('view', $event);
+
+        $logs = RaffleLog::where('event_id', $event->id)
+            ->with(['prize', 'guest', 'user'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($log) {
+                return [
+                    'id' => $log->id,
+                    'raffle_type' => $log->raffle_type,
+                    'confirmed' => $log->confirmed,
+                    'created_at' => $log->created_at->format('d/m/Y H:i:s'),
+                    'prize' => $log->prize ? [
+                        'id' => $log->prize->id,
+                        'name' => $log->prize->name,
+                    ] : null,
+                    'guest' => $log->guest ? [
+                        'id' => $log->guest->id,
+                        'name' => $log->guest->full_name,
+                        'employee_number' => $log->guest->numero_empleado,
+                        'compania' => $log->guest->compania,
+                    ] : null,
+                    'user' => $log->user ? [
+                        'id' => $log->user->id,
+                        'name' => $log->user->name,
+                    ] : null,
+                ];
+            });
+
+        return response()->json([
+            'logs' => $logs,
+            'total' => $logs->count(),
+        ]);
+    }
+
+    /**
+     * Display raffle logs page for an event
+     */
+    public function logsPage(Event $event)
+    {
+        $this->authorize('view', $event);
+
+        $logs = RaffleLog::where('event_id', $event->id)
+            ->with(['prize', 'guest', 'user'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($log) {
+                return [
+                    'id' => $log->id,
+                    'raffle_type' => $log->raffle_type,
+                    'confirmed' => $log->confirmed,
+                    'created_at' => $log->created_at->format('d/m/Y H:i:s'),
+                    'prize' => $log->prize ? [
+                        'id' => $log->prize->id,
+                        'name' => $log->prize->name,
+                    ] : null,
+                    'guest' => $log->guest ? [
+                        'id' => $log->guest->id,
+                        'name' => $log->guest->full_name,
+                        'employee_number' => $log->guest->numero_empleado,
+                        'compania' => $log->guest->compania,
+                    ] : null,
+                    'user' => $log->user ? [
+                        'id' => $log->user->id,
+                        'name' => $log->user->name,
+                    ] : null,
+                ];
+            });
+
+        return Inertia::render('Events/Raffle/Logs', [
+            'event' => [
+                'id' => $event->id,
+                'name' => $event->name,
+                'event_date' => $event->event_date->format('d/m/Y'),
+            ],
+            'logs' => $logs,
+            'total' => $logs->count(),
+        ]);
     }
 
 }

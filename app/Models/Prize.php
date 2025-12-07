@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Log;
 
 class Prize extends Model
 {
@@ -76,5 +77,43 @@ class Prize extends Model
         return Guest::where('event_id', $this->event_id)
             ->whereHas('attendance')
             ->get();
+    }
+
+    /**
+     * Restaurar el stock basándose en los ganadores reales registrados
+     * Si no hay ganadores pero el stock es 0, restaura el stock a 1
+     * @return bool True si se restauró el stock, False si no era necesario
+     */
+    public function restoreStockFromWinners(): bool
+    {
+        // No restaurar stock para el premio especial "Rifa General"
+        if ($this->name === 'Rifa General') {
+            return false;
+        }
+
+        // Contar ganadores reales registrados
+        $winnersCount = $this->raffleEntries()->where('status', 'won')->count();
+
+        // Si no hay ganadores pero el stock es 0, restaurar a 1
+        if ($winnersCount === 0 && $this->stock === 0) {
+            $this->update(['stock' => 1]);
+            return true;
+        }
+
+        // Si hay ganadores pero el stock no es 0, ajustar el stock
+        // (esto puede pasar si hay corrupción de datos)
+        if ($winnersCount > 0 && $this->stock > 0) {
+            // El stock debería ser 0 si hay ganadores (para premios con stock inicial de 1)
+            // Pero no lo cambiamos automáticamente para evitar problemas
+            // Solo registramos en el log
+            Log::warning('Inconsistencia detectada: Premio tiene ganadores pero stock > 0', [
+                'prize_id' => $this->id,
+                'prize_name' => $this->name,
+                'winners_count' => $winnersCount,
+                'current_stock' => $this->stock
+            ]);
+        }
+
+        return false;
     }
 }
