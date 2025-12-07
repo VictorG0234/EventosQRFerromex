@@ -138,9 +138,9 @@ export default function DrawCards({ auth, event, prizes }) {
                                     }`}
                                 >
                                     <div className="p-6 flex flex-col flex-grow">
-                                        <div className="mb-4">
+                                        <div className="mb-4 text-center">
                                             <h3 className="font-semibold text-lg text-gray-900 mb-1">
-                                                {card.prizeName}
+                                                🎁 {card.prizeName}
                                             </h3>
                                             <p className="text-sm text-gray-500">
                                                 {card.stock > 1 ? `Unidad ${card.index} de ${card.stock}` : ''}
