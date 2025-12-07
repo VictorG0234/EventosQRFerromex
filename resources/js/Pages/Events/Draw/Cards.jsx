@@ -133,8 +133,8 @@ export default function DrawCards({ auth, event, prizes }) {
                                     key={card.id}
                                     className="bg-white overflow-hidden shadow-sm sm:rounded-lg border-2 transition-all hover:shadow-lg flex flex-col"
                                     style={{
-                                        borderColor: card.isWon ? '#10b981' : '#D22730',
-                                        backgroundColor: card.isWon ? '#f0fdf4' : '#ffffff'
+                                        borderColor: '#D22730',
+                                        backgroundColor: card.isWon ? '#FEE2E2' : '#ffffff'
                                     }}
                                 >
                                     <div className="p-6 flex flex-col flex-grow">
@@ -149,18 +149,18 @@ export default function DrawCards({ auth, event, prizes }) {
 
                                         <div className="">
                                             {card.isWon && card.winner ? (
-                                                <div className="p-3 bg-green-100 rounded-md">
-                                                    <p className="text-sm font-medium text-green-800 mb-1">
+                                                <div className="p-3 rounded-md" style={{ backgroundColor: '#FEE2E2' }}>
+                                                    <p className="text-sm font-medium mb-1" style={{ color: '#991B1B' }}>
                                                         Ganador:
                                                     </p>
-                                                    <p className="text-base font-bold text-green-900">
+                                                    <p className="text-base font-bold" style={{ color: '#7F1D1D' }}>
                                                         {card.winner.company} - {card.winner.employee_number}
                                                     </p>
-                                                    <p className="text-base font-bold text-green-900">
+                                                    <p className="text-base font-bold" style={{ color: '#7F1D1D' }}>
                                                         {card.winner.name}
                                                     </p>
                                                     {card.winner.drawn_at && (
-                                                        <p className="text-xs text-green-600 mt-1">
+                                                        <p className="text-xs mt-1" style={{ color: '#DC2626' }}>
                                                             {card.winner.drawn_at}
                                                         </p>
                                                     )}
