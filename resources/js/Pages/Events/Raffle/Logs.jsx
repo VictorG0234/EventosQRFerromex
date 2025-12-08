@@ -124,9 +124,17 @@ export default function RaffleLogs({ auth, event, logs, total }) {
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className={log.confirmed ? 'text-green-600 dark:text-green-400 font-medium' : 'text-gray-900 dark:text-white'}>
-                                                            {log.confirmed ? 'Ganador' : 'Seleccionado'}
-                                                        </span>
+                                                        {log.confirmed ? (
+                                                            <span className="text-green-600 dark:text-green-400 font-medium flex items-center">
+                                                                <CheckCircle className="h-4 w-4 mr-1" />
+                                                                Ganador
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-gray-500 dark:text-gray-400 font-medium flex items-center">
+                                                                <Clock className="h-4 w-4 mr-1" />
+                                                                Reemplazado
+                                                            </span>
+                                                        )}
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="flex items-center">
@@ -166,8 +174,8 @@ export default function RaffleLogs({ auth, event, logs, total }) {
                             <div className="ml-3">
                                 <p className="text-sm text-blue-700 dark:text-blue-300">
                                     <strong>Nota:</strong> Esta información muestra todos los registros de selección de ganadores en las rifas. 
-                                    Los registros marcados como "Seleccionado" son selecciones temporales que aún no han sido confirmadas como ganadores finales. 
-                                    Los registros "Ganador" son ganadores que ya fueron marcados como ganadores finales.
+                                    Los registros marcados como <span className="font-semibold">"Ganador"</span> son los ganadores actuales confirmados. 
+                                    Los registros marcados como <span className="font-semibold">"Reemplazado"</span> son ganadores que fueron seleccionados inicialmente pero luego fueron reemplazados por otros participantes.
                                 </p>
                             </div>
                         </div>

@@ -939,6 +939,12 @@ class RaffleController extends Controller
             ]);
             $currentWinnerEntry->refresh();
 
+            // Marcar el log del ganador anterior como no confirmado (Reemplazado)
+            RaffleLog::where('prize_id', $generalPrize->id)
+                ->where('guest_id', $guest->id)
+                ->where('confirmed', true)
+                ->update(['confirmed' => false]);
+
             // Obtener invitados elegibles para la rifa general (excluyendo los otros ganadores)
             $eligibleGuests = $this->raffleService->getEligibleGuestsForGeneralRaffle($event)
                 ->whereNotIn('id', $otherWinnersIds);
