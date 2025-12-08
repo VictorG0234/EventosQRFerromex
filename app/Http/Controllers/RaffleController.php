@@ -9,6 +9,7 @@ use App\Models\RaffleEntry;
 use App\Models\RaffleLog;
 use App\Services\RaffleService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Exception;
@@ -1093,6 +1094,16 @@ class RaffleController extends Controller
             // Refrescar la entrada para obtener los datos actualizados
             $newWinnerEntry->refresh();
             $newWinnerEntry->load('guest');
+
+            // Crear log del nuevo ganador en la rifa general (confirmado)
+            RaffleLog::create([
+                'event_id' => $event->id,
+                'user_id' => Auth::id(),
+                'prize_id' => $generalPrize->id,
+                'guest_id' => $newWinnerEntry->guest_id,
+                'raffle_type' => 'general',
+                'confirmed' => true,
+            ]);
 
             // Confirmar la transacción
             DB::commit();
