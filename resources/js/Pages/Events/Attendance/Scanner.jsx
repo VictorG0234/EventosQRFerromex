@@ -548,8 +548,8 @@ export default function Scanner({ auth, event, statistics }) {
                                             ref={canvasRef}
                                             className="w-full h-auto rounded-lg"
                                             style={{ 
-                                                minHeight: '300px',
-                                                maxHeight: '600px',
+                                                minHeight: window.innerWidth < 768 ? '240px' : '300px',
+                                                maxHeight: window.innerWidth < 768 ? '480px' : '600px',
                                                 width: '100%',
                                                 display: isScanning ? 'block' : 'none',
                                                 backgroundColor: '#000'
