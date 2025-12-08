@@ -267,6 +267,28 @@ class RaffleService
             if ($raffleType === 'general') {
                 $event = $prize->event;
                 
+                // REGLA CRÍTICA: Filtrar ganadores de rifa pública
+                // Los ganadores de RIFA PÚBLICA no pueden participar en RIFA GENERAL
+                $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize) {
+                    $guest = $entry->guest;
+                    
+                    // Verificar si ya ganó en rifa pública (cualquier premio excepto Rifa General)
+                    $hasWonPublicRaffle = RaffleEntry::where('guest_id', $guest->id)
+                        ->where('event_id', $prize->event_id)
+                        ->where('status', 'won')
+                        ->whereHas('prize', function ($q) {
+                            $q->where('name', '!=', 'Rifa General');
+                        })
+                        ->exists();
+                    
+                    // Excluir si ya ganó en rifa pública
+                    if ($hasWonPublicRaffle) {
+                        return false;
+                    }
+                    
+                    return true;
+                });
+                
                 // REGLA: En rifa general debe haber máximo 2 ganadores IMEX (por evento)
                 // Verificar cuántos ganadores IMEX hay en la rifa general (excluyendo el premio especial "Rifa General")
                 $generalPrize = $this->getOrCreateGeneralRafflePrize($event);
@@ -803,7 +825,20 @@ class RaffleService
                   ->where('status', 'won'); // Solo excluir si ya GANÓ, no si tiene pendiente
             });
         }
-        // REGLAS DE RIFA GENERAL (se aplicarán aquí cuando las definas)
+        
+        // REGLAS DE RIFA GENERAL
+        if ($raffleType === 'general') {
+            // REGLA CRÍTICA: Los ganadores de RIFA PÚBLICA no pueden participar en RIFA GENERAL
+            // Excluir guests que ya ganaron en CUALQUIER premio de rifa pública del evento
+            $query->whereDoesntHave('raffleEntries', function ($q) use ($prize) {
+                $q->where('event_id', $prize->event_id)
+                  ->where('status', 'won')
+                  // Excluir premios de rifa general (solo contar ganadores de rifa pública)
+                  ->whereHas('prize', function ($pq) {
+                      $pq->where('name', '!=', 'Rifa General');
+                  });
+            });
+        }
 
         return $query->get();
     }
