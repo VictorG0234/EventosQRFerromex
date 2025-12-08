@@ -18,12 +18,17 @@ class RaffleEntry extends Model
         'status',
         'participated_at',
         'drawn_at',
+        'prize_delivered',
+        'delivered_at',
+        'delivered_by',
         'raffle_metadata',
     ];
 
     protected $casts = [
         'participated_at' => 'datetime',
         'drawn_at' => 'datetime',
+        'delivered_at' => 'datetime',
+        'prize_delivered' => 'boolean',
         'raffle_metadata' => 'array',
     ];
 
@@ -41,6 +46,11 @@ class RaffleEntry extends Model
     public function prize(): BelongsTo
     {
         return $this->belongsTo(Prize::class);
+    }
+
+    public function deliveredBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'delivered_by');
     }
 
     // Métodos útiles
@@ -94,5 +104,19 @@ class RaffleEntry extends Model
     public function isLoser(): bool
     {
         return $this->status === 'lost';
+    }
+
+    public function markAsDelivered(?int $userId = null): bool
+    {
+        return $this->update([
+            'prize_delivered' => true,
+            'delivered_at' => Carbon::now(),
+            'delivered_by' => $userId ?? auth()->id(),
+        ]);
+    }
+
+    public function isDelivered(): bool
+    {
+        return $this->prize_delivered === true;
     }
 }

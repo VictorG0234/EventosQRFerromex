@@ -129,6 +129,7 @@ Route::middleware('auth')->group(function () {
     Route::get('events/{event}/draw-general', [RaffleController::class, 'drawGeneral'])->name('events.draw.general');
     Route::post('events/{event}/draw-general/execute', [RaffleController::class, 'executeGeneralDraw'])->name('events.draw.general.execute');
     Route::post('events/{event}/draw-general/reselect', [RaffleController::class, 'reselectGeneralWinner'])->name('events.draw.general.reselect');
+    Route::post('events/{event}/draw-general/mark-delivered', [RaffleController::class, 'markPrizeAsDelivered'])->name('events.draw.general.mark-delivered');
     Route::get('events/{event}/raffle/prizes/{prize}', [RaffleController::class, 'show'])->name('events.raffle.show');
     Route::post('events/{event}/raffle/prizes/{prize}/entries', [RaffleController::class, 'createEntries'])->name('events.raffle.create-entries');
     Route::post('events/{event}/raffle/prizes/{prize}/draw', [RaffleController::class, 'draw'])->name('events.raffle.draw');

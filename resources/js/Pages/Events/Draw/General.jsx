@@ -20,6 +20,18 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
     const [validationError, setValidationError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [deliveredPrizes, setDeliveredPrizes] = useState({});
+    const [deliveringPrize, setDeliveringPrize] = useState(null);
+
+    // Inicializar estado de premios entregados desde el servidor
+    useEffect(() => {
+        const initialDelivered = {};
+        winnersList.forEach(winner => {
+            if (winner.prize_delivered) {
+                initialDelivered[winner.id] = true;
+            }
+        });
+        setDeliveredPrizes(initialDelivered);
+    }, [winnersList]);
 
     useEffect(() => {
         if (flash.success) {
@@ -101,12 +113,44 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
         setShowReselectModal(true);
     };
 
-    const handleDeliverPrize = (winnerId) => {
-        setDeliveredPrizes(prev => ({
-            ...prev,
-            [winnerId]: true
-        }));
-        toast.success('Premio marcado como entregado');
+    const handleDeliverPrize = async (winnerId) => {
+        // Verificar si ya está entregado
+        if (deliveredPrizes[winnerId]) {
+            toast.error('Este premio ya fue entregado');
+            return;
+        }
+
+        setDeliveringPrize(winnerId);
+        
+        try {
+            const response = await fetch(route('events.draw.general.mark-delivered', event.id), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                },
+                body: JSON.stringify({
+                    guest_id: winnerId
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                setDeliveredPrizes(prev => ({
+                    ...prev,
+                    [winnerId]: true
+                }));
+                toast.success('Premio marcado como entregado');
+            } else {
+                toast.error(data.message || 'Error al marcar el premio como entregado');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            toast.error('Error al marcar el premio como entregado');
+        } finally {
+            setDeliveringPrize(null);
+        }
     };
 
     const filteredWinners = winnersList.filter(winner => {
@@ -358,16 +402,26 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                                             <>
                                                                 <Button
                                                                     onClick={() => handleDeliverPrize(winner.id)}
+                                                                    disabled={deliveringPrize === winner.id}
                                                                     variant="outline"
                                                                     size="sm"
-                                                                    className="w-full bg-white text-sm py-2"
+                                                                    className="w-full bg-white text-sm py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                     style={{
                                                                         borderColor: '#10B981',
                                                                         color: '#10B981'
                                                                     }}
                                                                 >
-                                                                    <Package className="w-3 h-3 mr-2" />
-                                                                    Entregar premio
+                                                                    {deliveringPrize === winner.id ? (
+                                                                        <>
+                                                                            <RefreshCw className="w-3 h-3 mr-2 animate-spin" />
+                                                                            Entregando...
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Package className="w-3 h-3 mr-2" />
+                                                                            Entregar premio
+                                                                        </>
+                                                                    )}
                                                                 </Button>
                                                                 
                                                                 <Button

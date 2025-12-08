@@ -770,6 +770,8 @@ class RaffleController extends Controller
                     'company' => $entry->guest->compania,
                     'employee_number' => $entry->guest->numero_empleado,
                     'drawn_at' => $entry->drawn_at?->format('d/m/Y H:i:s'),
+                    'prize_delivered' => $entry->prize_delivered,
+                    'delivered_at' => $entry->delivered_at?->format('d/m/Y H:i:s'),
                 ];
             });
 
@@ -1155,6 +1157,88 @@ class RaffleController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error al re-seleccionar ganador: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark prize as delivered for a winner
+     */
+    public function markPrizeAsDelivered(Request $request, Event $event)
+    {
+        $this->authorize('update', $event);
+
+        $validated = $request->validate([
+            'guest_id' => 'required|exists:guests,id'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // Obtener el premio especial "Rifa General"
+            $generalPrize = $this->raffleService->getOrCreateGeneralRafflePrize($event);
+
+            // Verificar que el guest pertenece al evento
+            $guest = Guest::findOrFail($validated['guest_id']);
+            if ($guest->event_id !== $event->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El invitado no pertenece a este evento.'
+                ], 422);
+            }
+
+            // Obtener la entrada ganadora del guest
+            $winnerEntry = RaffleEntry::where('event_id', $event->id)
+                ->where('prize_id', $generalPrize->id)
+                ->where('guest_id', $guest->id)
+                ->where('status', 'won')
+                ->first();
+
+            if (!$winnerEntry) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El invitado seleccionado no es un ganador de la rifa general.'
+                ], 422);
+            }
+
+            // Verificar si ya fue marcado como entregado
+            if ($winnerEntry->isDelivered()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El premio ya fue marcado como entregado anteriormente.'
+                ], 422);
+            }
+
+            // Marcar como entregado
+            $winnerEntry->markAsDelivered();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Premio marcado como entregado exitosamente.',
+                'delivered_at' => $winnerEntry->delivered_at->format('d/m/Y H:i:s'),
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación: ' . $e->getMessage(),
+                'errors' => $e->errors()
+            ], 422);
+        } catch (Exception $e) {
+            DB::rollBack();
+            \Log::error('Error en markPrizeAsDelivered', [
+                'event_id' => $event->id,
+                'guest_id' => $request->input('guest_id'),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al marcar premio como entregado: ' . $e->getMessage()
             ], 500);
         }
     }
