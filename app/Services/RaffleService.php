@@ -214,6 +214,19 @@ class RaffleService
                 $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize) {
                     $guest = $entry->guest;
                     
+                    // REGLA 4: Un Guest no puede GANAR más de un Prize (RIFA PÚBLICA)
+                    // EXCEPCIÓN: El Automóvil puede ser ganado aunque ya se haya ganado otro premio
+                    if (strtolower($prize->name) !== 'automovil') {
+                        $hasWonOtherPrize = RaffleEntry::where('guest_id', $guest->id)
+                            ->where('prize_id', '!=', $prize->id)
+                            ->where('status', 'won')
+                            ->exists();
+                        
+                        if ($hasWonOtherPrize) {
+                            return false; // Ya ganó otro premio, no puede ganar este
+                        }
+                    }
+                    
                     // REGLA ESPECIAL: Si este premio es el imex_prize_id, SOLO IMEX pueden ganar
                     // (pero GMXT y otros aparecen en las entradas para la animación)
                     if ($isIMEXPrize) {
@@ -534,6 +547,19 @@ class RaffleService
                 // Filtrar candidatos según reglas adicionales de rifa pública
                 $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize) {
                     $guest = $entry->guest;
+                    
+                    // REGLA 4: Un Guest no puede GANAR más de un Prize (RIFA PÚBLICA)
+                    // EXCEPCIÓN: El Automóvil puede ser ganado aunque ya se haya ganado otro premio
+                    if (strtolower($prize->name) !== 'automovil') {
+                        $hasWonOtherPrize = RaffleEntry::where('guest_id', $guest->id)
+                            ->where('prize_id', '!=', $prize->id)
+                            ->where('status', 'won')
+                            ->exists();
+                        
+                        if ($hasWonOtherPrize) {
+                            return false; // Ya ganó otro premio, no puede ganar este
+                        }
+                    }
                     
                     // REGLA ESPECIAL: Si este premio es el imex_prize_id, SOLO IMEX pueden ganar
                     if ($isIMEXPrize) {

@@ -4,7 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/ui/button';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/Components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
-import { Trophy, Sparkles, ArrowLeft, Users, CheckCircle, RefreshCw } from 'lucide-react';
+import { Trophy, Sparkles, ArrowLeft, Users, CheckCircle, RefreshCw, Search, Package } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export default function DrawGeneral({ auth, event, winners, winners_count, eligible_count, can_raffle }) {
@@ -18,6 +18,8 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
     const [selectedWinnerId, setSelectedWinnerId] = useState(null);
     const [numberOfWinners, setNumberOfWinners] = useState('');
     const [validationError, setValidationError] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [deliveredPrizes, setDeliveredPrizes] = useState({});
 
     useEffect(() => {
         if (flash.success) {
@@ -98,6 +100,24 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
         setSelectedWinnerId(winnerId);
         setShowReselectModal(true);
     };
+
+    const handleDeliverPrize = (winnerId) => {
+        setDeliveredPrizes(prev => ({
+            ...prev,
+            [winnerId]: true
+        }));
+        toast.success('Premio marcado como entregado');
+    };
+
+    const filteredWinners = winnersList.filter(winner => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+            winner.name?.toLowerCase().includes(query) ||
+            winner.employee_number?.toLowerCase().includes(query) ||
+            winner.company?.toLowerCase().includes(query)
+        );
+    });
 
     const confirmReselectWinner = async () => {
         if (!selectedWinnerId) return;
@@ -280,141 +300,175 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                     {winnersList.length > 0 ? (
                         <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                             <div className="p-6">
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                    <Trophy className="w-5 h-5 mr-2 text-yellow-500" />
-                                    Ganadores de la Rifa General ({winnersList.length})
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {winnersList.map((winner, index) => (
-                                        <div
-                                            key={winner.id}
-                                            className="rounded-lg p-4 relative"
-                                            style={{
-                                                background: 'linear-gradient(to bottom right, #FEE2E2, #FECACA)',
-                                                border: '2px solid #D22730'
-                                            }}
-                                        >
-                                            <div className="flex items-start justify-between">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center mb-2">
-                                                        <span className="text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm mr-2"
-                                                            style={{ backgroundColor: '#D22730' }}
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                                    <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                                        <Trophy className="w-5 h-5 mr-2 text-yellow-500" />
+                                        Ganadores de la Rifa General ({filteredWinners.length}/{winnersList.length})
+                                    </h3>
+                                    
+                                    {/* Buscador */}
+                                    <div className="relative w-full sm:w-64">
+                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar ganador..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                </div>
+
+                                {filteredWinners.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500">
+                                        No se encontraron ganadores con "{searchQuery}"
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        {filteredWinners.map((winner, index) => {
+                                            const isDelivered = deliveredPrizes[winner.id];
+                                            const originalIndex = winnersList.findIndex(w => w.id === winner.id);
+                                            
+                                            return (
+                                                <div
+                                                    key={winner.id}
+                                                    className="rounded-lg p-4 relative"
+                                                    style={{
+                                                        background: isDelivered ? 'linear-gradient(to bottom right, #D1FAE5, #A7F3D0)' : 'linear-gradient(to bottom right, #FEE2E2, #FECACA)',
+                                                        border: `2px solid ${isDelivered ? '#10B981' : '#D22730'}`
+                                                    }}
+                                                >
+                                                    <div className="flex items-center gap-3 mb-3">
+                                                        <span className="text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm flex-shrink-0"
+                                                            style={{ backgroundColor: isDelivered ? '#10B981' : '#D22730' }}
                                                         >
-                                                            {index + 1}
+                                                            {originalIndex + 1}
                                                         </span>
-                                                        <h4 className="font-bold text-gray-900 text-lg">
+                                                        <h4 className="font-bold text-gray-900 text-base leading-tight">
                                                             {winner.name}
                                                         </h4>
                                                     </div>
-                                                    <p className="text-sm text-gray-700 mb-1">
-                                                        <span className="font-medium">Empresa:</span> {winner.company}
+                                                    
+                                                    <p className="text-sm text-gray-700 mb-2">
+                                                        <span className="font-medium">No. empleado:</span> {winner.employee_number}
                                                     </p>
-                                                    <p className="text-sm text-gray-700 mb-1">
-                                                        <span className="font-medium">Número de empleado:</span> {winner.employee_number}
-                                                    </p>
-                                                    {winner.drawn_at && (
-                                                        <p className="text-xs text-gray-500 mt-2">
-                                                            Seleccionado: {winner.drawn_at}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="mt-3 pt-3" style={{ borderTop: '1px solid #D22730' }}>
-                                                <Button
-                                                    onClick={() => handleReselectWinner(winner.id)}
-                                                    disabled={reselectingWinner === winner.id || isDrawing}
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="w-full bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    style={{
-                                                        borderColor: '#D22730',
-                                                        color: '#D22730'
-                                                    }}
-                                                >
-                                                    {reselectingWinner === winner.id ? (
-                                                        <>
-                                                            <RefreshCw className="w-3 h-3 mr-2 animate-spin" />
-                                                            Re-seleccionando...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <RefreshCw className="w-3 h-3 mr-2" />
-                                                            Volver a seleccionar
-                                                        </>
-                                                    )}
-                                                </Button>
-                                                
-                                                <AlertDialog open={showReselectModal && selectedWinnerId === winner.id} onOpenChange={(open) => {
-                                                    if (!open) {
-                                                        setShowReselectModal(false);
-                                                        setSelectedWinnerId(null);
-                                                    }
-                                                }}>
-                                                    <AlertDialogContent className="max-w-md">
-                                                        <AlertDialogHeader>
-                                                            <div className="flex items-center justify-center mb-4">
-                                                                <div className="bg-yellow-100 rounded-full p-3">
-                                                                    <RefreshCw className="w-8 h-8 text-yellow-600" />
-                                                                </div>
+
+                                                    <div className="mt-3 pt-3 space-y-2" style={{ borderTop: `1px solid ${isDelivered ? '#10B981' : '#D22730'}` }}>
+                                                        {!isDelivered ? (
+                                                            <>
+                                                                <Button
+                                                                    onClick={() => handleDeliverPrize(winner.id)}
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="w-full bg-white text-sm py-2"
+                                                                    style={{
+                                                                        borderColor: '#10B981',
+                                                                        color: '#10B981'
+                                                                    }}
+                                                                >
+                                                                    <Package className="w-3 h-3 mr-2" />
+                                                                    Entregar premio
+                                                                </Button>
+                                                                
+                                                                <Button
+                                                                    onClick={() => handleReselectWinner(winner.id)}
+                                                                    disabled={reselectingWinner === winner.id || isDrawing}
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    className="w-full bg-white disabled:opacity-50 disabled:cursor-not-allowed text-sm py-2"
+                                                                    style={{
+                                                                        borderColor: '#D22730',
+                                                                        color: '#D22730'
+                                                                    }}
+                                                                >
+                                                                    {reselectingWinner === winner.id ? (
+                                                                        <>
+                                                                            <RefreshCw className="w-3 h-3 mr-2 animate-spin" />
+                                                                            Re-seleccionando...
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <RefreshCw className="w-3 h-3 mr-2" />
+                                                                            Volver a seleccionar
+                                                                        </>
+                                                                    )}
+                                                                </Button>
+                                                            </>
+                                                        ) : (
+                                                            <div className="flex items-center justify-center py-2 text-green-700">
+                                                                <CheckCircle className="w-4 h-4 mr-2" />
+                                                                <span className="text-sm font-medium">Premio entregado</span>
                                                             </div>
-                                                            <AlertDialogTitle className="text-center text-2xl text-gray-900 dark:text-gray-100">
-                                                                ¿Re-seleccionar este ganador?
-                                                            </AlertDialogTitle>
-                                                            <AlertDialogDescription className="text-center pt-4 space-y-3 text-gray-700 dark:text-gray-300">
-                                                                <p className="text-base text-gray-700 dark:text-gray-300">
-                                                                    Se seleccionará un <span className="font-bold text-yellow-600 dark:text-yellow-400">nuevo ganador aleatorio</span> para reemplazar a este ganador.
-                                                                </p>
-                                                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                                                                    <p className="text-sm text-blue-800 dark:text-blue-200">
-                                                                        ✅ Los otros <span className="font-bold">14 ganadores</span> se mantendrán intactos.
-                                                                    </p>
+                                                        )}
+                                                    </div>
+
+                                                    <AlertDialog open={showReselectModal && selectedWinnerId === winner.id} onOpenChange={(open) => {
+                                                        if (!open) {
+                                                            setShowReselectModal(false);
+                                                            setSelectedWinnerId(null);
+                                                        }
+                                                    }}>
+                                                        <AlertDialogContent className="max-w-md">
+                                                            <AlertDialogHeader>
+                                                                <div className="flex items-center justify-center mb-4">
+                                                                    <div className="bg-yellow-100 rounded-full p-3">
+                                                                        <RefreshCw className="w-8 h-8 text-yellow-600" />
+                                                                    </div>
                                                                 </div>
-                                                                <div className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 mt-2">
-                                                                    <p className="text-xs text-gray-700 dark:text-gray-300">
-                                                                        <span className="font-medium">Ganador actual:</span> {winner.name}
+                                                                <AlertDialogTitle className="text-center text-2xl text-gray-900 dark:text-gray-100">
+                                                                    ¿Re-seleccionar este ganador?
+                                                                </AlertDialogTitle>
+                                                                <AlertDialogDescription className="text-center pt-4 space-y-3 text-gray-700 dark:text-gray-300">
+                                                                    <p className="text-base text-gray-700 dark:text-gray-300">
+                                                                        Se seleccionará un <span className="font-bold text-yellow-600 dark:text-yellow-400">nuevo ganador aleatorio</span> para reemplazar a este ganador.
                                                                     </p>
-                                                                    <p className="text-xs text-gray-700 dark:text-gray-300">
-                                                                        <span className="font-medium">Empresa:</span> {winner.company}
-                                                                    </p>
-                                                                </div>
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-                                                            <Button
-                                                                variant="outline"
-                                                                onClick={() => {
-                                                                    setShowReselectModal(false);
-                                                                    setSelectedWinnerId(null);
-                                                                }}
-                                                                disabled={reselectingWinner === winner.id}
-                                                                className="w-full sm:w-auto"
-                                                            >
-                                                                Cancelar
-                                                            </Button>
-                                                            <Button
-                                                                onClick={confirmReselectWinner}
-                                                                disabled={reselectingWinner === winner.id}
-                                                                className="w-full sm:w-auto bg-yellow-600 hover:bg-yellow-700"
-                                                            >
-                                                                {reselectingWinner === winner.id ? (
-                                                                    <>
-                                                                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                                                        Re-seleccionando...
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <RefreshCw className="w-4 h-4 mr-2" />
-                                                                        Confirmar
-                                                                    </>
-                                                                )}
-                                                            </Button>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                                                    <div className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 mt-2">
+                                                                        <p className="text-xs text-gray-700 dark:text-gray-300">
+                                                                            <span className="font-medium">Ganador actual:</span> {winner.name}
+                                                                        </p>
+                                                                        <p className="text-xs text-gray-700 dark:text-gray-300">
+                                                                            <span className="font-medium">No. empleado:</span> {winner.employee_number}
+                                                                        </p>
+                                                                    </div>
+                                                                </AlertDialogDescription>
+                                                            </AlertDialogHeader>
+                                                            <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    onClick={() => {
+                                                                        setShowReselectModal(false);
+                                                                        setSelectedWinnerId(null);
+                                                                    }}
+                                                                    disabled={reselectingWinner === winner.id}
+                                                                    className="w-full sm:w-auto"
+                                                                >
+                                                                    Cancelar
+                                                                </Button>
+                                                                <Button
+                                                                    onClick={confirmReselectWinner}
+                                                                    disabled={reselectingWinner === winner.id}
+                                                                    className="w-full sm:w-auto bg-yellow-600 hover:bg-yellow-700"
+                                                                >
+                                                                    {reselectingWinner === winner.id ? (
+                                                                        <>
+                                                                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                                                            Re-seleccionando...
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <RefreshCw className="w-4 h-4 mr-2" />
+                                                                            Confirmar
+                                                                        </>
+                                                                    )}
+                                                                </Button>
+                                                            </AlertDialogFooter>
+                                                        </AlertDialogContent>
+                                                    </AlertDialog>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ) : (

@@ -86,7 +86,7 @@ export default function EventRegistration({ event, token }) {
                                                                 Si formas parte de IMEX, tu código de compañía es IMEX
                                                             </p>
                                                             <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
-                                                                Si tienes dudas sobre tu número de empleado, puedes consultar con el equipo de RH.
+                                                                Si tienes dudas sobre tu número de empleado, puedes consultar con el equipo de atracción y desarrollo de talento.
                                                             </p>
                                                             <p className="mt-2 text-sm text-gray-800 dark:text-gray-300">
                                                                 Así es como se debe ver tu registro: GMXT00001
