@@ -358,8 +358,26 @@ class EventController extends Controller
             }
         }
 
-        // Ordenar por timestamp descendente (más recientes primero)
+        // Eliminar duplicados por guest_id, manteniendo solo el primer registro de cada invitado
+        $uniqueLogs = [];
+        $seenGuestIds = [];
+        
+        // Primero ordenar por timestamp ascendente para obtener el primer registro
         usort($logs, function($a, $b) {
+            return strcmp($a['timestamp'], $b['timestamp']);
+        });
+        
+        // Filtrar duplicados
+        foreach ($logs as $log) {
+            $guestId = $log['guest_id'];
+            if (!in_array($guestId, $seenGuestIds)) {
+                $uniqueLogs[] = $log;
+                $seenGuestIds[] = $guestId;
+            }
+        }
+        
+        // Ordenar los logs únicos por timestamp descendente (más recientes primero)
+        usort($uniqueLogs, function($a, $b) {
             return strcmp($b['timestamp'], $a['timestamp']);
         });
 
@@ -370,8 +388,8 @@ class EventController extends Controller
                 'date' => $event->event_date->format('d/m/Y'),
                 'location' => $event->location,
             ],
-            'logs' => $logs,
-            'total_logs' => count($logs),
+            'logs' => $uniqueLogs,
+            'total_logs' => count($uniqueLogs),
             'total_guests' => $event->guests()->count(),
         ]);
     }
