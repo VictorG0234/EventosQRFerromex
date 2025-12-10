@@ -9,6 +9,7 @@ use App\Services\QrCodeService;
 use App\Services\EmailService;
 use App\Jobs\SendEmailJob;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -125,7 +126,14 @@ class GuestController extends Controller
 
         $validated = $request->validate([
             'compania' => 'required|string|max:255',
-            'numero_empleado' => 'required|string|max:50|unique:guests,numero_empleado,NULL,id,event_id,' . $event->id,
+            'numero_empleado' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('guests')
+                    ->where('event_id', $event->id)
+                    ->where('compania', $request->compania)
+            ],
             'nombre_completo' => 'required|string|max:255',
             'correo' => 'nullable|email|max:255',
             'puesto' => 'required|string|max:255',
@@ -238,7 +246,15 @@ class GuestController extends Controller
 
         $validated = $request->validate([
             'compania' => 'required|string|max:255',
-            'numero_empleado' => 'required|string|max:50|unique:guests,numero_empleado,' . $guest->id . ',id,event_id,' . $event->id,
+            'numero_empleado' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('guests')
+                    ->where('event_id', $event->id)
+                    ->where('compania', $request->compania)
+                    ->ignore($guest->id)
+            ],
             'nombre_completo' => 'required|string|max:255',
             'correo' => 'nullable|email|max:255',
             'puesto' => 'required|string|max:255',

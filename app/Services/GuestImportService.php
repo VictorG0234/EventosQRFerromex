@@ -231,13 +231,14 @@ class GuestImportService
      */
     protected function createGuest(Event $event, array $data): Guest
     {
-        // Verificar si ya existe un invitado con el mismo número de empleado
+        // Verificar si ya existe un invitado con la misma combinación de compañía + número de empleado
         $existingGuest = Guest::where('event_id', $event->id)
             ->where('numero_empleado', $data['numero_empleado'])
+            ->where('compania', $data['compania'])
             ->first();
 
         if ($existingGuest) {
-            throw new \Exception("Ya existe un invitado con el número de empleado: {$data['numero_empleado']}");
+            throw new \Exception("Ya existe un invitado con el número de empleado {$data['numero_empleado']} en la compañía {$data['compania']}");
         }
 
         return Guest::create([
