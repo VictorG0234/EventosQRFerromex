@@ -368,7 +368,7 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                         No se encontraron ganadores con "{searchQuery}"
                                     </div>
                                 ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                                         {filteredWinners.map((winner, index) => {
                                             const isDelivered = deliveredPrizes[winner.id];
                                             const originalIndex = winnersList.findIndex(w => w.id === winner.id);
@@ -376,28 +376,28 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                             return (
                                                 <div
                                                     key={winner.id}
-                                                    className="rounded-lg p-4 relative"
+                                                    className="rounded-lg p-2.5 relative"
                                                     style={{
                                                         background: isDelivered ? 'linear-gradient(to bottom right, #D1FAE5, #A7F3D0)' : 'linear-gradient(to bottom right, #FEE2E2, #FECACA)',
                                                         border: `2px solid ${isDelivered ? '#10B981' : '#D22730'}`
                                                     }}
                                                 >
-                                                    <div className="flex items-center gap-3 mb-3">
-                                                        <span className="text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm flex-shrink-0"
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <span className="text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs flex-shrink-0"
                                                             style={{ backgroundColor: isDelivered ? '#10B981' : '#D22730' }}
                                                         >
                                                             {originalIndex + 1}
                                                         </span>
-                                                        <h4 className="font-bold text-gray-900 text-base leading-tight">
+                                                        <h4 className="font-bold text-gray-900 text-sm leading-tight">
                                                             {winner.name}
                                                         </h4>
                                                     </div>
                                                     
-                                                    <p className="text-sm text-gray-700 mb-2">
+                                                    <p className="text-xs text-gray-700 mb-2">
                                                         <span className="font-medium">No. empleado:</span> {winner.employee_number}
                                                     </p>
 
-                                                    <div className="mt-3 pt-3 space-y-2" style={{ borderTop: `1px solid ${isDelivered ? '#10B981' : '#D22730'}` }}>
+                                                    <div className="mt-2 pt-2 space-y-1.5" style={{ borderTop: `1px solid ${isDelivered ? '#10B981' : '#D22730'}` }}>
                                                         {!isDelivered ? (
                                                             <>
                                                                 <Button
@@ -405,7 +405,7 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                                                     disabled={deliveringPrize === winner.id}
                                                                     variant="outline"
                                                                     size="sm"
-                                                                    className="w-full bg-white text-sm py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                    className="w-full bg-white text-xs py-1 px-2 h-7 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                     style={{
                                                                         borderColor: '#10B981',
                                                                         color: '#10B981'
@@ -413,13 +413,13 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                                                 >
                                                                     {deliveringPrize === winner.id ? (
                                                                         <>
-                                                                            <RefreshCw className="w-3 h-3 mr-2 animate-spin" />
+                                                                            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
                                                                             Entregando...
                                                                         </>
                                                                     ) : (
                                                                         <>
-                                                                            <Package className="w-3 h-3 mr-2" />
-                                                                            Entregar premio
+                                                                            <Package className="w-3 h-3 mr-1" />
+                                                                            Entregar
                                                                         </>
                                                                     )}
                                                                 </Button>
@@ -429,7 +429,7 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                                                     disabled={reselectingWinner === winner.id || isDrawing}
                                                                     variant="outline"
                                                                     size="sm"
-                                                                    className="w-full bg-white disabled:opacity-50 disabled:cursor-not-allowed text-sm py-2"
+                                                                    className="w-full bg-white disabled:opacity-50 disabled:cursor-not-allowed text-xs py-1 px-2 h-7"
                                                                     style={{
                                                                         borderColor: '#D22730',
                                                                         color: '#D22730'
@@ -437,21 +437,21 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                                                 >
                                                                     {reselectingWinner === winner.id ? (
                                                                         <>
-                                                                            <RefreshCw className="w-3 h-3 mr-2 animate-spin" />
+                                                                            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
                                                                             Re-seleccionando...
                                                                         </>
                                                                     ) : (
                                                                         <>
-                                                                            <RefreshCw className="w-3 h-3 mr-2" />
+                                                                            <RefreshCw className="w-3 h-3 mr-1" />
                                                                             Volver a seleccionar
                                                                         </>
                                                                     )}
                                                                 </Button>
                                                             </>
                                                         ) : (
-                                                            <div className="flex items-center justify-center py-2 text-green-700">
-                                                                <CheckCircle className="w-4 h-4 mr-2" />
-                                                                <span className="text-sm font-medium">Premio entregado</span>
+                                                            <div className="flex items-center justify-center py-1 text-green-700">
+                                                                <CheckCircle className="w-3 h-3 mr-1" />
+                                                                <span className="text-xs font-medium">Premio entregado</span>
                                                             </div>
                                                         )}
                                                     </div>
