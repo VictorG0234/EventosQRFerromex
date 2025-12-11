@@ -1112,23 +1112,12 @@ class RaffleService
 
         // REGLA 3: Si Descripción del Guest es "General" puede participar en la rifa
         // REGLA 3b: Si Descripción del Guest es "Subdirectores" también puede participar
-        // Solo los que tienen descripción "General" o "Subdirectores" pueden participar
+        // REGLA 3c: Si Descripción del Guest es "IMEX" también puede participar
+        // Solo los que tienen descripción "General", "Subdirectores" o "IMEX" pueden participar
         $query->whereIn('descripcion', ['General', 'Subdirectores', 'IMEX']);
 
         // REGLA 9: Si Compañía del Guest es "INV" no puede participar
         $query->where('compania', '!=', 'INV');
-
-        // REGLA 5: Si Descripción del Guest es "Ganadores previos" no puede participar
-        // (Ya excluido por la regla 3, pero por seguridad)
-        $query->where('descripcion', '!=', 'Ganadores previos');
-
-        // REGLA 6: Si Descripción del Guest es "Nuevo ingreso" no puede participar
-        // (Ya excluido por la regla 3, pero por seguridad)
-        $query->where('descripcion', '!=', 'Nuevo ingreso');
-
-        // REGLA 7: Si Descripción del Guest es "Directores" no puede participar
-        // (Ya excluido por la regla 3, pero por seguridad)
-        $query->where('descripcion', '!=', 'Directores');
 
         // REGLA 2: No pueden participar ganadores de la Rifa Pública
         // Un ganador de la rifa pública es alguien que ganó en cualquier premio que no sea "Rifa General"
