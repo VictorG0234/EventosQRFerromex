@@ -1397,6 +1397,8 @@ class RaffleController extends Controller
                         'name' => $log->guest->full_name,
                         'employee_number' => $log->guest->numero_empleado,
                         'compania' => $log->guest->compania,
+                        'categoria_rifa' => $log->guest->categoria_rifa,
+                        'descripcion' => $log->guest->descripcion,
                     ] : null,
                     'user' => $log->user ? [
                         'id' => $log->user->id,
