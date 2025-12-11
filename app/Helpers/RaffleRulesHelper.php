@@ -19,7 +19,7 @@ class RaffleRulesHelper
         }
 
         // REGLA 3, 5, 6, 7, 8: Excluir descripciones específicas
-        $excludedDescriptions = ['Ganadores previos', 'Nuevo ingreso', 'Directores'];
+        $excludedDescriptions = ['Ganadores previos', 'Nuevo ingreso', 'Directores', 'No participa'];
         if (in_array($guest->descripcion, $excludedDescriptions)) {
             return false;
         }

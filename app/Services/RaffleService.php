@@ -214,6 +214,17 @@ class RaffleService
                 $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize) {
                     $guest = $entry->guest;
                     
+                    // REGLA 6, 7, 8: Excluir descripciones prohibidas
+                    $excludedDescriptions = ['Ganadores previos', 'Nuevo ingreso', 'Directores', 'No participa'];
+                    if (in_array($guest->descripcion, $excludedDescriptions)) {
+                        return false;
+                    }
+                    
+                    // REGLA 10: Si Compañía del Guest es INV no puede participar
+                    if ($guest->compania === 'INV') {
+                        return false;
+                    }
+                    
                     // REGLA 4: Un Guest no puede GANAR más de un Prize (RIFA PÚBLICA)
                     // EXCEPCIÓN: El Automóvil puede ser ganado aunque ya se haya ganado otro premio
                     if (strtolower($prize->name) !== 'automovil') {
@@ -271,6 +282,17 @@ class RaffleService
                 // Los ganadores de RIFA PÚBLICA no pueden participar en RIFA GENERAL
                 $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize) {
                     $guest = $entry->guest;
+                    
+                    // REGLA: Validar descripciones prohibidas
+                    $excludedDescriptions = ['Ganadores previos', 'Nuevo ingreso', 'Directores', 'No participa'];
+                    if (in_array($guest->descripcion, $excludedDescriptions)) {
+                        return false;
+                    }
+                    
+                    // REGLA: Validar compañía INV
+                    if ($guest->compania === 'INV') {
+                        return false;
+                    }
                     
                     // Verificar si ya ganó en rifa pública (cualquier premio excepto Rifa General)
                     $hasWonPublicRaffle = RaffleEntry::where('guest_id', $guest->id)
@@ -803,8 +825,9 @@ class RaffleService
             // REGLA 6: Si Descripción del Guest es Ganadores previos no puede participar
             // REGLA 7: Si Descripción del Guest es Nuevo ingreso no puede participar
             // REGLA 8: Si Descripción del Guest es Directores no puede participar
+            // REGLA ADICIONAL: Si Descripción del Guest es No participa no puede participar
             // Aplicar: excluir los que NO pueden participar, permitir los demás (incluyendo null o otros valores)
-            $query->whereNotIn('descripcion', ['Ganadores previos', 'Nuevo ingreso', 'Directores']);
+            $query->whereNotIn('descripcion', ['Ganadores previos', 'Nuevo ingreso', 'Directores', 'No participa']);
 
             // REGLA ESPECIAL: Para el premio imex_prize_id, todos pueden participar (aparecer en animación)
             // pero solo IMEX puede ganar (eso se maneja en drawRaffle)
@@ -1089,23 +1112,12 @@ class RaffleService
 
         // REGLA 3: Si Descripción del Guest es "General" puede participar en la rifa
         // REGLA 3b: Si Descripción del Guest es "Subdirectores" también puede participar
-        // Solo los que tienen descripción "General" o "Subdirectores" pueden participar
+        // REGLA 3c: Si Descripción del Guest es "IMEX" también puede participar
+        // Solo los que tienen descripción "General", "Subdirectores" o "IMEX" pueden participar
         $query->whereIn('descripcion', ['General', 'Subdirectores', 'IMEX']);
 
         // REGLA 9: Si Compañía del Guest es "INV" no puede participar
         $query->where('compania', '!=', 'INV');
-
-        // REGLA 5: Si Descripción del Guest es "Ganadores previos" no puede participar
-        // (Ya excluido por la regla 3, pero por seguridad)
-        $query->where('descripcion', '!=', 'Ganadores previos');
-
-        // REGLA 6: Si Descripción del Guest es "Nuevo ingreso" no puede participar
-        // (Ya excluido por la regla 3, pero por seguridad)
-        $query->where('descripcion', '!=', 'Nuevo ingreso');
-
-        // REGLA 7: Si Descripción del Guest es "Directores" no puede participar
-        // (Ya excluido por la regla 3, pero por seguridad)
-        $query->where('descripcion', '!=', 'Directores');
 
         // REGLA 2: No pueden participar ganadores de la Rifa Pública
         // Un ganador de la rifa pública es alguien que ganó en cualquier premio que no sea "Rifa General"
