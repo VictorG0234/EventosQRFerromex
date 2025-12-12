@@ -19,6 +19,14 @@ class PublicEventController extends Controller
     {
         $event = Event::where('public_token', $token)->firstOrFail();
 
+        // Verificar que el evento esté activo
+        if (!$event->isActive()) {
+            return Inertia::render('Public/EventUnavailable', [
+                'eventName' => $event->name,
+                'message' => 'Este evento ya no está disponible para registro.'
+            ]);
+        }
+
         return Inertia::render('Public/EventRegistration', [
             'token' => $token,
             'event' => [
@@ -42,6 +50,13 @@ class PublicEventController extends Controller
         ]);
 
         $event = Event::where('public_token', $token)->firstOrFail();
+
+        // Verificar que el evento esté activo
+        if (!$event->isActive()) {
+            return back()->withErrors([
+                'credentials' => 'Este evento ya no está disponible para registro.'
+            ]);
+        }
 
         // Buscar invitado que coincida con la combinación compania-numero_empleado
         $credentials = trim($request->credentials);
@@ -94,6 +109,15 @@ class PublicEventController extends Controller
     public function showGuestDetails(string $token, int $guestId)
     {
         $event = Event::where('public_token', $token)->firstOrFail();
+        
+        // Verificar que el evento esté activo
+        if (!$event->isActive()) {
+            return Inertia::render('Public/EventUnavailable', [
+                'eventName' => $event->name,
+                'message' => 'Este evento ya no está disponible.'
+            ]);
+        }
+        
         $guest = Guest::where('event_id', $event->id)
             ->where('id', $guestId)
             ->with('attendance')
