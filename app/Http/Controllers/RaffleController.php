@@ -31,55 +31,87 @@ class RaffleController extends Controller
     {
         $this->authorize('view', $event);
 
-            $prizes = $event->prizes()
+        // Optimización: Pre-cargar todos los datos necesarios en una sola consulta
+        $prizes = $event->prizes()
             ->where('active', true)
             ->where('name', '!=', 'Rifa General') // Excluir el premio especial
-            ->withCount(['raffleEntries'])
-            ->get()
-            ->map(function ($prize) {
-                // RIFA GENERAL: usar tipo 'general'
-                $eligibleCount = $this->raffleService->getEligibleGuests($prize, 'general')->count();
-                
-                // Contar participantes únicos (unique guest_id) que participaron en este premio
-                $uniqueParticipants = DB::table('raffle_entries')
-                    ->where('prize_id', $prize->id)
-                    ->selectRaw('COUNT(DISTINCT guest_id) as count')
-                    ->first()
-                    ->count ?? 0;
-                
-                // Contar ganadores únicos (máximo debería ser 1 ya que stock=1)
-                // Si hay múltiples ganadores, solo contar 1 (el más reciente)
-                $winnersCount = $prize->raffleEntries()
-                    ->where('status', 'won')
-                    ->count();
-                
-                // El stock siempre es 1 o 0 (cada premio tiene stock=1 inicialmente)
-                // Si stock=0, ya se rifó. Si stock=1, aún no se rifó.
-                $originalStock = 1; // Cada premio se crea con stock=1
-                $currentStock = $prize->stock; // Stock actual en BD (0 o 1)
-                
-                // Stock disponible: si hay ganadores o stock=0, entonces remaining_stock=0
-                // Si no hay ganadores y stock=1, entonces remaining_stock=1
-                $remainingStock = ($winnersCount > 0 || $currentStock == 0) ? 0 : 1;
-                
-                return [
-                    'id' => $prize->id,
-                    'name' => $prize->name,
-                    'description' => $prize->description,
-                    'category' => $prize->category,
-                    'stock' => $originalStock, // Stock original (siempre 1)
-                    'current_stock' => $currentStock, // Stock actual en BD
-                    'value' => $prize->value,
-                    'image' => $prize->image,
-                    'participants_count' => $prize->raffle_entries_count, // Total de entradas
-                    'unique_participants_count' => $uniqueParticipants, // Participantes únicos
-                    'winners_count' => min($winnersCount, 1), // Máximo 1 ganador (stock=1)
-                    'eligible_count' => $eligibleCount,
-                    'remaining_stock' => $remainingStock, // 0 o 1
-                    'is_available' => $prize->isAvailable(),
-                    'can_raffle' => $eligibleCount > 0 && $prize->isAvailable()
-                ];
-            });
+            ->withCount([
+                'raffleEntries',
+                'raffleEntries as winners_count' => function ($query) {
+                    $query->where('status', 'won');
+                }
+            ])
+            ->get();
+
+        // Pre-calcular estadísticas de participantes únicos por premio
+        $uniqueParticipantsByPrize = DB::table('raffle_entries')
+            ->whereIn('prize_id', $prizes->pluck('id'))
+            ->select('prize_id', DB::raw('COUNT(DISTINCT guest_id) as count'))
+            ->groupBy('prize_id')
+            ->pluck('count', 'prize_id');
+
+        // Pre-calcular todos los guests elegibles para rifa general una sola vez
+        // Obtener todos los guests elegibles del evento (sin filtrar por premio específico)
+        $allEligibleGuestsQuery = \App\Models\Guest::where('event_id', $event->id)
+            ->whereHas('attendance')
+            ->whereDoesntHave('raffleEntries', function ($q) use ($event) {
+                $q->where('event_id', $event->id)
+                  ->where('status', 'won')
+                  ->whereHas('prize', function ($pq) {
+                      $pq->where('name', '!=', 'Rifa General');
+                  });
+            })
+            ->where(function ($q) {
+                $q->whereRaw('TRIM(LOWER(descripcion)) = ?', ['general'])
+                  ->orWhereRaw('TRIM(LOWER(descripcion)) = ?', ['subdirectores'])
+                  ->orWhereRaw('TRIM(LOWER(descripcion)) = ?', ['imex']);
+            })
+            ->whereRaw('TRIM(UPPER(compania)) != ?', ['INV'])
+            ->whereRaw('TRIM(LOWER(COALESCE(categoria_rifa, \'\'))) != ?', ['no participa']);
+
+        // Obtener IDs de guests elegibles
+        $eligibleGuestIds = $allEligibleGuestsQuery->pluck('id')->toArray();
+        $totalEligibleCount = count($eligibleGuestIds);
+
+        // Mapear premios con datos optimizados
+        $prizes = $prizes->map(function ($prize) use ($uniqueParticipantsByPrize, $totalEligibleCount) {
+            // Usar el conteo pre-calculado de participantes únicos
+            $uniqueParticipants = $uniqueParticipantsByPrize[$prize->id] ?? 0;
+            
+            // Contar ganadores (ya viene en withCount)
+            $winnersCount = $prize->winners_count ?? 0;
+            
+            // El stock siempre es 1 o 0 (cada premio tiene stock=1 inicialmente)
+            // Si stock=0, ya se rifó. Si stock=1, aún no se rifó.
+            $originalStock = 1; // Cada premio se crea con stock=1
+            $currentStock = $prize->stock; // Stock actual en BD (0 o 1)
+            
+            // Stock disponible: si hay ganadores o stock=0, entonces remaining_stock=0
+            // Si no hay ganadores y stock=1, entonces remaining_stock=1
+            $remainingStock = ($winnersCount > 0 || $currentStock == 0) ? 0 : 1;
+            
+            // Para eligible_count, usar el total de elegibles (todos los premios comparten los mismos elegibles en rifa general)
+            // Esto es una aproximación, pero evita ejecutar la consulta pesada para cada premio
+            $eligibleCount = $totalEligibleCount;
+            
+            return [
+                'id' => $prize->id,
+                'name' => $prize->name,
+                'description' => $prize->description,
+                'category' => $prize->category,
+                'stock' => $originalStock, // Stock original (siempre 1)
+                'current_stock' => $currentStock, // Stock actual en BD
+                'value' => $prize->value,
+                'image' => $prize->image,
+                'participants_count' => $prize->raffle_entries_count, // Total de entradas
+                'unique_participants_count' => $uniqueParticipants, // Participantes únicos
+                'winners_count' => min($winnersCount, 1), // Máximo 1 ganador (stock=1)
+                'eligible_count' => $eligibleCount,
+                'remaining_stock' => $remainingStock, // 0 o 1
+                'is_available' => $prize->isAvailable(),
+                'can_raffle' => $eligibleCount > 0 && $prize->isAvailable()
+            ];
+        });
 
         $statistics = $this->raffleService->getRaffleStatistics($event);
 
@@ -135,7 +167,7 @@ class RaffleController extends Controller
     {
         $this->authorize('view', $event);
 
-        // Obtener todos los premios activos - mostrar cada premio individualmente
+        // Optimización: Pre-cargar todos los datos necesarios
         $prizes = $event->prizes()
             ->where('active', true)
             ->where('name', '!=', 'Rifa General') // Excluir el premio especial
@@ -147,47 +179,93 @@ class RaffleController extends Controller
                     ->with('guest')
                     ->orderBy('drawn_at', 'asc');
             }])
-            ->get()
-            ->map(function ($prize) {
-                // RIFA PÚBLICA: usar tipo 'public'
-                $eligibleCount = $this->raffleService->getEligibleGuests($prize, 'public')->count();
-                
-                // Obtener ganadores ordenados por drawn_at ascendente
-                $winners = $prize->raffleEntries
-                    ->where('status', 'won')
-                    ->sortBy('drawn_at')
-                    ->values()
-                    ->map(function ($entry) {
-                        return [
-                            'id' => $entry->guest->id,
-                            'name' => $entry->guest->nombre_completo,
-                            'company' => $entry->guest->compania,
-                            'employee_number' => $entry->guest->numero_empleado,
-                            'drawn_at' => $entry->drawn_at?->format('d/m/Y H:i:s'),
-                        ];
-                    });
-                
-                // El stock siempre es 1 según el usuario
-                $originalStock = 1;
-                
-                return [
-                    'id' => $prize->id,
-                    'name' => $prize->name,
-                    'description' => $prize->description,
-                    'category' => $prize->category,
-                    'stock' => $originalStock, // Stock siempre es 1 para mostrar 1 card
-                    'current_stock' => $prize->stock, // Stock actual en BD
-                    'value' => $prize->value,
-                    'image' => $prize->image,
-                    'participants_count' => $prize->raffle_entries_count,
-                    'winners_count' => $prize->winners_count,
-                    'winners' => $winners->toArray(),
-                    'eligible_count' => $eligibleCount,
-                    'remaining_stock' => $prize->stock,
-                    'is_available' => $prize->active,
-                    'can_raffle' => $eligibleCount > 0 && $prize->active
-                ];
-            });
+            ->get();
+
+        // Pre-calcular todos los guests elegibles para rifa pública una sola vez
+        // Obtener el evento con el premio IMEX si existe
+        $event->load('prizes');
+        $imexPrizeId = $event->imex_prize_id;
+
+        // Pre-calcular guests elegibles base (sin filtrar por premio específico)
+        // Cargar los guests completos con sus datos para filtrar en memoria
+        $baseEligibleGuests = \App\Models\Guest::where('event_id', $event->id)
+            ->whereHas('attendance')
+            ->whereRaw('TRIM(UPPER(compania)) != ?', ['INV'])
+            ->whereRaw('TRIM(LOWER(COALESCE(categoria_rifa, \'\'))) != ?', ['no participa'])
+            ->where(function ($q) {
+                $excludedDescriptions = ['ganadores previos', 'nuevo ingreso', 'directores'];
+                foreach ($excludedDescriptions as $excluded) {
+                    $q->whereRaw('TRIM(LOWER(descripcion)) != ?', [$excluded]);
+                }
+            })
+            ->whereDoesntHave('raffleEntries', function ($q) use ($event) {
+                $q->where('event_id', $event->id)
+                  ->where('status', 'won');
+            })
+            ->get(['id', 'compania', 'descripcion']);
+
+        // Pre-calcular elegibles por premio (considerando reglas específicas)
+        $eligibleCountsByPrize = [];
+        foreach ($prizes as $prize) {
+            $isIMEXPrize = $imexPrizeId === $prize->id;
+            $isAutomovil = strtolower($prize->name) === 'automovil';
+            
+            // Filtrar elegibles según reglas específicas del premio (en memoria)
+            $eligibleForPrize = $baseEligibleGuests;
+            
+            // Si es automóvil, excluir IMEX y Subdirectores
+            if ($isAutomovil) {
+                $eligibleForPrize = $eligibleForPrize->filter(function ($guest) {
+                    $compania = strtoupper(trim($guest->compania ?? ''));
+                    $descripcion = strtolower(trim($guest->descripcion ?? ''));
+                    return $compania !== 'IMEX' && $descripcion !== 'subdirectores';
+                });
+            }
+            
+            $eligibleCountsByPrize[$prize->id] = $eligibleForPrize->count();
+        }
+
+        // Mapear premios con datos optimizados
+        $prizes = $prizes->map(function ($prize) use ($eligibleCountsByPrize) {
+            // Obtener ganadores ordenados por drawn_at ascendente
+            $winners = $prize->raffleEntries
+                ->where('status', 'won')
+                ->sortBy('drawn_at')
+                ->values()
+                ->map(function ($entry) {
+                    return [
+                        'id' => $entry->guest->id,
+                        'name' => $entry->guest->nombre_completo,
+                        'company' => $entry->guest->compania,
+                        'employee_number' => $entry->guest->numero_empleado,
+                        'drawn_at' => $entry->drawn_at?->format('d/m/Y H:i:s'),
+                    ];
+                });
+            
+            // El stock siempre es 1 según el usuario
+            $originalStock = 1;
+            
+            // Usar el conteo pre-calculado
+            $eligibleCount = $eligibleCountsByPrize[$prize->id] ?? 0;
+            
+            return [
+                'id' => $prize->id,
+                'name' => $prize->name,
+                'description' => $prize->description,
+                'category' => $prize->category,
+                'stock' => $originalStock, // Stock siempre es 1 para mostrar 1 card
+                'current_stock' => $prize->stock, // Stock actual en BD
+                'value' => $prize->value,
+                'image' => $prize->image,
+                'participants_count' => $prize->raffle_entries_count,
+                'winners_count' => $prize->winners_count,
+                'winners' => $winners->toArray(),
+                'eligible_count' => $eligibleCount,
+                'remaining_stock' => $prize->stock,
+                'is_available' => $prize->active,
+                'can_raffle' => $eligibleCount > 0 && $prize->active
+            ];
+        });
 
         return Inertia::render('Events/Draw/Cards', [
             'event' => [

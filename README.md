@@ -114,6 +114,106 @@ php artisan serve
 4. **QR Scanner**: Implementar escáner en tiempo real
 5. **Email System**: Configurar envío automático de códigos QR
 
+### Comando Principal de Testing
+
+El proyecto incluye un comando completo para probar el sistema de rifas:
+
+```bash
+php artisan test:single-raffle
+```
+
+### Opciones del Comando
+
+```bash
+# Con archivos personalizados
+php artisan test:single-raffle \
+  --guests-file=storage/app/exports/guests.csv \
+  --attendances-file=storage/app/exports/asistencias.txt \
+  --prizes-file=storage/app/exports/premios.csv \
+  --general-winners=76
+
+# Con seed fijo para tests determinísticos
+php artisan test:single-raffle --seed=12345
+```
+
+### Archivos Requeridos
+
+El comando necesita los siguientes archivos (por defecto en `storage/app/exports/`):
+
+1. **guests.csv**: Archivo CSV con la lista de invitados
+2. **asistencias.txt**: Archivo de texto con números de empleado (uno por línea)
+3. **premios.csv**: Archivo CSV con la lista de premios
+
+### Qué Hace el Test
+
+El comando ejecuta un test completo que:
+
+1. ✅ Crea un evento de prueba
+2. ✅ Importa invitados desde CSV
+3. ✅ Crea invitados manualmente
+4. ✅ Marca asistencias desde archivo
+5. ✅ Genera códigos QR para todos los invitados
+6. ✅ Crea premios manualmente y desde CSV
+7. ✅ Ejecuta rifa pública para todos los premios
+8. ✅ Ejecuta rifa general con el número especificado de ganadores
+9. ✅ Valida todas las reglas de negocio:
+   - Descripciones prohibidas en ganadores
+   - Categorías prohibidas
+   - No hay ganadores repetidos
+   - Exactamente 1 ganador IMEX en rifa pública
+   - Exactamente 2 ganadores IMEX en rifa general
+   - Ganadores de rifa pública no participan en rifa general
+   - Invitados INV no participan en ninguna rifa
+   - Stock se actualiza correctamente
+10. ✅ Exporta resultados a CSV en `storage/app/exports/`
+
+### Resultados
+
+Al finalizar, el comando muestra:
+- ✅ Resumen de todos los tests ejecutados
+- ✅ Tiempo total de ejecución
+- ✅ Estadísticas del evento de prueba
+- ✅ Ruta del archivo CSV con los ganadores exportados
+
+### Ejecutar Múltiples Rifas
+
+Para probar el sistema con múltiples rifas y validar la consistencia, puedes ejecutar el comando `test:single-raffle` varias veces:
+
+```bash
+# Ejecutar múltiples rifas manualmente
+for i in {1..10}; do
+  echo "Ejecutando rifa #$i"
+  php artisan test:single-raffle
+done
+```
+
+### Comandos de Exportación e Importación
+
+**Exportar invitados de un evento:**
+```bash
+php artisan guests:export {event_id}
+```
+
+**Exportar premios de un evento:**
+```bash
+php artisan prizes:export {event_id}
+```
+
+**Exportar ganadores de un evento:**
+```bash
+php artisan winners:export {event_id}
+```
+
+**Exportar números de empleado de asistencias:**
+```bash
+php artisan attendances:export-ids {event_id}
+```
+
+**Importar asistencias desde archivo:**
+```bash
+php artisan attendance:import-ids {event_id} {ruta_archivo.txt}
+```
+
 ---
 
 Para más detalles sobre el progreso del proyecto, consulta [PROJECT_STATUS.md](PROJECT_STATUS.md)

@@ -16,6 +16,268 @@ use Carbon\Carbon;
 
 class RaffleService
 {
+    // Constantes para descripciones excluidas y permitidas
+    private const EXCLUDED_DESCRIPTIONS_PUBLIC = ['Ganadores previos', 'Nuevo ingreso', 'Directores', 'No Participa'];
+    private const ALLOWED_DESCRIPTIONS_GENERAL = ['General', 'Subdirectores', 'IMEX', 'No Participa'];
+    private const EXCLUDED_CATEGORIES = ['No Participa'];
+
+    /**
+     * Normalizar descripción para comparación (trim y lowercase)
+     */
+    private function normalizeDescription(?string $descripcion): string
+    {
+        if (empty($descripcion)) {
+            return '';
+        }
+        return strtolower(trim($descripcion));
+    }
+
+    /**
+     * Verificar si una descripción está permitida para un tipo de rifa
+     */
+    private function isDescriptionAllowed(?string $descripcion, string $raffleType): bool
+    {
+        $normalized = $this->normalizeDescription($descripcion);
+        
+        if (empty($normalized)) {
+            return false;
+        }
+        
+        if ($raffleType === 'public') {
+            // Para rifa pública: excluir las descripciones prohibidas
+            foreach (self::EXCLUDED_DESCRIPTIONS_PUBLIC as $excluded) {
+                if ($normalized === strtolower(trim($excluded))) {
+                    return false;
+                }
+            }
+            return true; // Permitir otras descripciones
+        }
+        
+        if ($raffleType === 'general') {
+            // Para rifa general: solo permitir las descripciones específicas
+            foreach (self::ALLOWED_DESCRIPTIONS_GENERAL as $allowed) {
+                if ($normalized === strtolower(trim($allowed))) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Verificar si una categoría de rifa está permitida
+     */
+    private function isCategoryAllowed(?string $categoriaRifa): bool
+    {
+        if (empty($categoriaRifa)) {
+            return false; // Si no tiene categoría, no permitir
+        }
+        
+        $normalized = strtolower(trim($categoriaRifa));
+        
+        // Excluir categorías prohibidas
+        foreach (self::EXCLUDED_CATEGORIES as $excluded) {
+            if ($normalized === strtolower(trim($excluded))) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    /**
+     * Validar que un entry tiene guest válido
+     */
+    private function hasValidGuest($entry): bool
+    {
+        if (!$entry || !$entry->guest) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Normalizar compañía para comparación (trim y uppercase)
+     */
+    private function normalizeCompania(?string $compania): string
+    {
+        return strtoupper(trim($compania ?? ''));
+    }
+
+    /**
+     * Verificar si un guest ya ganó otro premio (REGLA 4)
+     */
+    private function hasWonOtherPrize(Guest $guest, Prize $currentPrize): bool
+    {
+        return RaffleEntry::where('guest_id', $guest->id)
+            ->where('prize_id', '!=', $currentPrize->id)
+            ->where('status', 'won')
+            ->exists();
+    }
+
+    /**
+     * Verificar si un guest ya ganó en rifa pública
+     */
+    private function hasWonPublicRaffle(Guest $guest, int $eventId): bool
+    {
+        return RaffleEntry::where('guest_id', $guest->id)
+            ->where('event_id', $eventId)
+            ->where('status', 'won')
+            ->whereHas('prize', function ($q) {
+                $q->where('name', '!=', 'Rifa General');
+            })
+            ->exists();
+    }
+
+
+    /**
+     * Filtrar entradas por compañía IMEX
+     */
+    private function filterInexEntries(Collection $entries): Collection
+    {
+        return $entries->filter(function ($entry) {
+            if (!$this->hasValidGuest($entry)) {
+                return false;
+            }
+            $compania = $this->normalizeCompania($entry->guest->compania);
+            return $compania === 'IMEX';
+        });
+    }
+
+    /**
+     * Validar entrada elegible para rifa pública
+     */
+    private function isEntryEligibleForPublicRaffle($entry, Prize $prize, bool $isIMEXPrize, bool $existingIMEXWinnerInThisPrize): bool
+    {
+        // Validar que el entry tiene guest válido
+        if (!$this->hasValidGuest($entry)) {
+            Log::warning('Entry sin guest válido excluido de rifa', [
+                'entry_id' => $entry->id ?? null,
+                'prize_id' => $prize->id
+            ]);
+            return false;
+        }
+        
+        $guest = $entry->guest;
+        $companiaNormalizada = $this->normalizeCompania($guest->compania);
+        
+        // REGLA 6, 7, 8: Excluir descripciones prohibidas
+        if (!$this->isDescriptionAllowed($guest->descripcion, 'public')) {
+            // Log solo en desarrollo para debugging (no en producción para evitar spam)
+            Log::debug('Entrada excluida por descripción prohibida', [
+                'guest_id' => $guest->id,
+                'descripcion' => $guest->descripcion,
+                'descripcion_normalizada' => $this->normalizeDescription($guest->descripcion),
+                'prize_id' => $prize->id
+            ]);
+            return false;
+        }
+        
+        // Excluir categorías de rifa prohibidas
+        if (!$this->isCategoryAllowed($guest->categoria_rifa)) {
+            // Log solo en desarrollo para debugging (no en producción para evitar spam)
+            Log::debug('Entrada excluida por categoría de rifa prohibida', [
+                'guest_id' => $guest->id,
+                'categoria_rifa' => $guest->categoria_rifa,
+                'prize_id' => $prize->id
+            ]);
+            return false;
+        }
+        
+        // REGLA 10: Si Compañía del Guest es INV no puede participar
+        if ($companiaNormalizada === 'INV') {
+            return false;
+        }
+        
+        // REGLA 4: Un Guest no puede GANAR más de un Prize (RIFA PÚBLICA)
+        if ($this->hasWonOtherPrize($guest, $prize)) {
+            return false;
+        }
+        
+        // REGLA ESPECIAL: Si este premio es el imex_prize_id, SOLO IMEX pueden ganar
+        if ($isIMEXPrize) {
+            if ($companiaNormalizada !== 'IMEX') {
+                return false;
+            }
+            if ($existingIMEXWinnerInThisPrize) {
+                return false;
+            }
+            return true;
+        }
+        
+        // Para premios que NO son el imex_prize_id: IMEX puede aparecer pero NO puede ganar
+        if ($companiaNormalizada === 'IMEX') {
+            return false;
+        }
+
+        // REGLA 2: Si Compañía del Guest es IMEX no puede ganar Prize con name Automovil
+        if (strtolower($prize->name) === 'automovil' && $companiaNormalizada === 'IMEX') {
+            return false;
+        }
+
+        // REGLA 11: Si Descripción del Guest es Subdirectores no puede ganar prize con name Automovil
+        if (strtolower($prize->name) === 'automovil' && $this->normalizeDescription($guest->descripcion) === 'subdirectores') {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Validar entrada elegible para rifa general
+     */
+    private function isEntryEligibleForGeneralRaffle($entry, Prize $prize): bool
+    {
+        // Validar que el entry tiene guest válido
+        if (!$this->hasValidGuest($entry)) {
+            Log::warning('Entry sin guest válido excluido de rifa general', [
+                'entry_id' => $entry->id ?? null,
+                'prize_id' => $prize->id
+            ]);
+            return false;
+        }
+        
+        $guest = $entry->guest;
+        $companiaNormalizada = $this->normalizeCompania($guest->compania);
+        
+        // Validar descripciones (solo permitir específicas)
+        if (!$this->isDescriptionAllowed($guest->descripcion, 'general')) {
+            // Log solo en desarrollo para debugging (no en producción para evitar spam)
+            Log::debug('Entrada excluida de rifa general por descripción no permitida', [
+                'guest_id' => $guest->id,
+                'descripcion' => $guest->descripcion,
+                'descripcion_normalizada' => $this->normalizeDescription($guest->descripcion),
+                'prize_id' => $prize->id
+            ]);
+            return false;
+        }
+        
+        // Excluir categorías de rifa prohibidas
+        if (!$this->isCategoryAllowed($guest->categoria_rifa)) {
+            // Log solo en desarrollo para debugging (no en producción para evitar spam)
+            Log::debug('Entrada excluida de rifa general por categoría de rifa prohibida', [
+                'guest_id' => $guest->id,
+                'categoria_rifa' => $guest->categoria_rifa,
+                'prize_id' => $prize->id
+            ]);
+            return false;
+        }
+        
+        // REGLA 10: Si Compañía del Guest es INV no puede participar (ni en rifa pública ni general)
+        if ($companiaNormalizada === 'INV') {
+            return false;
+        }
+        
+        // Verificar si ya ganó en rifa pública
+        if ($this->hasWonPublicRaffle($guest, $prize->event_id)) {
+            return false;
+        }
+        
+        return true;
+    }
+
     /**
      * Create raffle entries for all eligible guests for a specific prize
      * @param Prize $prize
@@ -212,65 +474,7 @@ class RaffleService
                 // NOTA: Las entradas (pendingEntries) incluyen a todos para la animación
                 // Aquí filtramos quién puede GANAR (no quién aparece en animación)
                 $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize) {
-                    $guest = $entry->guest;
-                    
-                    // REGLA 6, 7, 8: Excluir descripciones prohibidas
-                    $excludedDescriptions = ['Ganadores previos', 'Nuevo ingreso', 'Directores', 'No participa'];
-                    if (in_array($guest->descripcion, $excludedDescriptions)) {
-                        return false;
-                    }
-                    
-                    // REGLA 10: Si Compañía del Guest es INV no puede participar
-                    if ($guest->compania === 'INV') {
-                        return false;
-                    }
-                    
-                    // REGLA 4: Un Guest no puede GANAR más de un Prize (RIFA PÚBLICA)
-                    // EXCEPCIÓN: El Automóvil puede ser ganado aunque ya se haya ganado otro premio
-                    if (strtolower($prize->name) !== 'automovil') {
-                        $hasWonOtherPrize = RaffleEntry::where('guest_id', $guest->id)
-                            ->where('prize_id', '!=', $prize->id)
-                            ->where('status', 'won')
-                            ->exists();
-                        
-                        if ($hasWonOtherPrize) {
-                            return false; // Ya ganó otro premio, no puede ganar este
-                        }
-                    }
-                    
-                    // REGLA ESPECIAL: Si este premio es el imex_prize_id, SOLO IMEX pueden ganar
-                    // (pero GMXT y otros aparecen en las entradas para la animación)
-                    if ($isIMEXPrize) {
-                        // Solo permitir IMEX para ganar este premio
-                        if ($guest->compania !== 'IMEX') {
-                            return false; // GMXT y otros no pueden ganar, pero aparecen en animación
-                        }
-                        // Si ya tiene ganador IMEX, excluir otros IMEX
-                        if ($existingIMEXWinnerInThisPrize) {
-                            return false;
-                        }
-                        return true; // IMEX puede ganar este premio
-                    }
-                    
-                    // Para premios que NO son el imex_prize_id:
-                    // IMEX puede aparecer en la animación pero NO puede ganar
-                    if ($guest->compania === 'IMEX') {
-                        // Excluir IMEX de poder ganar (pero mantener en entradas para animación)
-                        return false;
-                    }
-
-                    // REGLA 2: Si Compañía del Guest es IMEX no puede ganar Prize con name Automovil
-                    // (ya se excluyó arriba, pero por seguridad)
-                    if (strtolower($prize->name) === 'automovil' && $guest->compania === 'IMEX') {
-                        return false;
-                    }
-
-                    // REGLA 11: Si Descripción del Guest es Subdirectores no puede ganar prize con name Automovil
-                    if (strtolower($prize->name) === 'automovil' && $guest->descripcion === 'Subdirectores') {
-                        return false;
-                    }
-
-                    return true;
+                    return $this->isEntryEligibleForPublicRaffle($entry, $prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize);
                 });
             }
             
@@ -281,34 +485,7 @@ class RaffleService
                 // REGLA CRÍTICA: Filtrar ganadores de rifa pública
                 // Los ganadores de RIFA PÚBLICA no pueden participar en RIFA GENERAL
                 $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize) {
-                    $guest = $entry->guest;
-                    
-                    // REGLA: Validar descripciones prohibidas
-                    $excludedDescriptions = ['Ganadores previos', 'Nuevo ingreso', 'Directores', 'No participa'];
-                    if (in_array($guest->descripcion, $excludedDescriptions)) {
-                        return false;
-                    }
-                    
-                    // REGLA: Validar compañía INV
-                    if ($guest->compania === 'INV') {
-                        return false;
-                    }
-                    
-                    // Verificar si ya ganó en rifa pública (cualquier premio excepto Rifa General)
-                    $hasWonPublicRaffle = RaffleEntry::where('guest_id', $guest->id)
-                        ->where('event_id', $prize->event_id)
-                        ->where('status', 'won')
-                        ->whereHas('prize', function ($q) {
-                            $q->where('name', '!=', 'Rifa General');
-                        })
-                        ->exists();
-                    
-                    // Excluir si ya ganó en rifa pública
-                    if ($hasWonPublicRaffle) {
-                        return false;
-                    }
-                    
-                    return true;
+                    return $this->isEntryEligibleForGeneralRaffle($entry, $prize);
                 });
                 
                 // REGLA: En rifa general debe haber máximo 2 ganadores IMEX (por evento)
@@ -327,10 +504,7 @@ class RaffleService
                 
                 // Si hay slots disponibles para IMEX y hay participantes IMEX, priorizarlos
                 if ($imexSlotsAvailable > 0) {
-                    $imexEntries = $eligibleEntries->filter(function ($entry) {
-                        $compania = strtoupper(trim($entry->guest->compania ?? ''));
-                        return $compania === 'IMEX';
-                    });
+                    $imexEntries = $this->filterInexEntries($eligibleEntries);
                     
                     if ($imexEntries->isNotEmpty()) {
                         // Priorizar IMEX: seleccionar primero un IMEX si hay slots disponibles
@@ -382,14 +556,10 @@ class RaffleService
                 if ($needsIMEXWinner) {
                     // Buscar participantes IMEX elegibles en las entradas pendientes originales
                     // (antes de aplicar el filtro de Automovil, para tener mejor diagnóstico)
-                    $imexEntriesInPending = $pendingEntries->filter(function ($entry) {
-                        return $entry->guest->compania === 'IMEX';
-                    });
+                    $imexEntriesInPending = $this->filterInexEntries($pendingEntries);
                     
                     // Ahora buscar en las entradas elegibles (después de filtros)
-                    $imexEntries = $eligibleEntries->filter(function ($entry) {
-                        return $entry->guest->compania === 'IMEX';
-                    });
+                    $imexEntries = $this->filterInexEntries($eligibleEntries);
 
                     if ($imexEntries->isEmpty()) {
                         // Si hay IMEX en pendientes pero no en elegibles, significa que fueron filtrados
@@ -590,53 +760,7 @@ class RaffleService
                 
                 // Filtrar candidatos según reglas adicionales de rifa pública
                 $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize) {
-                    $guest = $entry->guest;
-                    
-                    // REGLA 4: Un Guest no puede GANAR más de un Prize (RIFA PÚBLICA)
-                    // EXCEPCIÓN: El Automóvil puede ser ganado aunque ya se haya ganado otro premio
-                    if (strtolower($prize->name) !== 'automovil') {
-                        $hasWonOtherPrize = RaffleEntry::where('guest_id', $guest->id)
-                            ->where('prize_id', '!=', $prize->id)
-                            ->where('status', 'won')
-                            ->exists();
-                        
-                        if ($hasWonOtherPrize) {
-                            return false; // Ya ganó otro premio, no puede ganar este
-                        }
-                    }
-                    
-                    // REGLA ESPECIAL: Si este premio es el imex_prize_id, SOLO IMEX pueden ganar
-                    if ($isIMEXPrize) {
-                        // Solo permitir IMEX para este premio
-                        if ($guest->compania !== 'IMEX') {
-                            return false;
-                        }
-                        // Si ya tiene ganador IMEX, excluir otros IMEX
-                        if ($existingIMEXWinnerInThisPrize) {
-                            return false;
-                        }
-                        return true; // IMEX puede ganar este premio
-                    }
-                    
-                    // Para premios que NO son el imex_prize_id:
-                    // IMEX puede aparecer en la animación pero NO puede ganar
-                    if ($guest->compania === 'IMEX') {
-                        // Excluir IMEX de poder ganar (pero mantener en entradas para animación)
-                        return false;
-                    }
-
-                    // REGLA 2: Si Compañía del Guest es IMEX no puede ganar Prize con name Automovil
-                    // (ya se excluyó arriba, pero por seguridad)
-                    if (strtolower($prize->name) === 'automovil' && $guest->compania === 'IMEX') {
-                        return false;
-                    }
-
-                    // REGLA 11: Si Descripción del Guest es Subdirectores no puede ganar prize con name Automovil
-                    if (strtolower($prize->name) === 'automovil' && $guest->descripcion === 'Subdirectores') {
-                        return false;
-                    }
-
-                    return true;
+                    return $this->isEntryEligibleForPublicRaffle($entry, $prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize);
                 });
             }
 
@@ -731,6 +855,19 @@ class RaffleService
                 ];
             }
 
+            // Validar que el ganador tiene guest válido
+            if (!$this->hasValidGuest($winnerEntry)) {
+                DB::rollBack();
+                Log::error('Ganador confirmado sin guest válido', [
+                    'entry_id' => $winnerEntry->id ?? null,
+                    'prize_id' => $prize->id
+                ]);
+                return [
+                    'success' => false,
+                    'error' => 'Error: Ganador sin guest válido. No se puede confirmar.'
+                ];
+            }
+
             // Mark as winner
             $winnerEntry->update([
                 'status' => 'won',
@@ -817,8 +954,13 @@ class RaffleService
             $event = $prize->event;
             $isIMEXPrize = $event->imex_prize_id === $prize->id;
             
-            // REGLA 10: Si Compañía del Guest es INV no puede participar
-            $query->where('compania', '!=', 'INV');
+            // REGLA 10: Si Compañía del Guest es INV no puede participar (case-insensitive)
+            $query->whereRaw('TRIM(UPPER(compania)) != ?', ['INV']);
+
+            // Excluir categorías de rifa prohibidas (case-insensitive)
+            foreach (self::EXCLUDED_CATEGORIES as $excluded) {
+                $query->whereRaw('TRIM(LOWER(COALESCE(categoria_rifa, \'\'))) != ?', [strtolower(trim($excluded))]);
+            }
 
             // REGLA 3: Si Descripción del Guest es General puede participar en la rifa
             // REGLA 5: Si Descripción del Guest es Subdirectores puede participar
@@ -827,15 +969,20 @@ class RaffleService
             // REGLA 8: Si Descripción del Guest es Directores no puede participar
             // REGLA ADICIONAL: Si Descripción del Guest es No participa no puede participar
             // Aplicar: excluir los que NO pueden participar, permitir los demás (incluyendo null o otros valores)
-            $query->whereNotIn('descripcion', ['Ganadores previos', 'Nuevo ingreso', 'Directores', 'No participa']);
+            // Usar whereRaw con TRIM(LOWER()) para comparación case-insensitive y sin espacios
+            $query->where(function ($q) {
+                foreach (self::EXCLUDED_DESCRIPTIONS_PUBLIC as $excluded) {
+                    $q->whereRaw('TRIM(LOWER(descripcion)) != ?', [strtolower(trim($excluded))]);
+                }
+            });
 
             // REGLA ESPECIAL: Para el premio imex_prize_id, todos pueden participar (aparecer en animación)
             // pero solo IMEX puede ganar (eso se maneja en drawRaffle)
             // Para el automóvil, excluir IMEX completamente (ni participar ni aparecer en animación)
             if (strtolower($prize->name) === 'automovil') {
                 $query->where(function ($q) {
-                    $q->where('compania', '!=', 'IMEX')
-                      ->where('descripcion', '!=', 'Subdirectores');
+                    $q->whereRaw('TRIM(UPPER(compania)) != ?', ['IMEX'])
+                      ->whereRaw('TRIM(LOWER(descripcion)) != ?', ['subdirectores']);
                 });
             }
             // Para otros premios (incluyendo imex_prize_id), todos pueden participar
@@ -1038,6 +1185,82 @@ class RaffleService
     }
 
     /**
+     * Validar entradas pendientes antes de rifar (pre-flight check)
+     */
+    public function validatePendingEntries(Prize $prize, string $raffleType = 'general'): array
+    {
+        $issues = [];
+        $pendingEntries = RaffleEntry::where('prize_id', $prize->id)
+            ->where('status', 'pending')
+            ->with('guest')
+            ->get();
+        
+        foreach ($pendingEntries as $entry) {
+            if (!$this->hasValidGuest($entry)) {
+                $issues[] = [
+                    'type' => 'invalid_guest',
+                    'entry_id' => $entry->id,
+                    'message' => "Entry {$entry->id} tiene guest_id inválido"
+                ];
+                continue;
+            }
+            
+            $guest = $entry->guest;
+            $descripcion = trim($guest->descripcion ?? '');
+            
+            if (empty($descripcion)) {
+                $issues[] = [
+                    'type' => 'empty_description',
+                    'entry_id' => $entry->id,
+                    'guest_id' => $guest->id,
+                    'message' => "Guest {$guest->id} tiene descripcion vacía"
+                ];
+            }
+            
+            // Validar que no esté en lista excluida
+            if ($raffleType === 'public' && !$this->isDescriptionAllowed($guest->descripcion, 'public')) {
+                $issues[] = [
+                    'type' => 'prohibited_description',
+                    'entry_id' => $entry->id,
+                    'guest_id' => $guest->id,
+                    'descripcion' => $guest->descripcion,
+                    'descripcion_normalizada' => $this->normalizeDescription($guest->descripcion),
+                    'message' => "Guest {$guest->id} tiene descripción prohibida: '{$guest->descripcion}'"
+                ];
+            }
+            
+            if ($raffleType === 'general' && !$this->isDescriptionAllowed($guest->descripcion, 'general')) {
+                $issues[] = [
+                    'type' => 'invalid_description_general',
+                    'entry_id' => $entry->id,
+                    'guest_id' => $guest->id,
+                    'descripcion' => $guest->descripcion,
+                    'descripcion_normalizada' => $this->normalizeDescription($guest->descripcion),
+                    'message' => "Guest {$guest->id} tiene descripción no permitida para rifa general: '{$guest->descripcion}'"
+                ];
+            }
+            
+            // Validar categoría de rifa
+            if (!$this->isCategoryAllowed($guest->categoria_rifa)) {
+                $issues[] = [
+                    'type' => 'prohibited_category',
+                    'entry_id' => $entry->id,
+                    'guest_id' => $guest->id,
+                    'categoria_rifa' => $guest->categoria_rifa,
+                    'message' => "Guest {$guest->id} tiene categoría de rifa prohibida: '{$guest->categoria_rifa}'"
+                ];
+            }
+        }
+        
+        return [
+            'valid' => empty($issues),
+            'issues' => $issues,
+            'total_entries' => $pendingEntries->count(),
+            'issues_count' => count($issues)
+        ];
+    }
+
+    /**
      * Validate prize configuration
      */
     public function validatePrize(Prize $prize): array
@@ -1114,10 +1337,20 @@ class RaffleService
         // REGLA 3b: Si Descripción del Guest es "Subdirectores" también puede participar
         // REGLA 3c: Si Descripción del Guest es "IMEX" también puede participar
         // Solo los que tienen descripción "General", "Subdirectores" o "IMEX" pueden participar
-        $query->whereIn('descripcion', ['General', 'Subdirectores', 'IMEX']);
+        // Usar whereRaw con TRIM(LOWER()) para comparación case-insensitive y sin espacios
+        $query->where(function ($q) {
+            foreach (self::ALLOWED_DESCRIPTIONS_GENERAL as $allowed) {
+                $q->orWhereRaw('TRIM(LOWER(descripcion)) = ?', [strtolower(trim($allowed))]);
+            }
+        });
 
-        // REGLA 9: Si Compañía del Guest es "INV" no puede participar
-        $query->where('compania', '!=', 'INV');
+        // REGLA 9: Si Compañía del Guest es "INV" no puede participar (case-insensitive)
+        $query->whereRaw('TRIM(UPPER(compania)) != ?', ['INV']);
+
+        // Excluir categorías de rifa prohibidas (case-insensitive)
+        foreach (self::EXCLUDED_CATEGORIES as $excluded) {
+            $query->whereRaw('TRIM(LOWER(COALESCE(categoria_rifa, \'\'))) != ?', [strtolower(trim($excluded))]);
+        }
 
         // REGLA 2: No pueden participar ganadores de la Rifa Pública
         // Un ganador de la rifa pública es alguien que ganó en cualquier premio que no sea "Rifa General"
@@ -1254,14 +1487,11 @@ class RaffleService
                 })
                 ->count();
             
-            $imexEntries = $eligibleEntries->filter(function ($entry) {
-                $compania = strtoupper(trim($entry->guest->compania ?? ''));
-                return $compania === 'IMEX';
-            });
+            $imexEntries = $this->filterInexEntries($eligibleEntries);
             
-            $nonInexEntries = $eligibleEntries->filter(function ($entry) {
-                $compania = strtoupper(trim($entry->guest->compania ?? ''));
-                return $compania !== 'IMEX';
+            $imexEntryIds = $imexEntries->pluck('id')->toArray();
+            $nonInexEntries = $eligibleEntries->reject(function ($entry) use ($imexEntryIds) {
+                return in_array($entry->id, $imexEntryIds);
             });
 
             $winners = collect();
@@ -1303,7 +1533,11 @@ class RaffleService
             }
 
             // Marcar el resto como perdedores
-            $losers = $eligibleEntries->diff($winners);
+            $winnerIds = $winners->pluck('id')->toArray();
+            $losers = $eligibleEntries->reject(function ($entry) use ($winnerIds) {
+                return in_array($entry->id, $winnerIds);
+            });
+            
             foreach ($losers as $entry) {
                 $entry->markAsLoser([
                     'raffle_type' => 'general'
