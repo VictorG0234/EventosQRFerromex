@@ -473,7 +473,7 @@ class GuestController extends Controller
                 'numero_empleado' => $guest->numero_empleado,
                 'compania' => $guest->compania,
                 'area_trabajo' => $guest->area_trabajo,
-                'has_attended' => $guest->attendance !== null,
+                'has_attended' => $guest->attendances()->where('event_id', $event->id)->exists(),
             ]
         ]);
     }
