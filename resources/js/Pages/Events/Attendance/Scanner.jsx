@@ -26,6 +26,8 @@ export default function Scanner({ auth, event, statistics }) {
     const [manualMode, setManualMode] = useState(false);
     const [manualEmployeeNumber, setManualEmployeeNumber] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
+    const [pendingGuest, setPendingGuest] = useState(null);
     
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
@@ -399,23 +401,69 @@ export default function Scanner({ auth, event, statistics }) {
         if (!manualEmployeeNumber.trim()) return;
         
         setIsProcessing(true);
+        setScanResult(null);
+        
+        try {
+            // Buscar invitado por número de empleado
+            const response = await axios.get(route('events.guests.find-by-employee', event.id), {
+                params: { employee_number: manualEmployeeNumber.trim() }
+            });
+            
+            if (response.data.success && response.data.guest) {
+                // Mostrar diálogo de confirmación con los datos del invitado
+                setPendingGuest(response.data.guest);
+                setShowConfirmationDialog(true);
+            } else {
+                // Invitado no encontrado
+                setScanResult({
+                    success: false,
+                    type: 'error',
+                    message: 'No se encontró ningún invitado con ese número de empleado'
+                });
+                playSound('error');
+            }
+        } catch (error) {
+            console.error('Error al buscar invitado:', error);
+            setScanResult({
+                success: false,
+                type: 'error',
+                message: error.response?.data?.message || 'Error al buscar el invitado'
+            });
+            playSound('error');
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    // Confirmar registro manual
+    const confirmManualRegister = () => {
+        setIsProcessing(true);
+        setShowConfirmationDialog(false);
         
         router.post(
             route('events.attendance.manual', event.id),
             { 
-                employee_number: manualEmployeeNumber.trim(),
+                employee_number: pendingGuest.numero_empleado,
                 reason: 'Registro manual desde escáner'
             },
             {
                 preserveScroll: true,
                 onSuccess: () => {
                     setManualEmployeeNumber('');
+                    setPendingGuest(null);
                 },
                 onFinish: () => {
                     setIsProcessing(false);
                 }
             }
         );
+    };
+
+    // Cancelar registro manual
+    const cancelManualRegister = () => {
+        setShowConfirmationDialog(false);
+        setPendingGuest(null);
+        setManualEmployeeNumber('');
     };
 
     // Cleanup al desmontar
@@ -846,6 +894,82 @@ export default function Scanner({ auth, event, statistics }) {
                     </div>
                 </div>
             </div>
+
+            {/* Diálogo de confirmación de registro manual */}
+            {showConfirmationDialog && pendingGuest && (
+                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                    <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        {/* Fondo oscuro */}
+                        <div 
+                            className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+                            aria-hidden="true"
+                            onClick={cancelManualRegister}
+                        ></div>
+
+                        {/* Centrado */}
+                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                        {/* Modal */}
+                        <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                            <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                <div className="sm:flex sm:items-start">
+                                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 sm:mx-0 sm:h-10 sm:w-10">
+                                        <UserIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+                                    </div>
+                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                        <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100" id="modal-title">
+                                            Confirmar Registro de Asistencia
+                                        </h3>
+                                        <div className="mt-4 space-y-3">
+                                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                Por favor, verifica que los datos del invitado sean correctos antes de confirmar:
+                                            </p>
+                                            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-2">
+                                                <div>
+                                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Nombre:</span>
+                                                    <p className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-1">
+                                                        {pendingGuest.nombre_completo || `${pendingGuest.nombre} ${pendingGuest.apellidos}`}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Compañía:</span>
+                                                    <p className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-1">
+                                                        {pendingGuest.compania}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Número de Empleado:</span>
+                                                    <p className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-1">
+                                                        {pendingGuest.numero_empleado}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+                                <button
+                                    type="button"
+                                    disabled={isProcessing}
+                                    onClick={confirmManualRegister}
+                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isProcessing ? 'Registrando...' : 'Confirmar Registro'}
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isProcessing}
+                                    onClick={cancelManualRegister}
+                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 }

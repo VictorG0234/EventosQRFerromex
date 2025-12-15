@@ -64,10 +64,12 @@ Route::middleware('auth')->group(function () {
     Route::get('events/{event}/guests/import', [GuestController::class, 'importForm'])->name('events.guests.import');
     Route::post('events/{event}/guests/import', [GuestController::class, 'import'])->name('events.guests.import.process');
     Route::post('events/{event}/guests/preview', [GuestController::class, 'preview'])->name('events.guests.preview');
+    Route::get('events/{event}/guests/find-by-employee', [GuestController::class, 'findByEmployee'])->name('events.guests.find-by-employee');
     Route::get('events/{event}/guests/{guest}', [GuestController::class, 'show'])->name('events.guests.show');
     Route::get('events/{event}/guests/{guest}/edit', [GuestController::class, 'edit'])->name('events.guests.edit');
     Route::patch('events/{event}/guests/{guest}', [GuestController::class, 'update'])->name('events.guests.update');
     Route::delete('events/{event}/guests/{guest}', [GuestController::class, 'destroy'])->name('events.guests.destroy');
+    Route::delete('events/{event}/guests/{guest}/remove-attendance', [GuestController::class, 'removeAttendance'])->name('events.guests.remove-attendance');
     Route::get('events/{event}/guests/{guest}/download-qr', [GuestController::class, 'downloadQr'])->name('events.guests.download-qr');
     
     // Rutas de asistencia

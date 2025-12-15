@@ -10,7 +10,8 @@ import {
     XCircleIcon,
     QrCodeIcon,
     PencilIcon,
-    TrashIcon
+    TrashIcon,
+    XMarkIcon
 } from '@heroicons/react/24/outline';
 import { useState, useEffect } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
@@ -55,6 +56,15 @@ export default function Index({ auth, event, guests, filters }) {
         if (confirm(`¿Estás seguro de eliminar a ${guest.full_name}?`)) {
             setProcessing(true);
             router.delete(route('events.guests.destroy', [event.id, guest.id]), {
+                onFinish: () => setProcessing(false)
+            });
+        }
+    };
+
+    const handleRemoveAttendance = (guest) => {
+        if (confirm(`¿Estás seguro de quitar el registro de asistencia de ${guest.full_name}?\n\nEsto eliminará su registro de asistencia pero mantendrá al invitado en el evento.`)) {
+            setProcessing(true);
+            router.delete(route('events.guests.remove-attendance', [event.id, guest.id]), {
                 onFinish: () => setProcessing(false)
             });
         }
@@ -287,6 +297,16 @@ export default function Index({ auth, event, guests, filters }) {
                                                     >
                                                         <PencilIcon className="w-4 h-4" />
                                                     </Link>
+                                                    {guest.has_attended && (
+                                                        <button
+                                                            onClick={() => handleRemoveAttendance(guest)}
+                                                            disabled={processing}
+                                                            className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-900 dark:hover:text-yellow-300 p-2 disabled:opacity-50"
+                                                            title="Quitar asistencia"
+                                                        >
+                                                            <XMarkIcon className="w-4 h-4" />
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => handleDelete(guest)}
                                                         disabled={processing}
@@ -383,6 +403,17 @@ export default function Index({ auth, event, guests, filters }) {
                                                         >
                                                             <PencilIcon className="w-4 h-4" />
                                                         </Link>
+                                                        
+                                                        {guest.has_attended && (
+                                                            <button
+                                                                onClick={() => handleRemoveAttendance(guest)}
+                                                                disabled={processing}
+                                                                className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-900 dark:hover:text-yellow-300 p-1 disabled:opacity-50"
+                                                                title="Quitar asistencia"
+                                                            >
+                                                                <XMarkIcon className="w-4 h-4" />
+                                                            </button>
+                                                        )}
                                                         
                                                         <button
                                                             onClick={() => handleDelete(guest)}

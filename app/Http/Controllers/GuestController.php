@@ -301,7 +301,30 @@ class GuestController extends Controller
     }
 
     /**
-     * Show CSV import form.
+     * Remove attendance record for a guest
+     */
+    public function removeAttendance(Event $event, Guest $guest)
+    {
+        $this->authorize('view', $event);
+        
+        if ($guest->event_id !== $event->id) {
+            abort(404);
+        }
+
+        $attendance = $guest->attendance;
+        
+        if (!$attendance) {
+            return back()->with('error', 'Este invitado no tiene asistencia registrada.');
+        }
+
+        $guestName = $guest->full_name;
+        $attendance->delete();
+
+        return back()->with('success', "Asistencia de '{$guestName}' eliminada correctamente.");
+    }
+
+    /**
+     * Show the import form
      */
     public function importForm(Event $event)
     {
@@ -416,5 +439,42 @@ class GuestController extends Controller
         
         // Descargar el archivo desde Storage
         return Storage::disk('public')->download($guest->qr_code_path, $fileName);
+    }
+
+    /**
+     * Find guest by employee number (for manual attendance confirmation).
+     */
+    public function findByEmployee(Request $request, Event $event)
+    {
+        $this->authorize('update', $event);
+
+        $request->validate([
+            'employee_number' => 'required|string',
+        ]);
+
+        $guest = Guest::where('event_id', $event->id)
+            ->where('numero_empleado', $request->employee_number)
+            ->first();
+
+        if (!$guest) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se encontró ningún invitado con ese número de empleado'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'guest' => [
+                'id' => $guest->id,
+                'nombre' => $guest->nombre,
+                'apellidos' => $guest->apellidos,
+                'nombre_completo' => $guest->nombre_completo,
+                'numero_empleado' => $guest->numero_empleado,
+                'compania' => $guest->compania,
+                'area_trabajo' => $guest->area_trabajo,
+                'has_attended' => $guest->attendances()->where('event_id', $event->id)->exists(),
+            ]
+        ]);
     }
 }
