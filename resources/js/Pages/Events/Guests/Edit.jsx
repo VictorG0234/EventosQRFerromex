@@ -10,7 +10,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 
 export default function Edit({ auth, event, guest }) {
-    const { data, setData, put, processing, errors } = useForm({
+    const { data, setData, patch, processing, errors } = useForm({
         compania: guest.compania || '',
         numero_empleado: guest.numero_empleado || '',
         nombre_completo: guest.nombre_completo || '',
