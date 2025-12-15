@@ -174,6 +174,25 @@ export default function Create({ auth, event }) {
                                     Información Adicional
                                 </h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="md:col-span-1">
+                                        <InputLabel htmlFor="descripcion" value="Descripción" />
+                                        <select
+                                            id="descripcion"
+                                            className="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-blue-500 dark:focus:border-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600 rounded-md shadow-sm"
+                                            value={data.descripcion}
+                                            onChange={(e) => setData('descripcion', e.target.value)}
+                                        >
+                                            <option value="">Selecciona una descripción</option>
+                                            <option value="General">General</option>
+                                            <option value="Subdirectories">Subdirectories</option>
+                                            <option value="Ganadores previos">Ganadores previos</option>
+                                            <option value="Nuevo ingreso">Nuevo ingreso</option>
+                                            <option value="Directores">Directores</option>
+                                            <option value="IMEX">IMEX</option>
+                                        </select>
+                                        <InputError message={errors.descripcion} className="mt-2" />
+                                    </div>
+
                                     <div>
                                         <InputLabel htmlFor="categoria_rifa" value="Categoría para la Rifa" />
                                         <select
@@ -192,26 +211,6 @@ export default function Create({ auth, event }) {
                                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                             Determina el nivel de participación del invitado en rifas
                                         </p>
-                                    </div>
-
-                                    <div className="md:col-span-1">
-                                        <InputLabel htmlFor="descripcion" value="Descripción" />
-                                        <select
-                                            id="descripcion"
-                                            className="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-blue-500 dark:focus:border-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600 rounded-md shadow-sm"
-                                            value={data.descripcion}
-                                            onChange={(e) => setData('descripcion', e.target.value)}
-                                        >
-                                            <option value="">Selecciona una descripción</option>
-                                            <option value="General">General</option>
-                                            <option value="Subdirectores">Subdirectores</option>
-                                            <option value="IMEX">IMEX</option>
-                                            <option value="Directores">Directores</option>
-                                            <option value="Nuevo ingreso">Nuevo ingreso</option>
-                                            <option value="Ganadores previos">Ganadores previos</option>
-                                            <option value="No Participa">No Participa</option>
-                                        </select>
-                                        <InputError message={errors.descripcion} className="mt-2" />
                                     </div>
                                 </div>
                             </div>
