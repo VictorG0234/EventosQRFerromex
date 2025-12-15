@@ -25,7 +25,7 @@ export default function Edit({ auth, event, guest }) {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        put(route('events.guests.update', [event.id, guest.id]));
+        patch(route('events.guests.update', [event.id, guest.id]));
     };
 
     return (
