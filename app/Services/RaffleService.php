@@ -18,7 +18,7 @@ class RaffleService
 {
     // Constantes para descripciones excluidas y permitidas
     private const EXCLUDED_DESCRIPTIONS_PUBLIC = ['Ganadores previos', 'Nuevo ingreso', 'Directores', 'No Participa'];
-    private const ALLOWED_DESCRIPTIONS_GENERAL = ['General', 'Subdirectores', 'IMEX', 'No Participa'];
+    private const ALLOWED_DESCRIPTIONS_GENERAL = ['General', 'Subdirectores', 'IMEX'];
     private const EXCLUDED_CATEGORIES = ['No Participa'];
 
     /**
