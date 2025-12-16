@@ -393,67 +393,58 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                                         </h4>
                                                     </div>
                                                     
-                                                    <p className="text-xs text-gray-700 mb-2">
-                                                        <span className="font-medium">No. empleado:</span> {winner.employee_number}
-                                                    </p>
-
-                                                    <div className="mt-2 pt-2 space-y-1.5" style={{ borderTop: `1px solid ${isDelivered ? '#10B981' : '#D22730'}` }}>
-                                                        {!isDelivered ? (
-                                                            <>
-                                                                <Button
-                                                                    onClick={() => handleDeliverPrize(winner.id)}
-                                                                    disabled={deliveringPrize === winner.id}
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="w-full bg-white text-xs py-1 px-2 h-7 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                    style={{
-                                                                        borderColor: '#10B981',
-                                                                        color: '#10B981'
-                                                                    }}
-                                                                >
-                                                                    {deliveringPrize === winner.id ? (
-                                                                        <>
-                                                                            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                                                                            Entregando...
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <Package className="w-3 h-3 mr-1" />
-                                                                            Entregar
-                                                                        </>
-                                                                    )}
-                                                                </Button>
-                                                                
-                                                                <Button
-                                                                    onClick={() => handleReselectWinner(winner.id)}
-                                                                    disabled={reselectingWinner === winner.id || isDrawing}
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="w-full bg-white disabled:opacity-50 disabled:cursor-not-allowed text-xs py-1 px-2 h-7"
-                                                                    style={{
-                                                                        borderColor: '#D22730',
-                                                                        color: '#D22730'
-                                                                    }}
-                                                                >
-                                                                    {reselectingWinner === winner.id ? (
-                                                                        <>
-                                                                            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                                                                            Re-seleccionando...
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <RefreshCw className="w-3 h-3 mr-1" />
-                                                                            Volver a seleccionar
-                                                                        </>
-                                                                    )}
-                                                                </Button>
-                                                            </>
-                                                        ) : (
-                                                            <div className="flex items-center justify-center py-1 text-green-700">
-                                                                <CheckCircle className="w-3 h-3 mr-1" />
-                                                                <span className="text-xs font-medium">Premio entregado</span>
-                                                            </div>
-                                                        )}
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="text-xs text-gray-700">
+                                                            <span className="font-medium">No. empleado:</span> {winner.employee_number}
+                                                        </p>
+                                                        
+                                                        <div className="flex items-center gap-1">
+                                                            {!isDelivered ? (
+                                                                <>
+                                                                    <Button
+                                                                        onClick={() => handleDeliverPrize(winner.id)}
+                                                                        disabled={deliveringPrize === winner.id}
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="bg-white p-1 h-6 w-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                        style={{
+                                                                            borderColor: '#10B981',
+                                                                            color: '#10B981'
+                                                                        }}
+                                                                        title="Entregar premio"
+                                                                    >
+                                                                        {deliveringPrize === winner.id ? (
+                                                                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                                        ) : (
+                                                                            <Package className="w-3.5 h-3.5" />
+                                                                        )}
+                                                                    </Button>
+                                                                    
+                                                                    <Button
+                                                                        onClick={() => handleReselectWinner(winner.id)}
+                                                                        disabled={reselectingWinner === winner.id || isDrawing}
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="bg-white p-1 h-6 w-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                        style={{
+                                                                            borderColor: '#D22730',
+                                                                            color: '#D22730'
+                                                                        }}
+                                                                        title="Volver a seleccionar"
+                                                                    >
+                                                                        {reselectingWinner === winner.id ? (
+                                                                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                                        ) : (
+                                                                            <RefreshCw className="w-3.5 h-3.5" />
+                                                                        )}
+                                                                    </Button>
+                                                                </>
+                                                            ) : (
+                                                                <div className="flex items-center text-green-700">
+                                                                    <CheckCircle className="w-4 h-4" />
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
 
                                                     <AlertDialog open={showReselectModal && selectedWinnerId === winner.id} onOpenChange={(open) => {
