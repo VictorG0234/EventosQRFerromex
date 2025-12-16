@@ -979,7 +979,7 @@ class RaffleService
      */
     public function getEligibleGuests(Prize $prize, string $raffleType = 'general'): Collection
     {
-        $query = Guest::where('event_id', $prize->event_id)->groupBy('guests.numero_empleado');
+        $query = Guest::where('event_id', $prize->event_id);
 
         // REGLAS COMUNES PARA AMBOS TIPOS DE RIFA
         // REGLA 9: Si el Guest no tiene attendance registrada no puede participar
