@@ -145,6 +145,7 @@ Route::middleware('auth')->group(function () {
     Route::get('events/{event}/raffle/live-data', [RaffleController::class, 'liveData'])->name('events.raffle.live-data');
     Route::get('events/{event}/raffle/logs', [RaffleController::class, 'logs'])->name('events.raffle.logs');
     Route::get('events/{event}/raffle/logs-page', [RaffleController::class, 'logsPage'])->name('events.raffle.logs-page');
+    Route::get('events/{event}/raffle/export-winners', [RaffleController::class, 'exportWinners'])->name('events.raffle.export-winners');
     
     // Rutas de auditoría
     Route::get('audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');

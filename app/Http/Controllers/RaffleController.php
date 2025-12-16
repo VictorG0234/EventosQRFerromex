@@ -856,11 +856,35 @@ class RaffleController extends Controller
         // Obtener invitados elegibles
         $eligibleGuests = $this->raffleService->getEligibleGuestsForGeneralRaffle($event);
         
+        // Contar ganadores IMEX existentes
+        $existingInexWinnersCount = RaffleEntry::where('event_id', $event->id)
+            ->where('prize_id', $generalPrize->id)
+            ->where('status', 'won')
+            ->whereHas('guest', function ($q) {
+                $q->where('compania', 'IMEX');
+            })
+            ->count();
+        
+        // Separar invitados elegibles en IMEX y no-IMEX
+        $imexEligibleGuests = $eligibleGuests->filter(function ($guest) {
+            return strtoupper(trim($guest->compania ?? '')) === 'IMEX';
+        });
+        
+        $nonInexEligibleGuests = $eligibleGuests->reject(function ($guest) {
+            return strtoupper(trim($guest->compania ?? '')) === 'IMEX';
+        });
+        
+        // Calcular eligible_count considerando la limitación de 2 ganadores IMEX
+        $maxInexWinners = 2;
+        $imexSlotsAvailable = max(0, $maxInexWinners - $existingInexWinnersCount);
+        $imexEligibleCount = min($imexSlotsAvailable, $imexEligibleGuests->count());
+        $eligibleCount = $imexEligibleCount + $nonInexEligibleGuests->count();
+        
         // Verificar si ya hay ganadores
         $hasWinners = $winners->count() > 0;
         
         // Verificar si se puede rifar (hay invitados elegibles y no hay ganadores o se permite volver a rifar)
-        $canRaffle = $eligibleGuests->count() > 0;
+        $canRaffle = $eligibleCount > 0;
 
         return Inertia::render('Events/Draw/General', [
             'event' => [
@@ -869,7 +893,7 @@ class RaffleController extends Controller
             ],
             'winners' => $winners->toArray(),
             'winners_count' => $winners->count(),
-            'eligible_count' => $eligibleGuests->count(),
+            'eligible_count' => $eligibleCount,
             'can_raffle' => $canRaffle,
             'has_winners' => $hasWinners
         ]);
@@ -1012,6 +1036,9 @@ class RaffleController extends Controller
                 ->pluck('guest_id')
                 ->toArray();
 
+            // Guardar el drawn_at original para conservar la posición en la fila
+            $originalDrawnAt = $currentWinnerEntry->drawn_at;
+
             // Resetear el ganador actual (marcar como pending)
             $currentWinnerEntry->update([
                 'status' => 'pending',
@@ -1033,10 +1060,10 @@ class RaffleController extends Controller
             $eligibleGuestIds = $eligibleGuests->pluck('id')->toArray();
             
             if (empty($eligibleGuestIds)) {
-                // Restaurar el ganador original si no hay elegibles
+                // Restaurar el ganador original si no hay elegibles (conservar drawn_at original)
                 $currentWinnerEntry->update([
                     'status' => 'won',
-                    'drawn_at' => now()
+                    'drawn_at' => $originalDrawnAt ?? now()
                 ]);
                 DB::commit();
                 
@@ -1145,10 +1172,10 @@ class RaffleController extends Controller
             });
 
             if ($eligibleEntries->isEmpty()) {
-                // Si no hay elegibles (además del actual), restaurar el ganador original
+                // Si no hay elegibles (además del actual), restaurar el ganador original (conservar drawn_at original)
                 $currentWinnerEntry->update([
                     'status' => 'won',
-                    'drawn_at' => now()
+                    'drawn_at' => $originalDrawnAt ?? now()
                 ]);
                 
                 DB::commit();
@@ -1164,16 +1191,18 @@ class RaffleController extends Controller
 
             // Preparar metadata
             $existingMetadata = $newWinnerEntry->raffle_metadata ?? [];
+            $drawnAtForMetadata = ($originalDrawnAt ?? now())->toIso8601String();
             $newMetadata = array_merge($existingMetadata, [
                 'raffle_type' => 'general',
-                'drawn_at' => now()->toIso8601String(),
+                'drawn_at' => $drawnAtForMetadata,
                 'reselect' => true,
-                'replaced_guest_id' => $guest->id
+                'replaced_guest_id' => $guest->id,
+                'original_position_preserved' => true
             ]);
 
-            // Marcar el nuevo ganador
+            // Marcar el nuevo ganador conservando el drawn_at original para mantener la posición en la fila
             $newWinnerEntry->status = 'won';
-            $newWinnerEntry->drawn_at = Carbon::now();
+            $newWinnerEntry->drawn_at = $originalDrawnAt ?? Carbon::now();
             $newWinnerEntry->raffle_metadata = $newMetadata;
             $newWinnerEntry->save();
             
@@ -1494,6 +1523,119 @@ class RaffleController extends Controller
             'logs' => $logs,
             'total' => $logs->count(),
         ]);
+    }
+
+    /**
+     * Export all raffle logs to CSV (matching what's shown in the web table)
+     */
+    public function exportWinners(Event $event)
+    {
+        $this->authorize('view', $event);
+
+        // Obtener todos los logs del evento (igual que en logsPage)
+        $logs = RaffleLog::where('event_id', $event->id)
+            ->with(['prize', 'guest', 'user'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($log) {
+                return [
+                    'id' => $log->id,
+                    'raffle_type' => $log->raffle_type,
+                    'confirmed' => $log->confirmed,
+                    'created_at' => $log->created_at->format('Y-m-d H:i:s'),
+                    'prize' => $log->prize ? [
+                        'id' => $log->prize->id,
+                        'name' => $log->prize->name,
+                    ] : null,
+                    'guest' => $log->guest ? [
+                        'id' => $log->guest->id,
+                        'name' => $log->guest->full_name,
+                        'employee_number' => $log->guest->numero_empleado,
+                        'compania' => $log->guest->compania,
+                        'categoria_rifa' => $log->guest->categoria_rifa,
+                        'descripcion' => $log->guest->descripcion,
+                    ] : null,
+                ];
+            });
+
+        // Headers del CSV (matching the table columns)
+        $headers = [
+            'TipoRifa',
+            'NumEmpleado',
+            'NombreEmpleado',
+            'Empresa',
+            'Categoria',
+            'Descripcion',
+            'Premio',
+            'Estado',
+            'FechaHora'
+        ];
+
+        $csvContent = $this->csvEscape($headers) . "\n";
+
+        // Agregar datos de cada log
+        foreach ($logs as $log) {
+            $guest = $log['guest'];
+            $prize = $log['prize'];
+            
+            $raffleType = $log['raffle_type'] === 'public' ? 'Pública' : 'General';
+            $estado = $log['confirmed'] ? 'Ganador' : 'Reemplazado';
+            
+            $row = [
+                $raffleType,
+                $guest ? $guest['employee_number'] : 'N/A',
+                $guest ? $guest['name'] : 'N/A',
+                $guest ? $guest['compania'] : 'N/A',
+                $guest ? $guest['categoria_rifa'] : 'N/A',
+                $guest ? $guest['descripcion'] : 'N/A',
+                $prize ? $prize['name'] : 'N/A',
+                $estado,
+                $log['created_at']
+            ];
+
+            $csvContent .= $this->csvEscape($row) . "\n";
+        }
+
+        $filename = "logs_rifa_{$event->id}_" . date('Y-m-d_His') . ".csv";
+
+        // Agregar BOM UTF-8 para que Excel reconozca correctamente el encoding
+        $bom = "\xEF\xBB\xBF";
+        $csvContent = $bom . $csvContent;
+
+        return response($csvContent)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"")
+            ->header('Content-Transfer-Encoding', 'binary');
+    }
+
+    /**
+     * Escapar valores para CSV
+     */
+    private function csvEscape(array $values): string
+    {
+        $escaped = array_map(function($value) {
+            // Convertir null a string vacío
+            if ($value === null) {
+                return '';
+            }
+            
+            // Convertir a string
+            $value = (string) $value;
+            
+            // Si el valor contiene comas, comillas o saltos de línea, encerrarlo en comillas
+            if (strpos($value, ',') !== false || 
+                strpos($value, '"') !== false || 
+                strpos($value, "\n") !== false ||
+                strpos($value, "\r") !== false) {
+                // Escapar comillas dobles duplicándolas
+                $value = str_replace('"', '""', $value);
+                return '"' . $value . '"';
+            }
+            
+            return $value;
+        }, $values);
+
+        return implode(',', $escaped);
     }
 
 }

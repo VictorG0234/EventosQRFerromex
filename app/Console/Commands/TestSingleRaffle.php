@@ -38,7 +38,9 @@ class TestSingleRaffle extends Command
                             {--attendances-file=storage/app/exports/asistencias.txt : Ruta del archivo de asistencias}
                             {--prizes-file=storage/app/exports/premios.csv : Ruta del archivo de premios}
                             {--general-winners=76 : Número de ganadores en la rifa general}
-                            {--seed= : Seed fijo para aleatoriedad (opcional, para tests determinísticos)}';
+                            {--seed= : Seed fijo para aleatoriedad (opcional, para tests determinísticos)}
+                            {--additional-users=20 : Número de usuarios adicionales a crear}
+                            {--attendance-percentage=75 : Porcentaje de asistencia para usuarios adicionales}';
 
     /**
      * The console command description.
@@ -132,11 +134,35 @@ class TestSingleRaffle extends Command
             $this->newLine();
 
             // TEST 4: Marcar asistencias
-            $this->info("📋 TEST 4: Marcar asistencia desde archivo");
-            $attendancesResult = $this->importAttendances($attendancesFile);
-            $this->assert("Se marca asistencia a usuarios usando el script que hace eso leyendo el archivo asistencias", 
-                $attendancesResult['success'] && $attendancesResult['created'] > 0);
-            $this->line("   ✅ Asistencias importadas: {$attendancesResult['created']}");
+            $attendancePercentage = (int) $this->option('attendance-percentage');
+            
+            if ($attendancePercentage > 0) {
+                // Si se proporciona porcentaje, tiene prioridad sobre el archivo
+                $this->info("📋 TEST 4: Marcar asistencia por porcentaje ({$attendancePercentage}%)");
+                $attendancesResult = $this->markAttendanceByPercentage($attendancePercentage);
+                $this->assert("Se marca asistencia a usuarios usando el porcentaje designado", 
+                    $attendancesResult['success'] && $attendancesResult['created'] > 0);
+                $this->line("   ✅ Asistencias marcadas por porcentaje: {$attendancesResult['created']} de {$attendancesResult['total']} ({$attendancePercentage}%)");
+            } else {
+                // Si no hay porcentaje, usar el archivo de asistencias
+                $this->info("📋 TEST 4: Marcar asistencia desde archivo");
+                $attendancesResult = $this->importAttendances($attendancesFile);
+                $this->assert("Se marca asistencia a usuarios usando el script que hace eso leyendo el archivo asistencias", 
+                    $attendancesResult['success'] && $attendancesResult['created'] > 0);
+                $this->line("   ✅ Asistencias importadas: {$attendancesResult['created']}");
+            }
+            $this->newLine();
+
+            // TEST 4B: Agregar usuarios adicionales con empresas INV, GMXT e IMEX
+            $this->info("📋 TEST 4B: Agregar usuarios adicionales con empresas INV, GMXT e IMEX");
+            $additionalUsersCount = (int) $this->option('additional-users');
+            // Si hay porcentaje, aplicarlo también a usuarios adicionales, si no, usar 75% por defecto
+            $additionalUsersPercentage = $attendancePercentage > 0 ? $attendancePercentage : 75;
+            $additionalUsersResult = $this->createAdditionalUsers($additionalUsersCount, $additionalUsersPercentage);
+            $this->assert("Se pueden crear usuarios adicionales con empresas INV, GMXT e IMEX con valores random", 
+                $additionalUsersResult['success'] && $additionalUsersResult['created'] === $additionalUsersCount);
+            $this->line("   ✅ Usuarios adicionales creados: {$additionalUsersResult['created']}");
+            $this->line("   ✅ Asistencias marcadas: {$additionalUsersResult['attendances_marked']} de {$additionalUsersResult['created']} ({$attendancePercentage}%)");
             $this->newLine();
 
             // Verificar que los guests tienen QR codes
@@ -264,18 +290,52 @@ class TestSingleRaffle extends Command
             $this->newLine();
 
             // TEST 11: Verificar que no hay ganadores repetidos
-            $this->info("📋 TEST 11: Verificar que no hay ganadores repetidos en el evento");
-            $allWinners = RaffleEntry::where('event_id', $this->event->id)
+            $this->info("📋 TEST 11: Verificar que no hay ganadores repetidos");
+            
+            // Verificar duplicados en rifa pública (un guest no puede ganar múltiples premios públicos)
+            $publicWinners = RaffleEntry::where('event_id', $this->event->id)
+                ->where('status', 'won')
+                ->whereHas('prize', function ($q) {
+                    $q->where('name', '!=', 'Rifa General');
+                })
+                ->with('guest')
+                ->get();
+
+            $publicGuestIds = $publicWinners->pluck('guest_id')->toArray();
+            $uniquePublicGuestIds = array_unique($publicGuestIds);
+            $hasPublicDuplicates = count($publicGuestIds) !== count($uniquePublicGuestIds);
+
+            if ($hasPublicDuplicates) {
+                $duplicates = array_diff_assoc($publicGuestIds, $uniquePublicGuestIds);
+                $duplicateIds = array_unique($duplicates);
+                $this->warn("      ⚠️  Duplicados encontrados en rifa pública: " . implode(', ', $duplicateIds));
+            }
+
+            // Verificar duplicados en rifa general (un guest no puede ganar múltiples veces en rifa general)
+            $generalPrize = $this->raffleService->getOrCreateGeneralRafflePrize($this->event);
+            $generalWinners = RaffleEntry::where('event_id', $this->event->id)
+                ->where('prize_id', $generalPrize->id)
                 ->where('status', 'won')
                 ->with('guest')
                 ->get();
 
-            $guestIds = $allWinners->pluck('guest_id')->toArray();
-            $uniqueGuestIds = array_unique($guestIds);
-            $hasDuplicates = count($guestIds) !== count($uniqueGuestIds);
+            $generalGuestIds = $generalWinners->pluck('guest_id')->toArray();
+            $uniqueGeneralGuestIds = array_unique($generalGuestIds);
+            $hasGeneralDuplicates = count($generalGuestIds) !== count($uniqueGeneralGuestIds);
 
-            $this->assert("No hay ganadores repetidos en el evento", !$hasDuplicates);
-            $this->line("   ✅ No hay ganadores duplicados. Total ganadores únicos: " . count($uniqueGuestIds));
+            if ($hasGeneralDuplicates) {
+                $duplicates = array_diff_assoc($generalGuestIds, $uniqueGeneralGuestIds);
+                $duplicateIds = array_unique($duplicates);
+                $this->warn("      ⚠️  Duplicados encontrados en rifa general: " . implode(', ', $duplicateIds));
+            }
+
+            $this->assert("No hay ganadores repetidos en rifa pública (un guest no puede ganar múltiples premios públicos)", !$hasPublicDuplicates);
+            $this->assert("No hay ganadores repetidos en rifa general (un guest no puede ganar múltiples veces)", !$hasGeneralDuplicates);
+            
+            if (!$hasPublicDuplicates && !$hasGeneralDuplicates) {
+                $this->line("   ✅ No hay ganadores duplicados en rifa pública. Total ganadores únicos: " . count($uniquePublicGuestIds));
+                $this->line("   ✅ No hay ganadores duplicados en rifa general. Total ganadores únicos: " . count($uniqueGeneralGuestIds));
+            }
             $this->newLine();
 
             // TEST 12: Verificar descripciones permitidas en ganadores de rifa general
@@ -384,8 +444,8 @@ class TestSingleRaffle extends Command
             $this->line("   ✅ Ganadores IMEX en rifa general: {$imexGeneralWinners}");
             $this->newLine();
 
-            // TEST ADICIONAL 4: Verificar que los ganadores de rifa pública no participan en rifa general
-            $this->info("📋 TEST ADICIONAL 4: Ganadores de rifa pública no participan en rifa general");
+            // TEST ADICIONAL 4: Verificar que ningún guest gana en ambas rifas (pública Y general)
+            $this->info("📋 TEST ADICIONAL 4: Verificar que ningún guest gana en ambas rifas");
             $publicWinnerGuestIds = RaffleEntry::where('event_id', $this->event->id)
                 ->where('status', 'won')
                 ->whereHas('prize', function ($q) {
@@ -403,9 +463,15 @@ class TestSingleRaffle extends Command
                 ->toArray();
 
             $overlap = array_intersect($publicWinnerGuestIds, $generalWinnerGuestIds);
-            $this->assert("Los ganadores de rifa pública no participan en rifa general", 
+            
+            if (!empty($overlap)) {
+                $duplicateGuests = Guest::whereIn('id', $overlap)->get();
+                $this->warn("      ⚠️  Guests que ganaron en ambas rifas: " . $duplicateGuests->pluck('nombre_completo')->implode(', '));
+            }
+            
+            $this->assert("Ningún guest gana en ambas rifas (pública Y general)", 
                 empty($overlap));
-            $this->line("   ✅ No hay overlap entre ganadores de rifa pública y general");
+            $this->line("   ✅ No hay guests que hayan ganado en ambas rifas. Total ganadores únicos en pública: " . count($publicWinnerGuestIds) . ", en general: " . count($generalWinnerGuestIds));
             $this->newLine();
 
             // TEST ADICIONAL 5: Verificar que el stock se actualiza correctamente
@@ -622,6 +688,90 @@ class TestSingleRaffle extends Command
     }
 
     /**
+     * Marcar asistencias por porcentaje para todos los usuarios del evento
+     */
+    protected function markAttendanceByPercentage(int $percentage): array
+    {
+        try {
+            // Obtener todos los usuarios del evento que aún no tienen asistencia
+            $allGuests = Guest::where('event_id', $this->event->id)
+                ->whereDoesntHave('attendance')
+                ->get();
+
+            $totalGuests = $allGuests->count();
+            
+            if ($totalGuests === 0) {
+                return [
+                    'success' => true,
+                    'created' => 0,
+                    'total' => 0,
+                ];
+            }
+
+            // Calcular cuántos usuarios deben tener asistencia
+            $usersToMark = (int) round($totalGuests * ($percentage / 100));
+            
+            // Mezclar aleatoriamente y tomar los primeros N
+            $guestsToMark = $allGuests->shuffle()->take($usersToMark);
+
+            $eventDate = $this->event->event_date;
+            $startTime = $this->event->start_time;
+            $endTime = $this->event->end_time;
+
+            if ($eventDate instanceof Carbon && $startTime instanceof Carbon) {
+                $eventStartTime = Carbon::parse($eventDate->format('Y-m-d') . ' ' . $startTime->format('H:i:s'));
+            } else {
+                $eventStartTime = now()->subHours(2);
+            }
+
+            if ($eventDate instanceof Carbon && $endTime instanceof Carbon) {
+                $eventEndTime = Carbon::parse($eventDate->format('Y-m-d') . ' ' . $endTime->format('H:i:s'));
+            } else {
+                $eventEndTime = now();
+            }
+
+            $created = 0;
+            foreach ($guestsToMark as $guest) {
+                $minutesFromStart = rand(0, max(1, $eventStartTime->diffInMinutes($eventEndTime)));
+                $scannedAt = $eventStartTime->copy()->addMinutes($minutesFromStart);
+
+                if ($scannedAt->gt(now())) {
+                    $scannedAt = now()->subSeconds(rand(1, 300));
+                }
+
+                Attendance::create([
+                    'event_id' => $this->event->id,
+                    'guest_id' => $guest->id,
+                    'scanned_at' => $scannedAt,
+                    'scanned_by' => 'Test Script - Porcentaje',
+                    'scan_count' => 1,
+                    'last_scanned_at' => $scannedAt,
+                    'scan_metadata' => [
+                        'method' => 'test_script_percentage',
+                        'percentage' => $percentage,
+                        'created_at' => now()->toIso8601String(),
+                    ]
+                ]);
+
+                $created++;
+            }
+
+            return [
+                'success' => true,
+                'created' => $created,
+                'total' => $totalGuests,
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'created' => 0,
+                'total' => 0,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Importar asistencias desde TXT
      */
     protected function importAttendances(string $filePath): array
@@ -758,6 +908,121 @@ class TestSingleRaffle extends Command
             'value' => 1000.00,
             'active' => true,
         ]);
+    }
+
+    /**
+     * Crear usuarios adicionales con empresas INV, GMXT e IMEX
+     * con valores random de descripción y categoría_rifa
+     */
+    protected function createAdditionalUsers(int $count, int $attendancePercentage): array
+    {
+        try {
+            // Valores posibles para descripción
+            $descripciones = [
+                'General',
+                'Subdirectores',
+                'Directores',
+                'Ganadores previos',
+                'Nuevo ingreso',
+                'No Participa',
+                'IMEX',
+            ];
+
+            // Valores posibles para categoría_rifa
+            $categoriasRifa = [
+                'Premium',
+                'Standard',
+                'VIP',
+                'IMEX',
+                'No Participa',
+                'Básica',
+                'Especial',
+            ];
+
+            // Empresas a distribuir
+            $empresas = ['INV', 'GMXT', 'IMEX'];
+            
+            $created = 0;
+            $attendancesMarked = 0;
+            $eventDate = $this->event->event_date;
+            $startTime = $this->event->start_time;
+
+            if ($eventDate instanceof Carbon && $startTime instanceof Carbon) {
+                $eventStartTime = Carbon::parse($eventDate->format('Y-m-d') . ' ' . $startTime->format('H:i:s'));
+            } else {
+                $eventStartTime = now()->subHours(2);
+            }
+
+            // Calcular cuántos usuarios deben tener asistencia
+            $usersToMarkAttendance = (int) round($count * ($attendancePercentage / 100));
+
+            for ($i = 0; $i < $count; $i++) {
+                // Distribuir empresas de forma balanceada
+                $empresa = $empresas[$i % count($empresas)];
+                
+                // Valores random para descripción y categoría
+                $descripcion = $descripciones[array_rand($descripciones)];
+                $categoriaRifa = $categoriasRifa[array_rand($categoriasRifa)];
+
+                // Crear el usuario
+                $guest = Guest::create([
+                    'event_id' => $this->event->id,
+                    'compania' => $empresa,
+                    'numero_empleado' => 'ADD_' . str_pad($i + 1, 4, '0', STR_PAD_LEFT),
+                    'nombre_completo' => "Usuario Adicional " . ($i + 1) . " - {$empresa}",
+                    'correo' => "usuario.adicional." . ($i + 1) . "@test.com",
+                    'puesto' => 'Empleado de Prueba',
+                    'nivel_de_puesto' => 'Operativo',
+                    'localidad' => 'Ciudad de Prueba',
+                    'fecha_alta' => Carbon::now()->subYears(rand(1, 5)),
+                    'descripcion' => $descripcion,
+                    'categoria_rifa' => $categoriaRifa,
+                ]);
+
+                // Generar código QR
+                $this->qrCodeService->generateQrCode($guest);
+
+                $created++;
+
+                // Marcar asistencia según el porcentaje designado
+                if ($attendancesMarked < $usersToMarkAttendance) {
+                    $minutesFromStart = rand(0, 240); // Dentro de 4 horas del evento
+                    $scannedAt = $eventStartTime->copy()->addMinutes($minutesFromStart);
+
+                    if ($scannedAt->gt(now())) {
+                        $scannedAt = now()->subSeconds(rand(1, 300));
+                    }
+
+                    Attendance::create([
+                        'event_id' => $this->event->id,
+                        'guest_id' => $guest->id,
+                        'scanned_at' => $scannedAt,
+                        'scanned_by' => 'Test Script - Usuarios Adicionales',
+                        'scan_count' => 1,
+                        'last_scanned_at' => $scannedAt,
+                        'scan_metadata' => [
+                            'method' => 'test_script_additional_users',
+                            'created_at' => now()->toIso8601String(),
+                        ]
+                    ]);
+
+                    $attendancesMarked++;
+                }
+            }
+
+            return [
+                'success' => true,
+                'created' => $created,
+                'attendances_marked' => $attendancesMarked,
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'created' => 0,
+                'attendances_marked' => 0,
+                'error' => $e->getMessage(),
+            ];
+        }
     }
 
     /**
