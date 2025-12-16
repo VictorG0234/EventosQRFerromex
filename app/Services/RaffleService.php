@@ -75,11 +75,13 @@ class RaffleService
             return false; // Si no tiene categoría, no permitir
         }
         
-        $normalized = strtolower(trim($categoriaRifa));
+        // Normalizar: convertir a minúsculas, trim, y eliminar espacios múltiples
+        $normalized = strtolower(trim(preg_replace('/\s+/', ' ', $categoriaRifa)));
         
-        // Excluir categorías prohibidas
+        // Excluir categorías prohibidas (comparación más robusta)
         foreach (self::EXCLUDED_CATEGORIES as $excluded) {
-            if ($normalized === strtolower(trim($excluded))) {
+            $excludedNormalized = strtolower(trim(preg_replace('/\s+/', ' ', $excluded)));
+            if ($normalized === $excludedNormalized) {
                 return false;
             }
         }
@@ -160,7 +162,14 @@ class RaffleService
             return false;
         }
         
+        // CRÍTICO: Refrescar el guest desde la BD para obtener valores actualizados
+        // Esto asegura que si el cliente cambió la categoría o el guest ganó en rifa pública,
+        // esos cambios se reflejen en la validación
         $guest = $entry->guest;
+        if ($guest) {
+            $guest->refresh(); // Refrescar desde BD para obtener valores actualizados
+        }
+        
         $companiaNormalizada = $this->normalizeCompania($guest->compania);
         
         // REGLA 6, 7, 8: Excluir descripciones prohibidas
@@ -239,7 +248,14 @@ class RaffleService
             return false;
         }
         
+        // CRÍTICO: Refrescar el guest desde la BD para obtener valores actualizados
+        // Esto asegura que si el cliente cambió la categoría o el guest ganó en rifa pública,
+        // esos cambios se reflejen en la validación
         $guest = $entry->guest;
+        if ($guest) {
+            $guest->refresh(); // Refrescar desde BD para obtener valores actualizados
+        }
+        
         $companiaNormalizada = $this->normalizeCompania($guest->compania);
         
         // Validar descripciones (solo permitir específicas)
@@ -256,11 +272,14 @@ class RaffleService
         
         // Excluir categorías de rifa prohibidas
         if (!$this->isCategoryAllowed($guest->categoria_rifa)) {
-            // Log solo en desarrollo para debugging (no en producción para evitar spam)
-            Log::debug('Entrada excluida de rifa general por categoría de rifa prohibida', [
+            // Log importante para debugging (incluir en producción para detectar problemas)
+            Log::warning('Entrada excluida de rifa general por categoría de rifa prohibida', [
                 'guest_id' => $guest->id,
+                'guest_name' => $guest->nombre_completo ?? 'N/A',
                 'categoria_rifa' => $guest->categoria_rifa,
-                'prize_id' => $prize->id
+                'categoria_normalizada' => strtolower(trim(preg_replace('/\s+/', ' ', $guest->categoria_rifa ?? ''))),
+                'prize_id' => $prize->id,
+                'entry_id' => $entry->id ?? null
             ]);
             return false;
         }
@@ -272,6 +291,14 @@ class RaffleService
         
         // Verificar si ya ganó en rifa pública
         if ($this->hasWonPublicRaffle($guest, $prize->event_id)) {
+            // Log importante para debugging
+            Log::warning('Entrada excluida de rifa general porque el guest ya ganó en rifa pública', [
+                'guest_id' => $guest->id,
+                'guest_name' => $guest->nombre_completo ?? 'N/A',
+                'event_id' => $prize->event_id,
+                'prize_id' => $prize->id,
+                'entry_id' => $entry->id ?? null
+            ]);
             return false;
         }
         
@@ -763,6 +790,15 @@ class RaffleService
                     return $this->isEntryEligibleForPublicRaffle($entry, $prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize);
                 });
             }
+            
+            // REGLAS DE RIFA GENERAL
+            if ($raffleType === 'general') {
+                // CRÍTICO: Filtrar entradas elegibles aplicando todas las reglas de validación
+                // Esto asegura que usuarios con "No Participa" o que ya ganaron en rifa pública no puedan ganar
+                $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize) {
+                    return $this->isEntryEligibleForGeneralRaffle($entry, $prize);
+                });
+            }
 
             if ($eligibleEntries->isEmpty()) {
                 return [
@@ -943,7 +979,7 @@ class RaffleService
      */
     public function getEligibleGuests(Prize $prize, string $raffleType = 'general'): Collection
     {
-        $query = Guest::where('event_id', $prize->event_id);
+        $query = Guest::where('event_id', $prize->event_id)->groupBy('guests.numero_empleado');
 
         // REGLAS COMUNES PARA AMBOS TIPOS DE RIFA
         // REGLA 9: Si el Guest no tiene attendance registrada no puede participar
@@ -1002,11 +1038,11 @@ class RaffleService
             // Excluir guests que ya ganaron en CUALQUIER premio de rifa pública del evento
             $query->whereDoesntHave('raffleEntries', function ($q) use ($prize) {
                 $q->where('event_id', $prize->event_id)
-                  ->where('status', 'won')
-                  // Excluir premios de rifa general (solo contar ganadores de rifa pública)
-                  ->whereHas('prize', function ($pq) {
-                      $pq->where('name', '!=', 'Rifa General');
-                  });
+                    ->where('status', 'won')
+                    // Excluir premios de rifa general (solo contar ganadores de rifa pública)
+                    ->whereHas('prize', function ($pq) {
+                        $pq->where('name', '!=', 'Rifa General');
+                    });
             });
         }
 
@@ -1352,13 +1388,10 @@ class RaffleService
             $query->whereRaw('TRIM(LOWER(COALESCE(categoria_rifa, \'\'))) != ?', [strtolower(trim($excluded))]);
         }
 
-        // REGLA 2: No pueden participar ganadores de la Rifa Pública
-        // Un ganador de la rifa pública es alguien que ganó en cualquier premio que no sea "Rifa General"
-        // Los ganadores de la rifa general pueden volver a participar si se borran
-        $generalPrizeId = $this->getOrCreateGeneralRafflePrize($event)->id;
-        $query->whereDoesntHave('raffleEntries', function ($q) use ($generalPrizeId) {
-            $q->where('prize_id', '!=', $generalPrizeId) // Excluir solo premios que NO sean "Rifa General"
-              ->where('status', 'won'); // Excluir guests que ya ganaron en rifa pública (solo status 'won')
+        // REGLA 2: No pueden participar ganadores de la Rifa Pública ni de la Rifa General
+        // Excluir guests que ya ganaron en CUALQUIER premio (rifa pública o general)
+        $query->whereDoesntHave('raffleEntries', function ($q) {
+            $q->where('status', 'won'); // Excluir guests que ya ganaron en cualquier rifa
         });
 
         return $query->get();
@@ -1390,12 +1423,75 @@ class RaffleService
 
             $entriesCreated = 0;
             $alreadyHasEntry = 0;
+            $invalidatedEntries = 0;
+
+            // Primero, invalidar entradas existentes que ya no son elegibles
+            // Esto asegura que si un usuario cambió su categoría o ganó en rifa pública,
+            // su entrada existente se marque como 'lost'
+            $allExistingEntries = RaffleEntry::where('event_id', $event->id)
+                ->where('prize_id', $generalPrize->id)
+                ->where('status', 'pending')
+                ->with('guest')
+                ->get();
+            
+            $eligibleGuestIds = $eligibleGuests->pluck('id')->toArray();
+            
+            foreach ($allExistingEntries as $existingEntry) {
+                if (!$existingEntry->guest) {
+                    continue;
+                }
+                
+                // Si el guest ya no es elegible, marcar la entrada como 'lost'
+                if (!in_array($existingEntry->guest_id, $eligibleGuestIds)) {
+                    // Validar específicamente por qué no es elegible
+                    $guest = $existingEntry->guest;
+                    // Refrescar guest para obtener valores actualizados
+                    $guest->refresh();
+                    
+                    $isStillEligible = $this->isEntryEligibleForGeneralRaffle($existingEntry, $generalPrize);
+                    
+                    if (!$isStillEligible) {
+                        $exclusionReason = 'Desconocida';
+                        if (!$this->isCategoryAllowed($guest->categoria_rifa)) {
+                            $exclusionReason = "Categoría prohibida: '{$guest->categoria_rifa}'";
+                        } elseif ($this->hasWonPublicRaffle($guest, $event->id)) {
+                            $exclusionReason = 'Ya ganó en rifa pública';
+                        } elseif (!$this->isDescriptionAllowed($guest->descripcion, 'general')) {
+                            $exclusionReason = "Descripción no permitida: '{$guest->descripcion}'";
+                        }
+                        
+                        $existingEntry->update([
+                            'status' => 'lost',
+                            'drawn_at' => now(),
+                            'raffle_metadata' => array_merge(
+                                $existingEntry->raffle_metadata ?? [],
+                                [
+                                    'excluded_reason' => $exclusionReason,
+                                    'excluded_at' => now()->toISOString(),
+                                    'invalidated_during_entry_creation' => true
+                                ]
+                            )
+                        ]);
+                        $invalidatedEntries++;
+                        
+                        Log::warning('Entrada invalidada durante creación de entradas de rifa general', [
+                            'entry_id' => $existingEntry->id,
+                            'guest_id' => $guest->id,
+                            'guest_name' => $guest->nombre_completo ?? 'N/A',
+                            'categoria_rifa' => $guest->categoria_rifa,
+                            'descripcion' => $guest->descripcion,
+                            'reason' => $exclusionReason
+                        ]);
+                    }
+                }
+            }
 
             foreach ($eligibleGuests as $guest) {
                 // Verificar si el guest ya tiene una entrada para la rifa general
                 $existingEntry = RaffleEntry::where('guest_id', $guest->id)
                     ->where('event_id', $event->id)
                     ->where('prize_id', $generalPrize->id)
+                    ->where('status', 'pending')
                     ->first();
 
                 if ($existingEntry) {
@@ -1418,6 +1514,7 @@ class RaffleService
                 'success' => true,
                 'entries_created' => $entriesCreated,
                 'already_has_entry' => $alreadyHasEntry,
+                'invalidated_entries' => $invalidatedEntries,
                 'total_eligible' => $eligibleGuests->count()
             ];
 
@@ -1469,7 +1566,68 @@ class RaffleService
                 ->with('guest')
                 ->get();
 
-            $eligibleEntries = $pendingEntries;
+            // CRÍTICO: Filtrar entradas elegibles aplicando todas las reglas de validación
+            // Esto asegura que usuarios con "No Participa" o que ya ganaron en rifa pública no puedan ganar
+            $eligibleEntries = $pendingEntries->filter(function ($entry) use ($generalPrize) {
+                return $this->isEntryEligibleForGeneralRaffle($entry, $generalPrize);
+            });
+            
+            // LIMPIEZA ADICIONAL: Marcar como 'lost' las entradas inválidas que no pasaron el filtro
+            // Esto previene que queden entradas pendientes para usuarios que ya no son elegibles
+            $invalidEntries = $pendingEntries->reject(function ($entry) use ($generalPrize) {
+                return $this->isEntryEligibleForGeneralRaffle($entry, $generalPrize);
+            });
+            
+            if ($invalidEntries->isNotEmpty()) {
+                $invalidEntryIds = $invalidEntries->pluck('id')->toArray();
+                $invalidDetails = [];
+                
+                // Marcar cada entrada inválida individualmente para preservar sus metadatos
+                foreach ($invalidEntries as $invalidEntry) {
+                    // Determinar la razón específica de exclusión
+                    $exclusionReason = 'Desconocida';
+                    if ($invalidEntry->guest) {
+                        $guest = $invalidEntry->guest;
+                        // Refrescar guest para obtener valores actualizados
+                        $guest->refresh();
+                        
+                        if (!$this->isCategoryAllowed($guest->categoria_rifa)) {
+                            $exclusionReason = "Categoría prohibida: '{$guest->categoria_rifa}'";
+                        } elseif ($this->hasWonPublicRaffle($guest, $event->id)) {
+                            $exclusionReason = 'Ya ganó en rifa pública';
+                        } elseif (!$this->isDescriptionAllowed($guest->descripcion, 'general')) {
+                            $exclusionReason = "Descripción no permitida: '{$guest->descripcion}'";
+                        }
+                        
+                        $invalidDetails[] = [
+                            'entry_id' => $invalidEntry->id,
+                            'guest_id' => $guest->id,
+                            'guest_name' => $guest->nombre_completo ?? 'N/A',
+                            'categoria_rifa' => $guest->categoria_rifa,
+                            'descripcion' => $guest->descripcion,
+                            'reason' => $exclusionReason
+                        ];
+                    }
+                    
+                    $invalidEntry->update([
+                        'status' => 'lost',
+                        'drawn_at' => now(),
+                        'raffle_metadata' => array_merge(
+                            $invalidEntry->raffle_metadata ?? [],
+                            [
+                                'excluded_reason' => $exclusionReason,
+                                'excluded_at' => now()->toISOString()
+                            ]
+                        )
+                    ]);
+                }
+                
+                Log::warning('Entradas inválidas marcadas como perdidas en rifa general', [
+                    'count' => $invalidEntries->count(),
+                    'entry_ids' => $invalidEntryIds,
+                    'details' => $invalidDetails
+                ]);
+            }
 
             if ($eligibleEntries->isEmpty()) {
                 return [

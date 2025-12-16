@@ -1,10 +1,123 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/ui/badge';
-import { ArrowLeft, Eye, CheckCircle, Clock } from 'lucide-react';
+import { Button } from '@/Components/ui/button';
+import { ArrowLeft, Eye, CheckCircle, Clock, Download, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 export default function RaffleLogs({ auth, event, logs, total }) {
+    const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+    const [filterConfirmed, setFilterConfirmed] = useState(null); // null = todos, true = solo confirmados, false = solo reemplazados
+
+    // Filtrar logs
+    const filteredLogs = useMemo(() => {
+        let filtered = [...logs];
+        
+        if (filterConfirmed !== null) {
+            filtered = filtered.filter(log => log.confirmed === filterConfirmed);
+        }
+        
+        return filtered;
+    }, [logs, filterConfirmed]);
+
+    // Detectar guests que aparecen múltiples veces como GANADORES CONFIRMADOS
+    const guestWinnerCounts = useMemo(() => {
+        const counts = {};
+        filteredLogs.forEach(log => {
+            const guestId = log.guest?.id;
+            // Solo contar entradas confirmadas (ganadores)
+            if (guestId && log.confirmed) {
+                counts[guestId] = (counts[guestId] || 0) + 1;
+            }
+        });
+        return counts;
+    }, [filteredLogs]);
+
+    // Función para verificar si un guest aparece múltiples veces como ganador confirmado
+    const isDuplicateGuest = (log) => {
+        const guestId = log.guest?.id;
+        // Solo marcar como duplicado si es un ganador confirmado Y aparece más de una vez como ganador
+        return guestId && log.confirmed && guestWinnerCounts[guestId] > 1;
+    };
+
+    // Ordenar logs
+    const sortedLogs = useMemo(() => {
+        if (!sortConfig.key) {
+            return filteredLogs;
+        }
+
+        const sorted = [...filteredLogs].sort((a, b) => {
+            let aValue = a[sortConfig.key];
+            let bValue = b[sortConfig.key];
+
+            // Manejar valores anidados
+            if (sortConfig.key === 'guest_name') {
+                aValue = a.guest?.name || '';
+                bValue = b.guest?.name || '';
+            } else if (sortConfig.key === 'guest_employee_number') {
+                aValue = a.guest?.employee_number || '';
+                bValue = b.guest?.employee_number || '';
+            } else if (sortConfig.key === 'guest_compania') {
+                aValue = a.guest?.compania || '';
+                bValue = b.guest?.compania || '';
+            } else if (sortConfig.key === 'guest_categoria_rifa') {
+                aValue = a.guest?.categoria_rifa || '';
+                bValue = b.guest?.categoria_rifa || '';
+            } else if (sortConfig.key === 'guest_descripcion') {
+                aValue = a.guest?.descripcion || '';
+                bValue = b.guest?.descripcion || '';
+            } else if (sortConfig.key === 'prize_name') {
+                aValue = a.prize?.name || '';
+                bValue = b.prize?.name || '';
+            }
+
+            // Comparar valores
+            if (aValue < bValue) {
+                return sortConfig.direction === 'asc' ? -1 : 1;
+            }
+            if (aValue > bValue) {
+                return sortConfig.direction === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
+
+        return sorted;
+    }, [filteredLogs, sortConfig]);
+
+    const handleSort = (key) => {
+        setSortConfig(prevConfig => {
+            if (prevConfig.key === key) {
+                // Si ya está ordenando por esta columna, cambiar dirección
+                return {
+                    key,
+                    direction: prevConfig.direction === 'asc' ? 'desc' : 'asc'
+                };
+            } else {
+                // Nueva columna, ordenar ascendente
+                return {
+                    key,
+                    direction: 'asc'
+                };
+            }
+        });
+    };
+
+    const getSortIcon = (key) => {
+        if (sortConfig.key !== key) {
+            return <ArrowUpDown className="h-4 w-4 ml-1 inline text-gray-400" />;
+        }
+        return sortConfig.direction === 'asc' 
+            ? <ArrowUp className="h-4 w-4 ml-1 inline text-blue-500" />
+            : <ArrowDown className="h-4 w-4 ml-1 inline text-blue-500" />;
+    };
+
+    const handleExportCSV = () => {
+        window.location.href = route('events.raffle.export-winners', event.id);
+    };
+
+    const confirmedCount = logs.filter(log => log.confirmed).length;
+    const replacedCount = logs.filter(log => !log.confirmed).length;
+
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -26,6 +139,13 @@ export default function RaffleLogs({ auth, event, logs, total }) {
                             </p>
                         </div>
                     </div>
+                    <Button
+                        onClick={handleExportCSV}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                        <Download className="h-4 w-4 mr-2" />
+                        Descargar CSV
+                    </Button>
                 </div>
             }
         >
@@ -45,6 +165,8 @@ export default function RaffleLogs({ auth, event, logs, total }) {
                                         </h3>
                                         <p className="text-sm text-gray-600 dark:text-gray-300">
                                             {total} registros totales
+                                            {confirmedCount > 0 && ` • ${confirmedCount} ganadores confirmados`}
+                                            {replacedCount > 0 && ` • ${replacedCount} reemplazados`}
                                         </p>
                                     </div>
                                 </div>
@@ -55,53 +177,158 @@ export default function RaffleLogs({ auth, event, logs, total }) {
                         </div>
                     </div>
 
+                    {/* Filtros */}
+                    <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg mb-6">
+                        <div className="p-4">
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    Filtrar por estado:
+                                </span>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant={filterConfirmed === null ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => setFilterConfirmed(null)}
+                                    >
+                                        Todos ({total})
+                                    </Button>
+                                    <Button
+                                        variant={filterConfirmed === true ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => setFilterConfirmed(true)}
+                                    >
+                                        <CheckCircle className="h-4 w-4 mr-1" />
+                                        Ganadores ({confirmedCount})
+                                    </Button>
+                                    <Button
+                                        variant={filterConfirmed === false ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => setFilterConfirmed(false)}
+                                    >
+                                        <Clock className="h-4 w-4 mr-1" />
+                                        Reemplazados ({replacedCount})
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Tabla de Logs */}
                     <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                         <div className="p-6">
                             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                                Historial Completo
+                                Historial Completo ({sortedLogs.length} registros)
                             </h3>
 
-                            {logs.length > 0 ? (
+                            {sortedLogs.length > 0 ? (
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <thead className="bg-gray-50 dark:bg-gray-700">
                                             <tr>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                    Tipo de Rifa
+                                                <th 
+                                                    scope="col" 
+                                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                    onClick={() => handleSort('raffle_type')}
+                                                >
+                                                    <div className="flex items-center">
+                                                        Tipo de Rifa
+                                                        {getSortIcon('raffle_type')}
+                                                    </div>
                                                 </th>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                    Número de Empleado
+                                                <th 
+                                                    scope="col" 
+                                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                    onClick={() => handleSort('guest_employee_number')}
+                                                >
+                                                    <div className="flex items-center">
+                                                        Número de Empleado
+                                                        {getSortIcon('guest_employee_number')}
+                                                    </div>
                                                 </th>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                    Nombre del Ganador
+                                                <th 
+                                                    scope="col" 
+                                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                    onClick={() => handleSort('guest_name')}
+                                                >
+                                                    <div className="flex items-center">
+                                                        Nombre del Ganador
+                                                        {getSortIcon('guest_name')}
+                                                    </div>
                                                 </th>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                    Empresa
+                                                <th 
+                                                    scope="col" 
+                                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                    onClick={() => handleSort('guest_compania')}
+                                                >
+                                                    <div className="flex items-center">
+                                                        Empresa
+                                                        {getSortIcon('guest_compania')}
+                                                    </div>
                                                 </th>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                    Categoría
+                                                <th 
+                                                    scope="col" 
+                                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                    onClick={() => handleSort('guest_categoria_rifa')}
+                                                >
+                                                    <div className="flex items-center">
+                                                        Categoría
+                                                        {getSortIcon('guest_categoria_rifa')}
+                                                    </div>
                                                 </th>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                    Descripción
+                                                <th 
+                                                    scope="col" 
+                                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                    onClick={() => handleSort('guest_descripcion')}
+                                                >
+                                                    <div className="flex items-center">
+                                                        Descripción
+                                                        {getSortIcon('guest_descripcion')}
+                                                    </div>
                                                 </th>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                    Premio
+                                                <th 
+                                                    scope="col" 
+                                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                    onClick={() => handleSort('prize_name')}
+                                                >
+                                                    <div className="flex items-center">
+                                                        Premio
+                                                        {getSortIcon('prize_name')}
+                                                    </div>
                                                 </th>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                    Estado
+                                                <th 
+                                                    scope="col" 
+                                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                    onClick={() => handleSort('confirmed')}
+                                                >
+                                                    <div className="flex items-center">
+                                                        Estado
+                                                        {getSortIcon('confirmed')}
+                                                    </div>
                                                 </th>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                                    Fecha y Hora
+                                                <th 
+                                                    scope="col" 
+                                                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                                                    onClick={() => handleSort('created_at')}
+                                                >
+                                                    <div className="flex items-center">
+                                                        Fecha y Hora
+                                                        {getSortIcon('created_at')}
+                                                    </div>
                                                 </th>
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                            {logs.map((log) => (
+                                            {sortedLogs.map((log) => {
+                                                const isDuplicate = isDuplicateGuest(log);
+                                                return (
                                                 <tr 
                                                     key={log.id} 
                                                     className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                                                        log.confirmed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-yellow-50 dark:bg-yellow-900/20'
+                                                        isDuplicate 
+                                                            ? 'bg-red-100 dark:bg-red-900/30 border-l-4 border-red-500' 
+                                                            : log.confirmed 
+                                                                ? 'bg-green-50 dark:bg-green-900/20' 
+                                                                : 'bg-yellow-50 dark:bg-yellow-900/20'
                                                     }`}
                                                 >
                                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -115,8 +342,13 @@ export default function RaffleLogs({ auth, event, logs, total }) {
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                                        <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
                                                             {log.guest?.name || 'N/A'}
+                                                            {isDuplicate && (
+                                                                <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-red-500 text-white rounded" title={`Este invitado aparece ${guestWinnerCounts[log.guest?.id]} veces como ganador confirmado`}>
+                                                                    DUPLICADO
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
@@ -161,7 +393,8 @@ export default function RaffleLogs({ auth, event, logs, total }) {
                                                         </div>
                                                     </td>
                                                 </tr>
-                                            ))}
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -172,7 +405,9 @@ export default function RaffleLogs({ auth, event, logs, total }) {
                                         No hay registros
                                     </h3>
                                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                        No se encontraron logs de rifas para este evento.
+                                        {filterConfirmed !== null 
+                                            ? 'No se encontraron registros con el filtro seleccionado.'
+                                            : 'No se encontraron logs de rifas para este evento.'}
                                     </p>
                                 </div>
                             )}
@@ -192,6 +427,8 @@ export default function RaffleLogs({ auth, event, logs, total }) {
                                     <strong>Nota:</strong> Esta información muestra todos los registros de selección de ganadores en las rifas. 
                                     Los registros marcados como <span className="font-semibold">"Ganador"</span> son los ganadores actuales confirmados. 
                                     Los registros marcados como <span className="font-semibold">"Reemplazado"</span> son ganadores que fueron seleccionados inicialmente pero luego fueron reemplazados por otros participantes.
+                                    <br />
+                                    <strong>Funcionalidades:</strong> Haz clic en cualquier encabezado de columna para ordenar. Usa los filtros para ver solo ganadores confirmados o reemplazados. El botón de descarga CSV exporta todos los registros tal como se muestran en la tabla (incluyendo ganadores y reemplazados).
                                 </p>
                             </div>
                         </div>
@@ -201,4 +438,3 @@ export default function RaffleLogs({ auth, event, logs, total }) {
         </AuthenticatedLayout>
     );
 }
-
