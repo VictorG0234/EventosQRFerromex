@@ -23,15 +23,16 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
     const [deliveringPrize, setDeliveringPrize] = useState(null);
 
     // Inicializar estado de premios entregados desde el servidor
+    // Solo se ejecuta al montar el componente o cuando winners (props) cambia
     useEffect(() => {
         const initialDelivered = {};
-        winnersList.forEach(winner => {
+        winners.forEach(winner => {
             if (winner.prize_delivered) {
                 initialDelivered[winner.id] = true;
             }
         });
         setDeliveredPrizes(initialDelivered);
-    }, [winnersList]);
+    }, [winners]); // Usar winners (props) en lugar de winnersList (state) para evitar recálculos innecesarios
 
     useEffect(() => {
         if (flash.success) {
@@ -212,7 +213,8 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                 // Actualizar la lista de ganadores sin recargar
                 if (result.winner) {
                     setWinnersList(prevWinners => {
-                        // Encontrar el índice del ganador que se está reemplazando
+                        // Encontrar el índice del ganador que se está reemplazando usando la posición
+                        // La posición heredada del nuevo ganador debe coincidir con la del anterior
                         const winnerIndex = prevWinners.findIndex(w => w.id === selectedWinnerId);
                         
                         if (winnerIndex === -1) {
@@ -224,17 +226,22 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                         }
                         
                         // Crear nueva lista reemplazando el ganador en ese índice
+                        // El nuevo ganador hereda la posición del anterior
+                        // prize_delivered será false porque es un nuevo ganador
                         const updatedWinners = [...prevWinners];
                         updatedWinners[winnerIndex] = {
                             id: result.winner.id,
                             name: result.winner.name,
                             company: result.winner.company,
                             employee_number: result.winner.employee_number,
-                            drawn_at: result.winner.drawn_at || new Date().toLocaleString('es-MX')
+                            position: result.winner.position, // Heredar la posición
+                            drawn_at: result.winner.drawn_at || new Date().toLocaleString('es-MX'),
+                            prize_delivered: false // Nuevo ganador, premio no entregado
                         };
                         
                         console.log('Ganador actualizado:', {
                             indice: winnerIndex,
+                            posicion: result.winner.position,
                             anterior: prevWinners[winnerIndex],
                             nuevo: updatedWinners[winnerIndex],
                             listaCompleta: updatedWinners
@@ -242,6 +249,15 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                         
                         return updatedWinners;
                     });
+
+                    // Eliminar el ganador anterior del estado de entregados (si estaba)
+                    // y NO agregar el nuevo (porque aún no se ha entregado)
+                    setDeliveredPrizes(prev => {
+                        const updated = { ...prev };
+                        delete updated[selectedWinnerId]; // Eliminar el ganador reemplazado
+                        return updated;
+                    });
+
                     // El conteo se mantiene igual ya que solo se reemplaza uno
                 } else {
                     // Si no viene el winner, recargar la página
@@ -371,7 +387,8 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
                                         {filteredWinners.map((winner, index) => {
                                             const isDelivered = deliveredPrizes[winner.id];
-                                            const originalIndex = winnersList.findIndex(w => w.id === winner.id);
+                                            // Usar la posición asignada del backend, o el índice como fallback
+                                            const displayPosition = winner.position ?? (winnersList.findIndex(w => w.id === winner.id) + 1);
                                             
                                             return (
                                                 <div
@@ -386,7 +403,7 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                                         <span className="text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs flex-shrink-0"
                                                             style={{ backgroundColor: isDelivered ? '#10B981' : '#D22730' }}
                                                         >
-                                                            {originalIndex + 1}
+                                                            {displayPosition}
                                                         </span>
                                                         <h4 className="font-bold text-gray-900 text-sm leading-tight">
                                                             {winner.name}

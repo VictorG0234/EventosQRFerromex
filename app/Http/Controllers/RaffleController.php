@@ -835,11 +835,13 @@ class RaffleController extends Controller
         $generalPrize = $this->raffleService->getOrCreateGeneralRafflePrize($event);
 
         // Obtener ganadores de la rifa general (usando el premio especial)
+        // Ordenar por position para mantener las posiciones consistentes
         $winners = RaffleEntry::where('event_id', $event->id)
             ->where('prize_id', $generalPrize->id)
             ->where('status', 'won')
             ->with('guest')
-            ->orderBy('drawn_at', 'asc')
+            ->orderBy('position', 'asc')
+            ->orderBy('drawn_at', 'asc') // Fallback para ganadores sin position
             ->get()
             ->map(function ($entry) {
                 return [
@@ -847,6 +849,7 @@ class RaffleController extends Controller
                     'name' => $entry->guest->nombre_completo,
                     'company' => $entry->guest->compania,
                     'employee_number' => $entry->guest->numero_empleado,
+                    'position' => $entry->position,
                     'drawn_at' => $entry->drawn_at?->format('d/m/Y H:i:s'),
                     'prize_delivered' => $entry->prize_delivered,
                     'delivered_at' => $entry->delivered_at?->format('d/m/Y H:i:s'),
@@ -857,7 +860,7 @@ class RaffleController extends Controller
         $eligibleGuests = $this->raffleService->getEligibleGuestsForGeneralRaffle($event);
         
         // Contar ganadores IMEX existentes
-        $existingInexWinnersCount = RaffleEntry::where('event_id', $event->id)
+        $existingImexWinnersCount = RaffleEntry::where('event_id', $event->id)
             ->where('prize_id', $generalPrize->id)
             ->where('status', 'won')
             ->whereHas('guest', function ($q) {
@@ -870,15 +873,15 @@ class RaffleController extends Controller
             return strtoupper(trim($guest->compania ?? '')) === 'IMEX';
         });
         
-        $nonInexEligibleGuests = $eligibleGuests->reject(function ($guest) {
+        $nonImexEligibleGuests = $eligibleGuests->reject(function ($guest) {
             return strtoupper(trim($guest->compania ?? '')) === 'IMEX';
         });
         
         // Calcular eligible_count considerando la limitación de 2 ganadores IMEX
-        $maxInexWinners = 2;
-        $imexSlotsAvailable = max(0, $maxInexWinners - $existingInexWinnersCount);
+        $maxImexWinners = 2;
+        $imexSlotsAvailable = max(0, $maxImexWinners - $existingImexWinnersCount);
         $imexEligibleCount = min($imexSlotsAvailable, $imexEligibleGuests->count());
-        $eligibleCount = $imexEligibleCount + $nonInexEligibleGuests->count();
+        $eligibleCount = $imexEligibleCount + $nonImexEligibleGuests->count();
         
         // Verificar si ya hay ganadores
         $hasWinners = $winners->count() > 0;
@@ -962,9 +965,10 @@ class RaffleController extends Controller
                         'company' => $entry->guest->compania,
                         'employee_number' => $entry->guest->numero_empleado,
                         'email' => $entry->guest->correo,
+                        'position' => $entry->position,
                         'drawn_at' => $entry->drawn_at->format('d/m/Y H:i:s'),
                     ];
-                }),
+                })->sortBy('position')->values(),
                 'winners_count' => $result['winners_count']
             ]);
 
@@ -1036,13 +1040,15 @@ class RaffleController extends Controller
                 ->pluck('guest_id')
                 ->toArray();
 
-            // Guardar el drawn_at original para conservar la posición en la fila
+            // Guardar el drawn_at y position original para conservar la posición en la fila
             $originalDrawnAt = $currentWinnerEntry->drawn_at;
+            $originalPosition = $currentWinnerEntry->position;
 
-            // Resetear el ganador actual (marcar como pending)
+            // Resetear el ganador actual (marcar como pending, limpiar position)
             $currentWinnerEntry->update([
                 'status' => 'pending',
-                'drawn_at' => null
+                'drawn_at' => null,
+                'position' => null
             ]);
             $currentWinnerEntry->refresh();
 
@@ -1060,10 +1066,11 @@ class RaffleController extends Controller
             $eligibleGuestIds = $eligibleGuests->pluck('id')->toArray();
             
             if (empty($eligibleGuestIds)) {
-                // Restaurar el ganador original si no hay elegibles (conservar drawn_at original)
+                // Restaurar el ganador original si no hay elegibles (conservar drawn_at y position original)
                 $currentWinnerEntry->update([
                     'status' => 'won',
-                    'drawn_at' => $originalDrawnAt ?? now()
+                    'drawn_at' => $originalDrawnAt ?? now(),
+                    'position' => $originalPosition
                 ]);
                 DB::commit();
                 
@@ -1123,7 +1130,7 @@ class RaffleController extends Controller
             }
 
             // Contar cuántos ganadores IMEX hay actualmente (excluyendo el que se está reemplazando)
-            $currentInexWinnersCount = RaffleEntry::where('event_id', $event->id)
+            $currentImexWinnersCount = RaffleEntry::where('event_id', $event->id)
                 ->where('prize_id', $generalPrize->id)
                 ->where('status', 'won')
                 ->where('guest_id', '!=', $guest->id)
@@ -1132,12 +1139,26 @@ class RaffleController extends Controller
                 })
                 ->count();
 
+            // Contar cuántos ganadores Subdirectores hay actualmente (excluyendo el que se está reemplazando)
+            $currentSubdirectoresWinnersCount = RaffleEntry::where('event_id', $event->id)
+                ->where('prize_id', $generalPrize->id)
+                ->where('status', 'won')
+                ->where('guest_id', '!=', $guest->id)
+                ->whereHas('guest', function ($q) {
+                    $q->whereRaw('TRIM(LOWER(descripcion)) = ?', ['subdirectores']);
+                })
+                ->count();
+
             // Verificar si el ganador actual es IMEX
-            $currentWinnerIsInex = strtoupper(trim($guest->compania ?? '')) === 'IMEX';
+            $currentWinnerIsImex = strtoupper(trim($guest->compania ?? '')) === 'IMEX';
+            
+            // Verificar si el ganador actual es Subdirector
+            $currentWinnerIsSubdirector = strtolower(trim($guest->descripcion ?? '')) === 'subdirectores';
 
             // Filtrar para asegurar que solo incluimos elegibles
-            // REGLA 1: Debe haber solo 2 ganadores IMEX
-            $eligibleEntries = $pendingEntries->filter(function ($entry) use ($eligibleGuests, $guest, $currentInexWinnersCount, $currentWinnerIsInex) {
+            // REGLA IMEX: Debe haber solo 2 ganadores IMEX (obligatorio)
+            // REGLA SUBDIRECTORES: Máximo 2 ganadores Subdirectores (opcional)
+            $eligibleEntries = $pendingEntries->filter(function ($entry) use ($eligibleGuests, $guest, $currentImexWinnersCount, $currentWinnerIsImex, $currentSubdirectoresWinnersCount, $currentWinnerIsSubdirector) {
                 // Excluir al guest actual de la selección (no puede re-seleccionarse a sí mismo)
                 if ($entry->guest_id === $guest->id) {
                     return false;
@@ -1148,23 +1169,38 @@ class RaffleController extends Controller
                     return false;
                 }
 
-                // REGLA 1: Si ya hay 2 ganadores IMEX y el ganador actual NO es IMEX,
+                $entryIsImex = strtoupper(trim($entry->guest->compania ?? '')) === 'IMEX';
+                $entryIsSubdirector = strtolower(trim($entry->guest->descripcion ?? '')) === 'subdirectores';
+
+                // REGLA IMEX: Si ya hay 2 ganadores IMEX y el ganador actual NO es IMEX,
                 // entonces el nuevo ganador NO puede ser IMEX
-                if ($currentInexWinnersCount >= 2 && !$currentWinnerIsInex) {
-                    $entryIsInex = strtoupper(trim($entry->guest->compania ?? '')) === 'IMEX';
-                    if ($entryIsInex) {
+                if ($currentImexWinnersCount >= 2 && !$currentWinnerIsImex) {
+                    if ($entryIsImex) {
                         return false; // No permitir más ganadores IMEX
                     }
                 }
 
-                // REGLA 1: Si ya hay 1 ganador IMEX y el ganador actual es IMEX,
-                // entonces el nuevo ganador puede ser IMEX (para mantener 2)
-                // Si ya hay 2 ganadores IMEX y el ganador actual es IMEX,
+                // REGLA IMEX: Si ya hay 2 ganadores IMEX y el ganador actual es IMEX,
                 // entonces el nuevo ganador NO puede ser IMEX (para mantener 2)
-                if ($currentInexWinnersCount >= 2 && $currentWinnerIsInex) {
-                    $entryIsInex = strtoupper(trim($entry->guest->compania ?? '')) === 'IMEX';
-                    if ($entryIsInex) {
+                if ($currentImexWinnersCount >= 2 && $currentWinnerIsImex) {
+                    if ($entryIsImex) {
                         return false; // No permitir más ganadores IMEX
+                    }
+                }
+
+                // REGLA SUBDIRECTORES: Si ya hay 2 ganadores Subdirectores y el ganador actual NO es Subdirector,
+                // entonces el nuevo ganador NO puede ser Subdirector
+                if ($currentSubdirectoresWinnersCount >= 2 && !$currentWinnerIsSubdirector) {
+                    if ($entryIsSubdirector) {
+                        return false; // No permitir más ganadores Subdirectores
+                    }
+                }
+
+                // REGLA SUBDIRECTORES: Si ya hay 2 ganadores Subdirectores y el ganador actual ES Subdirector,
+                // entonces el nuevo ganador NO puede ser Subdirector (para mantener máximo 2)
+                if ($currentSubdirectoresWinnersCount >= 2 && $currentWinnerIsSubdirector) {
+                    if ($entryIsSubdirector) {
+                        return false; // No permitir más ganadores Subdirectores
                     }
                 }
 
@@ -1172,10 +1208,11 @@ class RaffleController extends Controller
             });
 
             if ($eligibleEntries->isEmpty()) {
-                // Si no hay elegibles (además del actual), restaurar el ganador original (conservar drawn_at original)
+                // Si no hay elegibles (además del actual), restaurar el ganador original (conservar drawn_at y position original)
                 $currentWinnerEntry->update([
                     'status' => 'won',
-                    'drawn_at' => $originalDrawnAt ?? now()
+                    'drawn_at' => $originalDrawnAt ?? now(),
+                    'position' => $originalPosition
                 ]);
                 
                 DB::commit();
@@ -1197,11 +1234,13 @@ class RaffleController extends Controller
                 'drawn_at' => $drawnAtForMetadata,
                 'reselect' => true,
                 'replaced_guest_id' => $guest->id,
-                'original_position_preserved' => true
+                'original_position_preserved' => true,
+                'inherited_position' => $originalPosition
             ]);
 
-            // Marcar el nuevo ganador conservando el drawn_at original para mantener la posición en la fila
+            // Marcar el nuevo ganador heredando la posición del ganador anterior
             $newWinnerEntry->status = 'won';
+            $newWinnerEntry->position = $originalPosition; // Heredar la posición
             $newWinnerEntry->drawn_at = $originalDrawnAt ?? Carbon::now();
             $newWinnerEntry->raffle_metadata = $newMetadata;
             $newWinnerEntry->save();
@@ -1241,6 +1280,7 @@ class RaffleController extends Controller
                     'company' => $newWinnerEntry->guest->compania,
                     'employee_number' => $newWinnerEntry->guest->numero_empleado,
                     'email' => $newWinnerEntry->guest->correo,
+                    'position' => $newWinnerEntry->position,
                     'drawn_at' => $newWinnerEntry->drawn_at->format('d/m/Y H:i:s'),
                 ]
             ]);

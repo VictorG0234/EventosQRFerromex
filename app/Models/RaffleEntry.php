@@ -16,6 +16,7 @@ class RaffleEntry extends Model
         'guest_id',
         'prize_id',
         'status',
+        'position',
         'participated_at',
         'drawn_at',
         'prize_delivered',

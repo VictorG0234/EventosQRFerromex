@@ -137,7 +137,7 @@ class RaffleService
     /**
      * Filtrar entradas por compañía IMEX
      */
-    private function filterInexEntries(Collection $entries): Collection
+    private function filterImexEntries(Collection $entries): Collection
     {
         return $entries->filter(function ($entry) {
             if (!$this->hasValidGuest($entry)) {
@@ -149,9 +149,29 @@ class RaffleService
     }
 
     /**
+     * Filtrar entradas por descripción Subdirectores
+     */
+    private function filterSubdirectoresEntries(Collection $entries): Collection
+    {
+        return $entries->filter(function ($entry) {
+            if (!$this->hasValidGuest($entry)) {
+                return false;
+            }
+            $descripcion = $this->normalizeDescription($entry->guest->descripcion);
+            return $descripcion === 'subdirectores';
+        });
+    }
+
+    /**
      * Validar entrada elegible para rifa pública
      */
-    private function isEntryEligibleForPublicRaffle($entry, Prize $prize, bool $isIMEXPrize, bool $existingIMEXWinnerInThisPrize): bool
+    private function isEntryEligibleForPublicRaffle(
+        $entry, 
+        Prize $prize, 
+        bool $isIMEXPrize, 
+        bool $existingIMEXWinnerInThisPrize,
+        bool $existingSubdirectoresWinnerInPublicRaffle = false
+    ): bool
     {
         // Validar que el entry tiene guest válido
         if (!$this->hasValidGuest($entry)) {
@@ -171,6 +191,7 @@ class RaffleService
         }
         
         $companiaNormalizada = $this->normalizeCompania($guest->compania);
+        $descripcionNormalizada = $this->normalizeDescription($guest->descripcion);
         
         // REGLA 6, 7, 8: Excluir descripciones prohibidas
         if (!$this->isDescriptionAllowed($guest->descripcion, 'public')) {
@@ -178,7 +199,7 @@ class RaffleService
             Log::debug('Entrada excluida por descripción prohibida', [
                 'guest_id' => $guest->id,
                 'descripcion' => $guest->descripcion,
-                'descripcion_normalizada' => $this->normalizeDescription($guest->descripcion),
+                'descripcion_normalizada' => $descripcionNormalizada,
                 'prize_id' => $prize->id
             ]);
             return false;
@@ -205,7 +226,7 @@ class RaffleService
             return false;
         }
         
-        // REGLA ESPECIAL: Si este premio es el imex_prize_id, SOLO IMEX pueden ganar
+        // REGLA ESPECIAL IMEX: Si este premio es el imex_prize_id, SOLO IMEX pueden ganar
         if ($isIMEXPrize) {
             if ($companiaNormalizada !== 'IMEX') {
                 return false;
@@ -220,6 +241,12 @@ class RaffleService
         if ($companiaNormalizada === 'IMEX') {
             return false;
         }
+        
+        // REGLA SUBDIRECTORES: Máximo 1 ganador Subdirector en toda la rifa pública (opcional, no obligatorio)
+        // Si ya hay un ganador Subdirector en la rifa pública, no permitir más
+        if ($descripcionNormalizada === 'subdirectores' && $existingSubdirectoresWinnerInPublicRaffle) {
+            return false;
+        }
 
         // REGLA 2: Si Compañía del Guest es IMEX no puede ganar Prize con name Automovil
         if (strtolower($prize->name) === 'automovil' && $companiaNormalizada === 'IMEX') {
@@ -227,7 +254,7 @@ class RaffleService
         }
 
         // REGLA 11: Si Descripción del Guest es Subdirectores no puede ganar prize con name Automovil
-        if (strtolower($prize->name) === 'automovil' && $this->normalizeDescription($guest->descripcion) === 'subdirectores') {
+        if (strtolower($prize->name) === 'automovil' && $descripcionNormalizada === 'subdirectores') {
             return false;
         }
 
@@ -497,11 +524,22 @@ class RaffleService
                 ->where('status', 'won')
                 ->exists();
 
+                // REGLA SUBDIRECTORES: Verificar si ya hay un ganador Subdirector en la rifa pública (máximo 1, opcional)
+                $existingSubdirectoresWinnerInPublicRaffle = RaffleEntry::whereHas('prize', function ($q) use ($prize) {
+                    $q->where('event_id', $prize->event_id)
+                      ->where('name', '!=', 'Rifa General'); // Excluir rifa general
+                })
+                ->whereHas('guest', function ($q) {
+                    $q->whereRaw('TRIM(LOWER(descripcion)) = ?', ['subdirectores']);
+                })
+                ->where('status', 'won')
+                ->exists();
+
                 // Filtrar candidatos según reglas adicionales de rifa pública
                 // NOTA: Las entradas (pendingEntries) incluyen a todos para la animación
                 // Aquí filtramos quién puede GANAR (no quién aparece en animación)
-                $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize) {
-                    return $this->isEntryEligibleForPublicRaffle($entry, $prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize);
+                $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize, $existingSubdirectoresWinnerInPublicRaffle) {
+                    return $this->isEntryEligibleForPublicRaffle($entry, $prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize, $existingSubdirectoresWinnerInPublicRaffle);
                 });
             }
             
@@ -518,7 +556,7 @@ class RaffleService
                 // REGLA: En rifa general debe haber máximo 2 ganadores IMEX (por evento)
                 // Verificar cuántos ganadores IMEX hay en la rifa general (excluyendo el premio especial "Rifa General")
                 $generalPrize = $this->getOrCreateGeneralRafflePrize($event);
-                $existingInexWinnersCount = RaffleEntry::where('event_id', $event->id)
+                $existingImexWinnersCount = RaffleEntry::where('event_id', $event->id)
                     ->where('prize_id', '!=', $generalPrize->id) // Excluir premio especial "Rifa General"
                     ->where('status', 'won')
                     ->whereHas('guest', function ($q) {
@@ -526,12 +564,12 @@ class RaffleService
                     })
                     ->count();
                 
-                $maxInexWinners = 2;
-                $imexSlotsAvailable = $maxInexWinners - $existingInexWinnersCount;
+                $maxImexWinners = 2;
+                $imexSlotsAvailable = $maxImexWinners - $existingImexWinnersCount;
                 
                 // Si hay slots disponibles para IMEX y hay participantes IMEX, priorizarlos
                 if ($imexSlotsAvailable > 0) {
-                    $imexEntries = $this->filterInexEntries($eligibleEntries);
+                    $imexEntries = $this->filterImexEntries($eligibleEntries);
                     
                     if ($imexEntries->isNotEmpty()) {
                         // Priorizar IMEX: seleccionar primero un IMEX si hay slots disponibles
@@ -544,12 +582,12 @@ class RaffleService
                             // Si necesitamos más ganadores, completar con no-IMEX
                             $remainingWinnersNeeded = $winnersCount - $winners->count();
                             if ($remainingWinnersNeeded > 0) {
-                                $nonInexEntries = $eligibleEntries->reject(function ($entry) use ($imexWinners) {
+                                $nonImexEntries = $eligibleEntries->reject(function ($entry) use ($imexWinners) {
                                     return $imexWinners->contains('id', $entry->id);
                                 });
                                 
-                                if ($nonInexEntries->isNotEmpty()) {
-                                    $additionalWinners = $nonInexEntries->shuffle()->take($remainingWinnersNeeded);
+                                if ($nonImexEntries->isNotEmpty()) {
+                                    $additionalWinners = $nonImexEntries->shuffle()->take($remainingWinnersNeeded);
                                     $winners = $winners->merge($additionalWinners)->shuffle();
                                 }
                             }
@@ -583,10 +621,10 @@ class RaffleService
                 if ($needsIMEXWinner) {
                     // Buscar participantes IMEX elegibles en las entradas pendientes originales
                     // (antes de aplicar el filtro de Automovil, para tener mejor diagnóstico)
-                    $imexEntriesInPending = $this->filterInexEntries($pendingEntries);
+                    $imexEntriesInPending = $this->filterImexEntries($pendingEntries);
                     
                     // Ahora buscar en las entradas elegibles (después de filtros)
-                    $imexEntries = $this->filterInexEntries($eligibleEntries);
+                    $imexEntries = $this->filterImexEntries($eligibleEntries);
 
                     if ($imexEntries->isEmpty()) {
                         // Si hay IMEX en pendientes pero no en elegibles, significa que fueron filtrados
@@ -785,9 +823,20 @@ class RaffleService
                     ->where('status', 'won')
                     ->exists();
                 
+                // REGLA SUBDIRECTORES: Verificar si ya hay un ganador Subdirector en la rifa pública (máximo 1, opcional)
+                $existingSubdirectoresWinnerInPublicRaffle = RaffleEntry::whereHas('prize', function ($q) use ($prize) {
+                    $q->where('event_id', $prize->event_id)
+                      ->where('name', '!=', 'Rifa General'); // Excluir rifa general
+                })
+                ->whereHas('guest', function ($q) {
+                    $q->whereRaw('TRIM(LOWER(descripcion)) = ?', ['subdirectores']);
+                })
+                ->where('status', 'won')
+                ->exists();
+                
                 // Filtrar candidatos según reglas adicionales de rifa pública
-                $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize) {
-                    return $this->isEntryEligibleForPublicRaffle($entry, $prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize);
+                $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize, $existingSubdirectoresWinnerInPublicRaffle) {
+                    return $this->isEntryEligibleForPublicRaffle($entry, $prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize, $existingSubdirectoresWinnerInPublicRaffle);
                 });
             }
             
@@ -1636,8 +1685,8 @@ class RaffleService
                 ];
             }
 
-            // REGLA 1: Debe haber solo 2 ganadores con la Compañía IMEX (por evento)
-            $existingInexWinnersCount = RaffleEntry::where('event_id', $event->id)
+            // REGLA IMEX: Debe haber solo 2 ganadores con la Compañía IMEX (por evento) - OBLIGATORIO
+            $existingImexWinnersCount = RaffleEntry::where('event_id', $event->id)
                 ->where('prize_id', $generalPrize->id)
                 ->where('status', 'won')
                 ->whereHas('guest', function ($q) {
@@ -1645,19 +1694,34 @@ class RaffleService
                 })
                 ->count();
             
-            $imexEntries = $this->filterInexEntries($eligibleEntries);
+            // REGLA SUBDIRECTORES: Máximo 2 ganadores Subdirectores (por evento) - OPCIONAL
+            $existingSubdirectoresWinnersCount = RaffleEntry::where('event_id', $event->id)
+                ->where('prize_id', $generalPrize->id)
+                ->where('status', 'won')
+                ->whereHas('guest', function ($q) {
+                    $q->whereRaw('TRIM(LOWER(descripcion)) = ?', ['subdirectores']);
+                })
+                ->count();
+            
+            $imexEntries = $this->filterImexEntries($eligibleEntries);
+            $subdirectoresEntries = $this->filterSubdirectoresEntries($eligibleEntries);
             
             $imexEntryIds = $imexEntries->pluck('id')->toArray();
-            $nonInexEntries = $eligibleEntries->reject(function ($entry) use ($imexEntryIds) {
-                return in_array($entry->id, $imexEntryIds);
+            $subdirectoresEntryIds = $subdirectoresEntries->pluck('id')->toArray();
+            
+            // Entradas que no son IMEX ni Subdirectores
+            $otherEntries = $eligibleEntries->reject(function ($entry) use ($imexEntryIds, $subdirectoresEntryIds) {
+                return in_array($entry->id, $imexEntryIds) || in_array($entry->id, $subdirectoresEntryIds);
             });
 
             $winners = collect();
-            $maxInexWinners = 2;
+            $maxImexWinners = 2;
+            $maxSubdirectoresWinners = 2;
             $winnersCount = min($winnersCount, $eligibleEntries->count());
-            $imexSlotsAvailable = $maxInexWinners - $existingInexWinnersCount;
+            $imexSlotsAvailable = $maxImexWinners - $existingImexWinnersCount;
+            $subdirectoresSlotsAvailable = $maxSubdirectoresWinners - $existingSubdirectoresWinnersCount;
             
-            // REGLA 1: Seleccionar primero los ganadores IMEX (hasta 2, independientemente de cuántos ganadores totales se necesiten)
+            // REGLA IMEX: Seleccionar primero los ganadores IMEX (hasta 2, OBLIGATORIO)
             if ($imexEntries->isNotEmpty() && $imexSlotsAvailable > 0) {
                 // Seleccionar hasta los slots disponibles (máximo 2) o los que haya disponibles
                 $imexWinnersToSelect = min($imexSlotsAvailable, $imexEntries->count());
@@ -1668,21 +1732,50 @@ class RaffleService
                 }
             }
 
-            // Completar el resto de ganadores con no-IMEX
+            // Completar el resto de ganadores
             $remainingWinnersNeeded = $winnersCount - $winners->count();
-            if ($remainingWinnersNeeded > 0 && $nonInexEntries->isNotEmpty()) {
-                $nonInexWinners = $nonInexEntries->shuffle()->take($remainingWinnersNeeded);
-                $winners = $winners->merge($nonInexWinners);
+            if ($remainingWinnersNeeded > 0) {
+                // Combinar Subdirectores (si hay slots) y otros en un pool
+                $poolEntries = collect();
+                
+                // Agregar Subdirectores si hay slots disponibles
+                if ($subdirectoresSlotsAvailable > 0 && $subdirectoresEntries->isNotEmpty()) {
+                    // Solo agregar hasta los slots disponibles
+                    $subdirectoresToAdd = $subdirectoresEntries->shuffle()->take($subdirectoresSlotsAvailable);
+                    $poolEntries = $poolEntries->merge($subdirectoresToAdd);
+                }
+                
+                // Agregar otros (no IMEX, no Subdirectores)
+                $poolEntries = $poolEntries->merge($otherEntries);
+                
+                // Mezclar el pool y seleccionar los ganadores restantes
+                if ($poolEntries->isNotEmpty()) {
+                    $additionalWinners = $poolEntries->shuffle()->take($remainingWinnersNeeded);
+                    $winners = $winners->merge($additionalWinners);
+                }
             }
 
-            // Marcar ganadores (no decrementar stock del premio especial)
+            // Mezclar los ganadores aleatoriamente para que el orden final sea aleatorio
+            $winners = $winners->shuffle();
+
+            // Obtener la posición máxima actual de ganadores existentes para continuar la numeración
+            $maxExistingPosition = RaffleEntry::where('event_id', $event->id)
+                ->where('prize_id', $generalPrize->id)
+                ->where('status', 'won')
+                ->max('position') ?? 0;
+
+            // Marcar ganadores con posiciones incrementales (no decrementar stock del premio especial)
+            $currentPosition = $maxExistingPosition;
             foreach ($winners as $entry) {
+                $currentPosition++;
                 $entry->update([
                     'status' => 'won',
+                    'position' => $currentPosition,
                     'drawn_at' => Carbon::now(),
                     'raffle_metadata' => array_merge($entry->raffle_metadata ?? [], [
                         'raffle_type' => 'general',
-                        'drawn_at' => now()
+                        'drawn_at' => now(),
+                        'position' => $currentPosition
                     ]),
                 ]);
 
