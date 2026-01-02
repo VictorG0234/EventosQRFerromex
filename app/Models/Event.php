@@ -110,5 +110,14 @@ class Event extends Model
                 $event->public_token = bin2hex(random_bytes(16));
             }
         });
+
+        static::deleting(function ($event) {
+            // Eliminar archivos QR de todos los invitados del evento
+            foreach ($event->guests as $guest) {
+                if ($guest->qr_code_path && \Storage::disk('public')->exists($guest->qr_code_path)) {
+                    \Storage::disk('public')->delete($guest->qr_code_path);
+                }
+            }
+        });
     }
 }
