@@ -37,14 +37,15 @@ class CleanOrphanQrCodes extends Command
         $this->info('═══════════════════════════════════════════════════════');
         $this->line('');
 
-        // Obtener todos los archivos QR del storage
+        // Obtener todos los archivos QR del storage (recursivamente)
         $qrPath = 'qr_codes';
         if (!Storage::disk('public')->exists($qrPath)) {
             $this->info('No existe el directorio de códigos QR.');
             return 0;
         }
 
-        $allQrFiles = Storage::disk('public')->files($qrPath);
+        // Buscar archivos recursivamente en todos los subdirectorios
+        $allQrFiles = Storage::disk('public')->allFiles($qrPath);
         $totalFiles = count($allQrFiles);
 
         if ($totalFiles === 0) {
@@ -152,6 +153,10 @@ class CleanOrphanQrCodes extends Command
 
         $totalSizeMB = round($totalSize / 1024 / 1024, 2);
 
+        // Limpiar directorios vacíos
+        $this->info('Limpiando directorios vacíos...');
+        $emptyCleaned = $this->cleanEmptyDirectories($qrPath);
+
         $this->info('═══════════════════════════════════════════════════════');
         $this->info('✓ LIMPIEZA COMPLETADA');
         $this->info('═══════════════════════════════════════════════════════');
@@ -161,9 +166,39 @@ class CleanOrphanQrCodes extends Command
         if ($errorCount > 0) {
             $this->line("  • Errores: {$errorCount}");
         }
+        $this->line("  • Directorios vacíos eliminados: {$emptyCleaned}");
         $this->line("  • Espacio liberado: {$totalSizeMB} MB");
         $this->line('');
 
         return $errorCount > 0 ? 1 : 0;
+    }
+
+    /**
+     * Limpia directorios vacíos recursivamente
+     */
+    protected function cleanEmptyDirectories($path)
+    {
+        $cleaned = 0;
+        $directories = Storage::disk('public')->directories($path);
+
+        foreach ($directories as $directory) {
+            // Recursivamente limpiar subdirectorios
+            $cleaned += $this->cleanEmptyDirectories($directory);
+
+            // Verificar si el directorio está vacío después de limpiar subdirectorios
+            $files = Storage::disk('public')->files($directory);
+            $subdirs = Storage::disk('public')->directories($directory);
+
+            if (empty($files) && empty($subdirs)) {
+                try {
+                    Storage::disk('public')->deleteDirectory($directory);
+                    $cleaned++;
+                } catch (\Exception $e) {
+                    // Ignorar errores al eliminar directorios
+                }
+            }
+        }
+
+        return $cleaned;
     }
 }
