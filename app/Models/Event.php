@@ -117,6 +117,15 @@ class Event extends Model
                 if ($guest->qr_code_path && \Storage::disk('public')->exists($guest->qr_code_path)) {
                     \Storage::disk('public')->delete($guest->qr_code_path);
                 }
+                
+                // Eliminar imágenes de invitación del invitado
+                $invitationPattern = 'invitations/invitation_' . $guest->id . '_*.png';
+                $invitationFiles = \Storage::disk('public')->files('invitations');
+                foreach ($invitationFiles as $file) {
+                    if (strpos($file, 'invitation_' . $guest->id . '_') !== false) {
+                        \Storage::disk('public')->delete($file);
+                    }
+                }
             }
         });
     }

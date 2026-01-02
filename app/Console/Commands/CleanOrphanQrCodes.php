@@ -22,7 +22,7 @@ class CleanOrphanQrCodes extends Command
      *
      * @var string
      */
-    protected $description = 'Elimina archivos QR huérfanos (de invitados/eventos que ya no existen)';
+    protected $description = 'Elimina archivos QR e invitaciones huérfanos (de invitados/eventos que ya no existen)';
 
     /**
      * Execute the console command.
@@ -33,7 +33,7 @@ class CleanOrphanQrCodes extends Command
         $force = $this->option('force');
 
         $this->info('═══════════════════════════════════════════════════════');
-        $this->info('  LIMPIEZA DE CÓDIGOS QR HUÉRFANOS');
+        $this->info('  LIMPIEZA DE CÓDIGOS QR E INVITACIONES HUÉRFANAS');
         $this->info('═══════════════════════════════════════════════════════');
         $this->line('');
 
@@ -157,17 +157,23 @@ class CleanOrphanQrCodes extends Command
         $this->info('Limpiando directorios vacíos...');
         $emptyCleaned = $this->cleanEmptyDirectories($qrPath);
 
+        // Limpiar invitaciones huérfanas
+        $this->line('');
+        $this->info('Limpiando invitaciones huérfanas...');
+        $invitationResults = $this->cleanOrphanInvitations($dryRun);
+
         $this->info('═══════════════════════════════════════════════════════');
         $this->info('✓ LIMPIEZA COMPLETADA');
         $this->info('═══════════════════════════════════════════════════════');
         $this->line('');
         $this->line("Resumen:");
-        $this->line("  • Archivos eliminados: {$deletedCount}");
+        $this->line("  • Archivos QR eliminados: {$deletedCount}");
         if ($errorCount > 0) {
             $this->line("  • Errores: {$errorCount}");
         }
         $this->line("  • Directorios vacíos eliminados: {$emptyCleaned}");
-        $this->line("  • Espacio liberado: {$totalSizeMB} MB");
+        $this->line("  • Invitaciones eliminadas: {$invitationResults['deleted']}");
+        $this->line("  • Espacio liberado: {$totalSizeMB} MB (QR) + {$invitationResults['size']} MB (invitaciones)");
         $this->line('');
 
         return $errorCount > 0 ? 1 : 0;
@@ -200,5 +206,56 @@ class CleanOrphanQrCodes extends Command
         }
 
         return $cleaned;
+    }
+
+    /**
+     * Limpia invitaciones huérfanas (invitaciones de invitados que ya no existen)
+     */
+    protected function cleanOrphanInvitations($dryRun = false)
+    {
+        $invitationsPath = 'invitations';
+        $deleted = 0;
+        $totalSize = 0;
+
+        if (!Storage::disk('public')->exists($invitationsPath)) {
+            return ['deleted' => 0, 'size' => 0];
+        }
+
+        // Obtener todos los archivos de invitaciones
+        $invitationFiles = Storage::disk('public')->files($invitationsPath);
+
+        // Obtener todos los IDs de invitados válidos
+        $validGuestIds = Guest::pluck('id')->toArray();
+
+        foreach ($invitationFiles as $file) {
+            // El formato es: invitations/invitation_{guest_id}_{timestamp}.png
+            if (preg_match('/invitation_(\d+)_\d+\.png$/', $file, $matches)) {
+                $guestId = (int)$matches[1];
+
+                // Si el invitado ya no existe, marcar para eliminar
+                if (!in_array($guestId, $validGuestIds)) {
+                    if (!$dryRun) {
+                        try {
+                            $size = Storage::disk('public')->size($file);
+                            $totalSize += $size;
+                            Storage::disk('public')->delete($file);
+                            $deleted++;
+                        } catch (\Exception $e) {
+                            // Ignorar errores
+                        }
+                    } else {
+                        $deleted++;
+                        $totalSize += Storage::disk('public')->size($file);
+                    }
+                }
+            }
+        }
+
+        $totalSizeMB = round($totalSize / 1024 / 1024, 2);
+
+        return [
+            'deleted' => $deleted,
+            'size' => $totalSizeMB
+        ];
     }
 }
