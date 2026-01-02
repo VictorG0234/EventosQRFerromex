@@ -583,44 +583,6 @@
         <!-- Salto de página -->
         <div class="page-break"></div>
 
-        <!-- Registro Completo de Asistencias -->
-        @if(count($attendances) > 0)
-        <div class="section">
-            <div class="section-title">Registro Completo de Asistencias</div>
-            
-            <div style="margin-bottom: 15px; text-align: center;">
-                <span class="summary-badge success">{{ count($attendances) }} asistencias registradas</span>
-                @if(count($attendances) > 0)
-                    <span class="summary-badge info">Primera: {{ $attendances[count($attendances) - 1]['attended_at'] ?? 'N/A' }}</span>
-                    <span class="summary-badge warning">Última: {{ $attendances[0]['attended_at'] ?? 'N/A' }}</span>
-                @endif
-            </div>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 5%;">#</th>
-                        <th style="width: 30%;">Nombre Completo</th>
-                        <th style="width: 12%;">No. Empleado</th>
-                        <th style="width: 28%;">Área Laboral</th>
-                        <th style="width: 25%;">Fecha y Hora de Registro</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($attendances as $index => $attendance)
-                    <tr>
-                        <td style="text-align: center; font-weight: bold; color: #667eea;">{{ $index + 1 }}</td>
-                        <td style="font-weight: 600; color: #2D3748;">{{ $attendance['guest_name'] }}</td>
-                        <td style="text-align: center;">{{ $attendance['employee_number'] }}</td>
-                        <td>{{ Str::limit($attendance['work_area'], 30) }}</td>
-                        <td style="text-align: center; font-family: monospace;">{{ $attendance['attended_at'] }}</td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-        @endif
-
         <!-- Resumen final -->
         <div class="section" style="margin-top: 35px; padding: 20px; background: #F7FAFC; border-left: 4px solid #667eea; border-radius: 4px;">
             <div style="font-size: 12px; color: #2D3748; font-weight: 600; margin-bottom: 10px;">

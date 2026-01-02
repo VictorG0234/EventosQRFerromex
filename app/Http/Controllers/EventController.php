@@ -286,26 +286,9 @@ class EventController extends Controller
             
             $statistics = StatisticsHelper::getCompleteEventStatisticsForReport($event);
 
-            // Obtener todas las asistencias formateadas para PDF
-            $attendances = $event->attendances
-                ->sortByDesc('created_at')
-                ->map(function ($attendance) {
-                    return [
-                        'guest_name' => $attendance->guest->full_name ?? 'N/A',
-                        'employee_number' => $attendance->guest->numero_empleado ?? 'N/A',
-                        'work_area' => $attendance->guest->puesto ?? 'N/A',
-                        'attended_at' => \Carbon\Carbon::parse($attendance->scanned_at ?? $attendance->created_at)
-                            ->setTimezone('America/Mexico_City')
-                            ->format('d/m/Y H:i:s'),
-                    ];
-                })
-                ->values()
-                ->toArray();
-
             $pdf = Pdf::loadView('pdf.statistics-report', [
                 'event' => $event,
                 'statistics' => $statistics,
-                'attendances' => $attendances,
             ]);
 
             return $pdf->download('estadisticas-' . Str::slug($event->name) . '.pdf');
@@ -319,6 +302,55 @@ class EventController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Generate attendance list CSV
+     */
+    public function generateAttendanceCsv(Event $event)
+    {
+        $this->authorize('view', $event);
+
+        $attendances = $event->attendances()
+            ->with('guest')
+            ->orderBy('scanned_at', 'asc')
+            ->get();
+
+        $filename = 'lista-asistencia-' . Str::slug($event->name) . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function() use ($attendances) {
+            $file = fopen('php://output', 'w');
+            
+            // BOM para UTF-8 (para Excel)
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Encabezados
+            fputcsv($file, ['#', 'Nombre Completo', 'No. Empleado', 'Compañía', 'Puesto', 'Localidad', 'Fecha y Hora de Registro']);
+            
+            // Datos
+            foreach ($attendances as $index => $attendance) {
+                fputcsv($file, [
+                    $index + 1,
+                    $attendance->guest->full_name ?? 'N/A',
+                    $attendance->guest->numero_empleado ?? 'N/A',
+                    $attendance->guest->compania ?? 'N/A',
+                    $attendance->guest->puesto ?? 'N/A',
+                    $attendance->guest->localidad ?? 'N/A',
+                    \Carbon\Carbon::parse($attendance->scanned_at ?? $attendance->created_at)
+                        ->setTimezone('America/Mexico_City')
+                        ->format('d/m/Y H:i:s'),
+                ]);
+            }
+            
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     /**

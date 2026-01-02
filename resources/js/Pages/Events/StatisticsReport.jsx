@@ -78,13 +78,23 @@ export default function StatisticsReport({ auth, event, statistics, attendances 
                         </div>
                     </div>
                     
-                    <button
-                        onClick={handleGeneratePDF}
-                        className="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-700"
-                    >
-                        <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
-                        Generar PDF
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <a
+                            href={route('events.attendance.csv', event.id)}
+                            className="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-700"
+                        >
+                            <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
+                            Generar Lista de Asistencia
+                        </a>
+                        
+                        <button
+                            onClick={handleGeneratePDF}
+                            className="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-700"
+                        >
+                            <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
+                            Generar PDF
+                        </button>
+                    </div>
                 </div>
             }
         >
