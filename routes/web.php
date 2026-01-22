@@ -32,6 +32,80 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
+    // 🔍 RUTA DE DIAGNÓSTICO - Ver elegibilidad de premio
+    Route::get('/debug/prize/{prize}/eligibility', function ($prizeId) {
+        $prize = \App\Models\Prize::with('event')->findOrFail($prizeId);
+        $event = $prize->event;
+        
+        // Obtener todas las entradas pendientes
+        $pendingEntries = \App\Models\RaffleEntry::where('prize_id', $prize->id)
+            ->where('status', 'pending')
+            ->with('guest')
+            ->get();
+            
+        // Obtener entradas won
+        $wonEntries = \App\Models\RaffleEntry::where('prize_id', $prize->id)
+            ->where('status', 'won')
+            ->with('guest')
+            ->get();
+        
+        // Verificar premio IMEX
+        $isIMEXPrize = $event->imex_prize_id === $prize->id;
+        $existingIMEXWinnerInThisPrize = \App\Models\RaffleEntry::where('prize_id', $prize->id)
+            ->whereHas('guest', function ($q) {
+                $q->where('compania', 'IMEX');
+            })
+            ->where('status', 'won')
+            ->exists();
+            
+        // Contar invitados por categoría y descripción
+        $stats = [
+            'total_pending' => $pendingEntries->count(),
+            'total_won' => $wonEntries->count(),
+            'by_compania' => $pendingEntries->groupBy('guest.compania')->map->count(),
+            'by_categoria' => $pendingEntries->groupBy('guest.categoria_rifa')->map->count(),
+            'by_descripcion' => $pendingEntries->groupBy('guest.descripcion')->map->count(),
+            'imex_pending' => $pendingEntries->filter(fn($e) => strtoupper(trim($e->guest->compania ?? '')) === 'IMEX')->count(),
+            'has_won_other_prize' => $pendingEntries->filter(function($e) use ($prize) {
+                return \App\Models\RaffleEntry::where('guest_id', $e->guest_id)
+                    ->where('prize_id', '!=', $prize->id)
+                    ->where('status', 'won')
+                    ->whereHas('prize', fn($q) => $q->where('name', '!=', 'Rifa General'))
+                    ->exists();
+            })->count(),
+        ];
+        
+        return response()->json([
+            'prize' => [
+                'id' => $prize->id,
+                'name' => $prize->name,
+                'raffle_type' => $prize->raffle_type,
+                'stock' => $prize->stock,
+                'winners_count' => $prize->winners_count,
+            ],
+            'event' => [
+                'id' => $event->id,
+                'name' => $event->name,
+                'imex_prize_id' => $event->imex_prize_id,
+            ],
+            'is_imex_prize' => $isIMEXPrize,
+            'has_imex_winner' => $existingIMEXWinnerInThisPrize,
+            'statistics' => $stats,
+            'sample_pending' => $pendingEntries->take(10)->map(fn($e) => [
+                'id' => $e->id,
+                'guest_id' => $e->guest_id,
+                'nombre' => $e->guest->nombre_completo,
+                'compania' => $e->guest->compania,
+                'categoria_rifa' => $e->guest->categoria_rifa,
+                'descripcion' => $e->guest->descripcion,
+            ]),
+            'won_guests' => $wonEntries->map(fn($e) => [
+                'nombre' => $e->guest->nombre_completo,
+                'compania' => $e->guest->compania,
+            ]),
+        ]);
+    })->name('debug.prize.eligibility');
+    
     // 🧪 RUTA DE PRUEBA - Generar invitación con QR (eliminar después)
     Route::get('/test-invitation-image', function () {
         // Obtener un invitado al azar que tenga QR

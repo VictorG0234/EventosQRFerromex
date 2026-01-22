@@ -538,8 +538,24 @@ class RaffleService
                 // Filtrar candidatos según reglas adicionales de rifa pública
                 // NOTA: Las entradas (pendingEntries) incluyen a todos para la animación
                 // Aquí filtramos quién puede GANAR (no quién aparece en animación)
-                $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize, $existingSubdirectoresWinnerInPublicRaffle) {
-                    return $this->isEntryEligibleForPublicRaffle($entry, $prize, $isIMEXPrize, $existingIMEXWinnerInThisPrize, $existingSubdirectoresWinnerInPublicRaffle);
+                
+                // PARCHE: Verificar primero si hay IMEX disponibles para el premio IMEX
+                $hasImexAvailable = false;
+                if ($isIMEXPrize) {
+                    $imexCheck = $pendingEntries->filter(function ($entry) {
+                        if (!$this->hasValidGuest($entry)) return false;
+                        $guest = $entry->guest;
+                        $compania = strtoupper(trim($guest->compania ?? ''));
+                        return $compania === 'IMEX';
+                    });
+                    $hasImexAvailable = $imexCheck->isNotEmpty();
+                }
+                
+                // Solo aplicar restricción IMEX si hay participantes IMEX disponibles
+                $enforceImexRestriction = $isIMEXPrize && $hasImexAvailable;
+                
+                $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $enforceImexRestriction, $existingIMEXWinnerInThisPrize, $existingSubdirectoresWinnerInPublicRaffle) {
+                    return $this->isEntryEligibleForPublicRaffle($entry, $prize, $enforceImexRestriction, $existingIMEXWinnerInThisPrize, $existingSubdirectoresWinnerInPublicRaffle);
                 });
             }
             
@@ -635,11 +651,17 @@ class RaffleService
                             ];
                         }
                         
-                        // REGLA 1 es obligatoria: si no hay participantes IMEX disponibles, no se puede realizar el sorteo
-                        return [
-                            'success' => false,
-                            'error' => 'REGLA 1: No hay participantes IMEX disponibles en las entradas pendientes. Debe haber al menos un ganador con compañía IMEX en el evento. Total de entradas pendientes: ' . $pendingEntries->count()
-                        ];
+                        // PARCHE: Si no hay participantes IMEX disponibles pero hay otros elegibles,
+                        // permitir el sorteo con advertencia y quitar la restricción IMEX
+                        Log::warning('Premio IMEX sin participantes IMEX disponibles, permitiendo otros participantes', [
+                            'prize_id' => $prize->id,
+                            'prize_name' => $prize->name,
+                            'event_id' => $prize->event_id,
+                            'total_eligible' => $eligibleEntries->count()
+                        ]);
+                        
+                        // Continuar con el sorteo normal sin forzar IMEX
+                        // No hacer nada aquí, dejar que el código continúe al final donde se sortea normalmente
                     } else {
                         // Asegurar que al menos un ganador sea IMEX
                         $imexWinner = $imexEntries->random(1)->first();
