@@ -45,12 +45,7 @@ class EmailController extends Controller
             abort(404, 'Invitado no encontrado en este evento');
         }
 
-        // Return the blade view directly
-        return view('emails.guest-welcome', [
-            'event' => $event,
-            'guest' => $guest,
-            'qrCodeUrl' => $guest->qr_code_url
-        ]);
+        return (new \App\Mail\GuestInvitationMail($guest, $event))->render();
     }
 
     /**
@@ -64,7 +59,7 @@ class EmailController extends Controller
             return response()->json(['error' => 'Guest not found in this event'], 404);
         }
 
-        if (!$guest->email) {
+        if (!$guest->correo) {
             return response()->json(['error' => 'Guest has no email address'], 400);
         }
 
@@ -84,7 +79,13 @@ class EmailController extends Controller
     {
         $this->authorize('update', $event);
 
-        $guests = $event->guests()->whereNotNull('email')->get();
+        $request->validate([
+            'confirmation' => ['required', 'in:envio-masivo'],
+        ], [
+            'confirmation.*' => 'Debes escribir "envio-masivo" para confirmar el envío masivo.',
+        ]);
+
+        $guests = $event->guests()->whereNotNull('correo')->get();
         $sent = 0;
         $failed = 0;
 

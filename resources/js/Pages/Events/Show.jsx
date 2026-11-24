@@ -114,6 +114,15 @@ export default function Show({ auth, event, statistics, recent_attendances }) {
                             <PencilIcon className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">Editar</span>
                         </Link>
+
+                        <Link
+                            href={route('events.invitation.edit', event.id)}
+                            className="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white hover:opacity-90 transition-opacity"
+                            style={{ backgroundColor: '#33529F' }}
+                        >
+                            <EnvelopeIcon className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Invitación</span>
+                        </Link>
                         
                         <Link
                             href={route('events.guests.index', event.id)}

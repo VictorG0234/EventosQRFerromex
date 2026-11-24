@@ -3,14 +3,17 @@ import { Dialog, DialogContent } from '@/Components/ui/dialog';
 import { Button } from '@/Components/ui/button';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
+import { launchRaffleConfetti, raffleStyleVars, resolveRaffleSettings } from '@/lib/raffle';
 
 export default function RaffleModal({ 
     isOpen, 
     onClose, 
     selectedPrizeCard, 
     event,
+    raffleSettings,
     onWinnerSelected 
 }) {
+    const appearance = resolveRaffleSettings(raffleSettings);
     const [attendees, setAttendees] = useState([]);
     const [currentNameIndex, setCurrentNameIndex] = useState(0);
     const [winner, setWinner] = useState(null);
@@ -94,7 +97,7 @@ export default function RaffleModal({
         }
 
         // Reproducir audio al iniciar la rifa
-        if (audioRef.current) {
+        if (audioRef.current && appearance.sound_enabled) {
             try {
                 audioRef.current.currentTime = 0; // Reiniciar el audio
                 const playPromise = audioRef.current.play();
@@ -218,41 +221,7 @@ export default function RaffleModal({
                     setIsAnimating(false);
                     setIsRaffling(false); // Resetear el estado de rifa para habilitar el botón
                     
-                    // Lanzar confetti con efecto de nieve
-                    if (window.confetti) {
-                        const duration = 6 * 1000;
-                        const animationEnd = Date.now() + duration;
-                        let skew = 1;
-
-                        function randomInRange(min, max) {
-                            return Math.random() * (max - min) + min;
-                        }
-
-                        (function frame() {
-                            const timeLeft = animationEnd - Date.now();
-                            const ticks = Math.max(200, 500 * (timeLeft / duration));
-                            skew = Math.max(0.8, skew - 0.001);
-                            
-                            window.confetti({
-                                particleCount: 1,
-                                startVelocity: 0,
-                                ticks: ticks,
-                                origin: {
-                                    x: Math.random(),
-                                    y: Math.random() * skew,
-                                },
-                                colors: ["#ed2d36"],
-                                shapes: ["circle"],
-                                gravity: randomInRange(0.4, 2),
-                                scalar: randomInRange(0.4, 2),
-                                drift: randomInRange(-0.4, 1),
-                            });
-                            
-                            if (timeLeft > 0) {
-                                requestAnimationFrame(frame);
-                            }
-                        })();
-                    }
+                    launchRaffleConfetti(appearance);
                     
                     // Mostrar botones después de 9 segundos
                     setTimeout(() => {
@@ -401,10 +370,10 @@ export default function RaffleModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleCloseModal()}>
-            <DialogContent className="raffle-modal" hideClose>
+            <DialogContent className="raffle-modal" style={raffleStyleVars(appearance)} hideClose>
                 {/* Audio para la animación de la rifa */}
-                <audio ref={audioRef} preload="auto">
-                    <source src="/audio/rifa.mp3" type="audio/mpeg" />
+                <audio ref={audioRef} preload="auto" key={appearance.audio_url}>
+                    <source src={appearance.audio_url} />
                     Tu navegador no soporta el elemento de audio.
                 </audio>
                 
@@ -422,13 +391,13 @@ export default function RaffleModal({
 
                     <div className="raffle-title">
                         <img 
-                            src="/images/logo-gm.png" 
-                            alt="GrupoMéxico" 
+                            src={appearance.logo_url} 
+                            alt="Logo" 
                             className={isLoading && !winner ? "raffle-logo-large" : "raffle-logo"} 
                         />
                     </div>
                     <p className={isLoading && !winner ? "raffle-subtitle-large" : "raffle-subtitle"}>
-                        Sorteo de Fin de Año
+                        {appearance.title}
                     </p>
 
                     {/* Estado durante animación */}

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Models\Guest;
 use App\Mail\GuestInvitationMail;
+use App\Services\InvitationImageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -106,6 +107,23 @@ class PublicEventController extends Controller
     /**
      * Show guest details after validation
      */
+    public function downloadInvitation(string $token, int $guestId, InvitationImageService $invitations)
+    {
+        $event = Event::where('public_token', $token)->firstOrFail();
+        abort_unless($event->isActive(), 404);
+
+        $guest = Guest::where('event_id', $event->id)->where('id', $guestId)->firstOrFail();
+
+        try {
+            $response = $invitations->downloadInvitationWithQR($guest);
+        } catch (\Throwable $e) {
+            Log::error('No se pudo generar la invitación para descarga', ['guest_id' => $guest->id, 'error' => $e->getMessage()]);
+            abort(404, 'La invitación no está disponible.');
+        }
+
+        return $response->header('Content-Disposition', 'attachment; filename="invitacion_'.$guest->numero_empleado.'.png"');
+    }
+
     public function showGuestDetails(string $token, int $guestId)
     {
         $event = Event::where('public_token', $token)->firstOrFail();
@@ -149,6 +167,7 @@ class PublicEventController extends Controller
                         ->format('d/m/Y H:i') 
                     : null,
                 'qr_code_url' => $guest->qr_code_path ? asset('storage/' . $guest->qr_code_path) : null,
+                'invitation_url' => $guest->qr_code_path ? route('public.event.guest.invitation', [$token, $guest->id]) : null,
             ]
         ]);
     }

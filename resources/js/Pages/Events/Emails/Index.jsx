@@ -1,54 +1,28 @@
 import React, { useState } from 'react';
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
     EnvelopeIcon,
     UserGroupIcon,
-    ClockIcon,
-    ChatBubbleLeftRightIcon,
     ChartBarIcon,
     ExclamationTriangleIcon,
-    CheckCircleIcon,
-    EyeIcon,
-    PaperAirplaneIcon,
-    Cog8ToothIcon
+    CheckCircleIcon
 } from '@heroicons/react/24/outline';
+
+const CONFIRM_WORD = 'envio-masivo';
 
 export default function Index({ event, statistics, guests, auth }) {
     const [activeTab, setActiveTab] = useState('overview');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState(null);
-
-    // Form for sending reminder
-    const reminderForm = useForm({
-        hours_before_event: 24
-    });
-
-    // Form for custom message
-    const customMessageForm = useForm({
-        subject: '',
-        message: '',
-        guest_ids: []
-    });
-
-    const sendReminder = () => {
-        setLoading(true);
-        reminderForm.post(route('events.emails.reminder', event.id), {
-            onSuccess: () => {
-                setMessage({ type: 'success', text: 'Recordatorio enviado exitosamente' });
-                setLoading(false);
-            },
-            onError: () => {
-                setMessage({ type: 'error', text: 'Error al enviar recordatorio' });
-                setLoading(false);
-            }
-        });
-    };
+    const [confirmText, setConfirmText] = useState('');
 
     const sendBulkWelcome = () => {
+        if (confirmText !== CONFIRM_WORD) return;
         setLoading(true);
-        router.post(route('events.emails.bulk-welcome', event.id), {}, {
+        router.post(route('events.emails.bulk-welcome', event.id), { confirmation: confirmText }, {
             onSuccess: () => {
+                setConfirmText('');
                 setMessage({ type: 'success', text: 'Emails de bienvenida enviados exitosamente' });
                 setLoading(false);
             },
@@ -59,40 +33,9 @@ export default function Index({ event, statistics, guests, auth }) {
         });
     };
 
-    const sendCustomMessage = () => {
-        setLoading(true);
-        customMessageForm.post(route('events.emails.custom-message', event.id), {
-            onSuccess: () => {
-                setMessage({ type: 'success', text: 'Mensaje personalizado enviado exitosamente' });
-                customMessageForm.reset();
-                setLoading(false);
-            },
-            onError: () => {
-                setMessage({ type: 'error', text: 'Error al enviar mensaje personalizado' });
-                setLoading(false);
-            }
-        });
-    };
-
-    const sendEventSummary = () => {
-        setLoading(true);
-        router.post(route('events.emails.summary', event.id), {}, {
-            onSuccess: () => {
-                setMessage({ type: 'success', text: 'Resumen del evento enviado exitosamente' });
-                setLoading(false);
-            },
-            onError: () => {
-                setMessage({ type: 'error', text: 'Error al enviar resumen del evento' });
-                setLoading(false);
-            }
-        });
-    };
-
     const tabs = [
         { id: 'overview', name: 'Resumen', icon: ChartBarIcon },
-        { id: 'bulk', name: 'Envíos Masivos', icon: UserGroupIcon },
-        { id: 'custom', name: 'Mensaje Personalizado', icon: ChatBubbleLeftRightIcon },
-        { id: 'templates', name: 'Plantillas', icon: EyeIcon }
+        { id: 'bulk', name: 'Envíos Masivos', icon: UserGroupIcon }
     ];
 
     const emailStats = [
@@ -122,47 +65,6 @@ export default function Index({ event, statistics, guests, auth }) {
         }
     ];
 
-    const quickActions = [
-        {
-            title: 'Enviar Bienvenida',
-            description: 'Envía emails de bienvenida a todos los invitados con email',
-            action: sendBulkWelcome,
-            icon: EnvelopeIcon,
-            color: 'bg-blue-600',
-            enabled: statistics.guests_with_email > 0
-        },
-        {
-            title: 'Recordatorio 24h',
-            description: 'Envía recordatorio del evento 24 horas antes',
-            action: () => {
-                reminderForm.setValue('hours_before_event', 24);
-                sendReminder();
-            },
-            icon: ClockIcon,
-            color: 'bg-orange-600',
-            enabled: statistics.guests_with_email > 0
-        },
-        {
-            title: 'Recordatorio 2h',
-            description: 'Envía recordatorio urgente 2 horas antes',
-            action: () => {
-                reminderForm.setValue('hours_before_event', 2);
-                sendReminder();
-            },
-            icon: ClockIcon,
-            color: 'bg-red-600',
-            enabled: statistics.guests_with_email > 0
-        },
-        {
-            title: 'Resumen Final',
-            description: 'Envía resumen del evento al organizador',
-            action: sendEventSummary,
-            icon: ChartBarIcon,
-            color: 'bg-purple-600',
-            enabled: true
-        }
-    ];
-
     return (
         <AuthenticatedLayout
             user={auth.user}
@@ -177,8 +79,18 @@ export default function Index({ event, statistics, guests, auth }) {
                         </p>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <Cog8ToothIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Sistema Automático</span>
+                        <Link
+                            href={route('events.invitation.edit', event.id)}
+                            className="inline-flex items-center rounded-md bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800"
+                        >
+                            Personalizar invitación
+                        </Link>
+                        <Link
+                            href={route('events.show', event.id)}
+                            className="inline-flex items-center rounded-md bg-gray-600 px-3 py-2 text-sm font-medium text-white hover:bg-gray-700"
+                        >
+                            ← Volver al evento
+                        </Link>
                     </div>
                 </div>
             }
@@ -223,44 +135,6 @@ export default function Index({ event, statistics, guests, auth }) {
                                 </dd>
                             </div>
                         ))}
-                    </div>
-
-                    {/* Quick Actions */}
-                    <div className="bg-white shadow rounded-lg mb-8">
-                        <div className="px-6 py-4 border-b border-gray-200">
-                            <h3 className="text-lg leading-6 font-medium text-gray-900">
-                                🚀 Acciones Rápidas
-                            </h3>
-                            <p className="mt-1 text-sm text-gray-500">
-                                Ejecuta las acciones más comunes con un solo clic
-                            </p>
-                        </div>
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 p-6">
-                            {quickActions.map((action, index) => (
-                                <button
-                                    key={index}
-                                    onClick={action.action}
-                                    disabled={!action.enabled || loading}
-                                    className={`relative group bg-white p-6 rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors ${
-                                        !action.enabled || loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'
-                                    }`}
-                                >
-                                    <div>
-                                        <span className={`rounded-lg inline-flex p-3 ${action.color} text-white`}>
-                                            <action.icon className="h-6 w-6" aria-hidden="true" />
-                                        </span>
-                                    </div>
-                                    <div className="mt-4">
-                                        <h3 className="text-lg font-medium text-gray-900">
-                                            {action.title}
-                                        </h3>
-                                        <p className="mt-2 text-sm text-gray-500">
-                                            {action.description}
-                                        </p>
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
                     </div>
 
                     {/* Tabs */}
@@ -316,71 +190,6 @@ export default function Index({ event, statistics, guests, auth }) {
                                                     {statistics.guests_without_email} invitados no recibirán notificaciones automáticas.
                                                 </p>
                                             </div>
-                                            <div className="bg-blue-50 p-4 rounded-lg">
-                                                <h4 className="font-medium text-blue-900 mb-2">Próximas Acciones</h4>
-                                                <p className="text-sm text-blue-700">
-                                                    Programa recordatorios automáticos y mensajes personalizados.
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'custom' && (
-                                <div className="space-y-6">
-                                    <div>
-                                        <h3 className="text-lg font-medium text-gray-900 mb-4">
-                                            ✍️ Mensaje Personalizado
-                                        </h3>
-                                        
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700">
-                                                    Asunto del Email
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={customMessageForm.data.subject}
-                                                    onChange={(e) => customMessageForm.setData('subject', e.target.value)}
-                                                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                                                    placeholder="Escribe el asunto de tu mensaje..."
-                                                />
-                                                {customMessageForm.errors.subject && (
-                                                    <p className="mt-2 text-sm text-red-600">{customMessageForm.errors.subject}</p>
-                                                )}
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700">
-                                                    Mensaje
-                                                </label>
-                                                <textarea
-                                                    rows={6}
-                                                    value={customMessageForm.data.message}
-                                                    onChange={(e) => customMessageForm.setData('message', e.target.value)}
-                                                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                                                    placeholder="Escribe tu mensaje personalizado aquí..."
-                                                />
-                                                {customMessageForm.errors.message && (
-                                                    <p className="mt-2 text-sm text-red-600">{customMessageForm.errors.message}</p>
-                                                )}
-                                            </div>
-
-                                            <div className="flex justify-between items-center">
-                                                <p className="text-sm text-gray-500">
-                                                    Se enviará a {statistics.guests_with_email} invitados con email
-                                                </p>
-                                                <button
-                                                    type="button"
-                                                    onClick={sendCustomMessage}
-                                                    disabled={loading || !customMessageForm.data.subject || !customMessageForm.data.message}
-                                                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    <PaperAirplaneIcon className="h-4 w-4 mr-2" />
-                                                    {loading ? 'Enviando...' : 'Enviar Mensaje'}
-                                                </button>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -393,90 +202,30 @@ export default function Index({ event, statistics, guests, auth }) {
                                             📨 Envíos Masivos
                                         </h3>
                                         
-                                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                                            <div className="border border-gray-200 rounded-lg p-6">
-                                                <h4 className="font-medium text-gray-900 mb-2">Emails de Bienvenida</h4>
-                                                <p className="text-sm text-gray-600 mb-4">
-                                                    Envía emails de bienvenida con códigos QR a todos los invitados.
-                                                </p>
-                                                <button
-                                                    onClick={sendBulkWelcome}
-                                                    disabled={loading || statistics.guests_with_email === 0}
-                                                    className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
-                                                >
-                                                    <EnvelopeIcon className="h-4 w-4 mr-2" />
-                                                    Enviar a {statistics.guests_with_email} invitados
-                                                </button>
-                                            </div>
-
-                                            <div className="border border-gray-200 rounded-lg p-6">
-                                                <h4 className="font-medium text-gray-900 mb-2">Recordatorios</h4>
-                                                <p className="text-sm text-gray-600 mb-4">
-                                                    Programa recordatorios automáticos del evento.
-                                                </p>
-                                                <div className="space-y-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            reminderForm.setData('hours_before_event', 24);
-                                                            sendReminder();
-                                                        }}
-                                                        disabled={loading || statistics.guests_with_email === 0}
-                                                        className="w-full inline-flex justify-center items-center px-3 py-2 border border-orange-200 text-sm font-medium rounded text-orange-700 bg-orange-50 hover:bg-orange-100 disabled:opacity-50"
-                                                    >
-                                                        <ClockIcon className="h-4 w-4 mr-2" />
-                                                        24 horas antes
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            reminderForm.setData('hours_before_event', 2);
-                                                            sendReminder();
-                                                        }}
-                                                        disabled={loading || statistics.guests_with_email === 0}
-                                                        className="w-full inline-flex justify-center items-center px-3 py-2 border border-red-200 text-sm font-medium rounded text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50"
-                                                    >
-                                                        <ClockIcon className="h-4 w-4 mr-2" />
-                                                        2 horas antes
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'templates' && (
-                                <div className="space-y-6">
-                                    <div>
-                                        <h3 className="text-lg font-medium text-gray-900 mb-4">
-                                            🎨 Plantillas de Email
-                                        </h3>
-                                        <p className="text-sm text-gray-600 mb-6">
-                                            Vista previa de las plantillas de email disponibles en el sistema.
-                                        </p>
-                                        
-                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                            {[
-                                                { name: 'Bienvenida', id: 'guest-welcome', description: 'Email de bienvenida con código QR' },
-                                                { name: 'Recordatorio', id: 'event-reminder', description: 'Recordatorio antes del evento' },
-                                                { name: 'Confirmación', id: 'attendance-confirmation', description: 'Confirmación de asistencia' },
-                                                { name: 'Resumen', id: 'event-summary', description: 'Resumen final del evento' },
-                                                { name: 'Personalizado', id: 'custom-message', description: 'Mensaje personalizado' },
-                                                { name: 'Ganador Rifa', id: 'raffle-winner', description: 'Notificación de ganador' }
-                                            ].map((template) => (
-                                                <div key={template.id} className="border border-gray-200 rounded-lg p-4">
-                                                    <h4 className="font-medium text-gray-900 mb-2">{template.name}</h4>
-                                                    <p className="text-sm text-gray-600 mb-3">{template.description}</p>
-                                                    <button
-                                                        onClick={() => {
-                                                            window.open(`/events/${event.id}/emails/preview?template=${template.id}`, '_blank');
-                                                        }}
-                                                        className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
-                                                    >
-                                                        <EyeIcon className="h-4 w-4 mr-1" />
-                                                        Vista Previa
-                                                    </button>
-                                                </div>
-                                            ))}
+                                        <div className="border border-gray-200 rounded-lg p-6 max-w-xl">
+                                            <h4 className="font-medium text-gray-900 mb-2">Emails de Bienvenida</h4>
+                                            <p className="text-sm text-gray-600 mb-4">
+                                                Envía la invitación con código QR a todos los invitados con email.
+                                            </p>
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Para confirmar, escribe <span className="font-mono font-bold">{CONFIRM_WORD}</span>
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={confirmText}
+                                                onChange={(e) => setConfirmText(e.target.value)}
+                                                autoComplete="off"
+                                                className="mt-1 mb-4 block w-full border-gray-300 rounded-md shadow-sm focus:ring-green-500 focus:border-green-500"
+                                                placeholder={CONFIRM_WORD}
+                                            />
+                                            <button
+                                                onClick={sendBulkWelcome}
+                                                disabled={loading || statistics.guests_with_email === 0 || confirmText !== CONFIRM_WORD}
+                                                className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <EnvelopeIcon className="h-4 w-4 mr-2" />
+                                                Enviar a {statistics.guests_with_email} invitados
+                                            </button>
                                         </div>
                                     </div>
                                 </div>

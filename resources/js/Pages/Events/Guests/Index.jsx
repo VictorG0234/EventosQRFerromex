@@ -16,7 +16,12 @@ import {
 import { useState, useEffect } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
 
-export default function Index({ auth, event, guests, filters }) {
+export default function Index({ auth, event, guests, filters, flash }) {
+    const simulateAttendance = (percentage) => {
+        if (!confirm(`¿Marcar ${percentage}% de los invitados con asistencia? (solo pruebas)`)) return;
+        router.post(route('events.guests.simulate-attendance', event.id), { percentage }, { preserveScroll: true });
+    };
+
     const [search, setSearch] = useState(filters?.search || '');
     const [filter, setFilter] = useState(filters?.filter || 'all');
     const [processing, setProcessing] = useState(false);
@@ -161,6 +166,12 @@ export default function Index({ auth, event, guests, filters }) {
                         </div>
                     </div>
 
+                    {(flash?.success || flash?.error) && (
+                        <div className={`mb-4 p-4 rounded-md text-sm ${flash.success ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                            {flash.success || flash.error}
+                        </div>
+                    )}
+
                     {/* Filtros y búsqueda */}
                     <div className="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg mb-4 sm:mb-6">
                         <div className="p-4 sm:p-6">
@@ -180,7 +191,18 @@ export default function Index({ auth, event, guests, filters }) {
                                     </div>
                                 </div>
                                 
-                                <div className="flex items-center">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {/* TEMPORAL: botones de prueba, retirar antes de producción */}
+                                    {[100, 85].map((pct) => (
+                                        <button
+                                            key={pct}
+                                            type="button"
+                                            onClick={() => simulateAttendance(pct)}
+                                            className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700"
+                                        >
+                                            {pct}% asistencia
+                                        </button>
+                                    ))}
                                     <div className="flex items-center w-full sm:w-auto">
                                         <FunnelIcon className="h-4 w-4 text-gray-400 dark:text-gray-500 mr-2" />
                                         <select

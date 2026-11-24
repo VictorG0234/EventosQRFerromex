@@ -9,6 +9,8 @@ use App\Http\Controllers\PrizeController;
 use App\Http\Controllers\RaffleController;
 use App\Http\Controllers\PublicEventController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\RaffleSettingsController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -17,6 +19,7 @@ use Inertia\Inertia;
 Route::get('/event/{token}', [PublicEventController::class, 'showRegistrationForm'])->name('public.event.register');
 Route::post('/event/{token}/validate', [PublicEventController::class, 'validateGuest'])->name('public.event.validate');
 Route::get('/event/{token}/guest/{guest}', [PublicEventController::class, 'showGuestDetails'])->name('public.event.guest.details');
+Route::get('/event/{token}/guest/{guest}/invitation', [PublicEventController::class, 'downloadInvitation'])->name('public.event.guest.invitation');
 Route::get('/aviso-de-privacidad', [PublicEventController::class, 'showPrivacyNotice'])->name('public.privacy.notice');
 
 Route::get('/', function () {
@@ -139,6 +142,8 @@ Route::middleware('auth')->group(function () {
     Route::get('events/{event}/guests/import', [GuestController::class, 'importForm'])->name('events.guests.import');
     Route::post('events/{event}/guests/import', [GuestController::class, 'import'])->name('events.guests.import.process');
     Route::post('events/{event}/guests/preview', [GuestController::class, 'preview'])->name('events.guests.preview');
+    // TEMPORAL: solo para pruebas, retirar antes de producción
+    Route::post('events/{event}/guests/simulate-attendance', [GuestController::class, 'simulateAttendance'])->name('events.guests.simulate-attendance');
     Route::get('events/{event}/guests/find-by-employee', [GuestController::class, 'findByEmployee'])->name('events.guests.find-by-employee');
     Route::get('events/{event}/guests/{guest}', [GuestController::class, 'show'])->name('events.guests.show');
     Route::get('events/{event}/guests/{guest}/edit', [GuestController::class, 'edit'])->name('events.guests.edit');
@@ -158,6 +163,10 @@ Route::middleware('auth')->group(function () {
     
     // Rutas de email
     Route::get('events/{event}/emails', [EmailController::class, 'index'])->name('events.emails.index');
+    Route::get('events/{event}/raffle/settings', [RaffleSettingsController::class, 'edit'])->name('events.raffle.settings.edit');
+    Route::post('events/{event}/raffle/settings', [RaffleSettingsController::class, 'update'])->name('events.raffle.settings.update');
+    Route::get('events/{event}/emails/invitation', [InvitationController::class, 'edit'])->name('events.invitation.edit');
+    Route::post('events/{event}/emails/invitation', [InvitationController::class, 'update'])->name('events.invitation.update');
     Route::get('events/{event}/emails/preview-invitation/{guest}', [EmailController::class, 'previewInvitation'])->name('events.emails.preview-invitation');
     Route::post('events/{event}/emails/welcome/{guest}', [EmailController::class, 'sendWelcomeEmail'])->name('events.emails.welcome');
     Route::post('events/{event}/emails/bulk-welcome', [EmailController::class, 'sendBulkWelcomeEmails'])->name('events.emails.bulk-welcome');

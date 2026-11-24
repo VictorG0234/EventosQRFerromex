@@ -17,6 +17,8 @@ class GuestInvitationMail extends Mailable
 {
     use Queueable, SerializesModels;
 
+    private ?string $invitationPath = null;
+
     /**
      * Create a new message instance.
      */
@@ -30,8 +32,10 @@ class GuestInvitationMail extends Mailable
      */
     public function envelope(): Envelope
     {
+        $settings = $this->event->invitation_settings ?? [];
+
         return new Envelope(
-            subject: 'Tu invitación para ' . $this->event->name,
+            subject: $settings['email_subject'] ?? 'Tu invitación para '.$this->event->name,
         );
     }
 
@@ -40,9 +44,8 @@ class GuestInvitationMail extends Mailable
      */
     public function content(): Content
     {
-        // Generar la imagen de invitación con QR
-        $invitationService = new InvitationImageService();
-        $invitationPath = $invitationService->generateInvitationWithQR($this->guest);
+        $settings = $this->event->invitation_settings ?? [];
+        $invitationPath = $this->getInvitationPath();
         
         return new Content(
             view: 'emails.invitation-image',
@@ -50,6 +53,7 @@ class GuestInvitationMail extends Mailable
                 'guest' => $this->guest,
                 'event' => $this->event,
                 'invitationImageUrl' => asset('storage/' . $invitationPath),
+                'emailMessage' => $settings['email_message'] ?? '',
             ]
         );
     }
@@ -59,24 +63,19 @@ class GuestInvitationMail extends Mailable
      */
     public function attachments(): array
     {
-        $attachments = [];
-        
-        // Generar la imagen de invitación con QR
-        try {
-            $invitationService = new InvitationImageService();
-            $invitationPath = $invitationService->generateInvitationWithQR($this->guest);
-            
-            // Adjuntar la imagen de invitación
-            if (Storage::disk('public')->exists($invitationPath)) {
-                $attachments[] = Attachment::fromStorageDisk('public', $invitationPath)
-                    ->as('invitacion-' . $this->guest->numero_empleado . '.png')
-                    ->withMime('image/png');
-            }
-        } catch (\Exception $e) {
-            // Log del error pero no bloqueamos el envío
-            \Log::error('Error generando imagen de invitación: ' . $e->getMessage());
+        return [
+            Attachment::fromStorageDisk('public', $this->getInvitationPath())
+                ->as('invitacion-'.$this->guest->numero_empleado.'.png')
+                ->withMime('image/png'),
+        ];
+    }
+
+    private function getInvitationPath(): string
+    {
+        if ($this->invitationPath === null) {
+            $this->invitationPath = (new InvitationImageService())->generateInvitationWithQR($this->guest);
         }
-        
-        return $attachments;
+
+        return $this->invitationPath;
     }
 }

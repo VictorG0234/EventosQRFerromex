@@ -166,12 +166,12 @@ export default function GuestDetails({ event, guest, token }) {
                                 />
                             </div> */}
                             <a
-                                href={guest.qr_code_url}
-                                download={`QR_${guest.numero_empleado}.png`}
+                                href={guest.invitation_url ?? guest.qr_code_url}
+                                download={`invitacion_${guest.numero_empleado}.png`}
                                 className="inline-flex items-center mt-6 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition duration-200"
                             >
                                 <QrCodeIcon className="h-5 w-5 mr-2" />
-                                Descargar QR
+                                Descargar invitación
                             </a>
                         </div>
                     )}

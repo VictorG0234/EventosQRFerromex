@@ -5,8 +5,10 @@ import { Button } from '@/Components/ui/button';
 import RaffleModal from '@/Components/RaffleModal';
 import { Gift, Sparkles, ArrowLeft, RotateCcw, Trophy } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { raffleStyleVars, resolveRaffleSettings } from '@/lib/raffle';
 
-export default function DrawCards({ auth, event, prizes }) {
+export default function DrawCards({ auth, event, prizes, raffleSettings }) {
+    const appearance = resolveRaffleSettings(raffleSettings);
     const { flash } = usePage().props;
     const [selectedPrizeCard, setSelectedPrizeCard] = useState(null);
 
@@ -210,6 +212,7 @@ export default function DrawCards({ auth, event, prizes }) {
                         onClose={handleCloseModal}
                         selectedPrizeCard={selectedPrizeCard}
                         event={event}
+                        raffleSettings={appearance}
                         onWinnerSelected={handleWinnerSelected}
                     />
                     
@@ -229,14 +232,14 @@ export default function DrawCards({ auth, event, prizes }) {
                         aria-hidden="true"
                     >
                         {/* Precargar estructura del modal con todas las clases CSS */}
-                        <div className="raffle-modal">
+                        <div className="raffle-modal" style={raffleStyleVars(appearance)}>
                             <div className="raffle-modal-content"></div>
                             <div className="raffle-modal-inner">
                                 <button className="raffle-modal-close">✕</button>
                                 <div className="raffle-title">
-                                    <img src="/images/logo-gm.png" alt="GrupoMéxico" className="raffle-logo" />
+                                    <img src={appearance.logo_url} alt="Logo" className="raffle-logo" />
                                 </div>
-                                <p className="raffle-subtitle">Sorteo de Fin de Año</p>
+                                <p className="raffle-subtitle">{appearance.title}</p>
                                 <div className="raffle-employee-number-box">
                                     <p className="raffle-employee-number-label">GM</p>
                                     <p className="raffle-employee-number-large">000000</p>

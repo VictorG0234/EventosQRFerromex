@@ -24,6 +24,8 @@ class Event extends Model
         'settings',
         'public_token',
         'imex_prize_id',
+        'invitation_settings',
+        'raffle_settings',
     ];
 
     protected $casts = [
@@ -31,6 +33,8 @@ class Event extends Model
         'start_time' => 'datetime:H:i',
         'end_time' => 'datetime:H:i',
         'settings' => 'array',
+        'invitation_settings' => 'array',
+        'raffle_settings' => 'array',
     ];
 
     // Relaciones
@@ -112,6 +116,19 @@ class Event extends Model
         });
 
         static::deleting(function ($event) {
+            $invitationImagePath = $event->invitation_settings['image_path'] ?? null;
+
+            if ($invitationImagePath && \Storage::disk('public')->exists($invitationImagePath)) {
+                \Storage::disk('public')->delete($invitationImagePath);
+            }
+
+            foreach (['background_path', 'logo_path', 'audio_path'] as $key) {
+                $path = $event->raffle_settings[$key] ?? null;
+                if ($path && \Storage::disk('public')->exists($path)) {
+                    \Storage::disk('public')->delete($path);
+                }
+            }
+
             // Eliminar archivos QR de todos los invitados del evento
             foreach ($event->guests as $guest) {
                 if ($guest->qr_code_path && \Storage::disk('public')->exists($guest->qr_code_path)) {
