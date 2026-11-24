@@ -57,6 +57,12 @@ export default function RaffleIndex({ auth, event, prizes, statistics, public_ra
                     </div>
                     <div className="flex items-center space-x-2">
                         <Link
+                            href={route('events.raffle.settings.edit', event.id)}
+                            className="inline-flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-md transition-colors"
+                        >
+                            Personalizar rifa
+                        </Link>
+                        <Link
                             href={route('events.draw.cards', event.id)}
                             className="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 text-white text-sm font-medium rounded-md transition-colors"
                         >

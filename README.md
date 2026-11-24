@@ -12,6 +12,7 @@ SaaS para gestión integral de eventos corporativos con códigos QR, control de 
 - Modelos Eloquent con métodos especializados
 - Servicio de generación de códigos QR
 - Sistema de autenticación (Laravel Breeze)
+- Personalización de invitaciones por evento (imagen base, ubicación/tamaño del QR, asunto y texto del correo)
 
 ### 🔄 En Desarrollo
 - Importación masiva desde CSV

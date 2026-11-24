@@ -21,7 +21,7 @@
         height: 100%;
         overflow: hidden;
         position: relative;
-        background-image: url('/images/raffle-border-background.png');
+        background-image: var(--raffle-bg-image, url('/images/raffle-border-background.png'));
         background-size: 100% 100%;
         background-position: center;
         background-repeat: no-repeat;
@@ -87,7 +87,7 @@
         font-size: 64px;
         line-height: 65px;
         margin-top: 22px;
-        color: #33529F;
+        color: var(--raffle-primary, #33529F);
         transition: font-size 0.5s ease, line-height 0.5s ease, margin-bottom 0.5s ease;
         text-align: center;
         letter-spacing: 1px;
@@ -97,13 +97,13 @@
         font-family: Vintage Rotter;
         font-size: 100px;
         line-height: 100px;
-        color: #33529F;
+        color: var(--raffle-primary, #33529F);
         transition: font-size 0.5s ease, line-height 0.5s ease, margin-bottom 0.5s ease;
         text-align: center;
     }
 
     .raffle-employee-number-box {
-        background-color: #33529F;
+        background-color: var(--raffle-primary, #33529F);
         color: white;
         padding: 20px 30px;
         display: flex;
@@ -123,7 +123,7 @@
     }
 
     .raffle-prize-box {
-        background-color: #B2D6EC;
+        background-color: var(--raffle-prize, #B2D6EC);
         color: white;
         padding: 5px 60px;
         display: inline-block;
@@ -140,7 +140,7 @@
     }
 
     .raffle-start-button {
-        background-color: #ed2d36 !important;
+        background-color: var(--raffle-accent, #ed2d36) !important;
         color: white;
         padding: 1rem 2rem;
         display: inline-block;
@@ -149,7 +149,7 @@
     }
 
     .raffle-start-button:hover {
-        background-color: #ed2d36 !important;
+        background-color: var(--raffle-accent, #ed2d36) !important;
         color: white;
     }
 
@@ -159,7 +159,7 @@
         line-height: 70px;
         margin-bottom: 20px;
         text-align: center;
-        color: #33529F;
+        color: var(--raffle-primary, #33529F);
     }
 
     .raffle-winner-name {

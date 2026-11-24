@@ -279,6 +279,41 @@ class GuestController extends Controller
     /**
      * Remove the specified guest.
      */
+    // TEMPORAL: solo para pruebas, retirar antes de producción
+    public function simulateAttendance(Request $request, Event $event)
+    {
+        $this->authorize('update', $event);
+
+        $data = $request->validate(['percentage' => ['required', 'integer', 'in:85,100']]);
+
+        $total = $event->guests()->count();
+        $attended = $event->guests()->whereHas('attendance')->count();
+        $remaining = $total - $attended;
+        $needed = (int) ceil($total * $data['percentage'] / 100) - $attended;
+
+        if ($total === 0) {
+            return back()->with('error', 'El evento no tiene invitados.');
+        }
+
+        if ($needed <= 0 || $remaining <= 0) {
+            return back()->with('success', "Ya hay al menos {$data['percentage']}% de asistencia ({$attended} de {$total}).");
+        }
+
+        // El comando calcula el porcentaje sobre los invitados sin asistencia; se ajusta para que sea sobre el total.
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('attendance:mark-percentage', [
+            '--event' => $event->id,
+            '--percentage' => max(0, min(100, $needed / $remaining * 100 - 0.000001)),
+        ]);
+
+        if ($exitCode !== 0) {
+            return back()->with('error', 'No se pudo simular la asistencia.');
+        }
+
+        $now = $event->guests()->whereHas('attendance')->count();
+
+        return back()->with('success', "Asistencia simulada: {$now} de {$total} invitados con asistencia.");
+    }
+
     public function destroy(Event $event, Guest $guest)
     {
         $this->authorize('view', $event);

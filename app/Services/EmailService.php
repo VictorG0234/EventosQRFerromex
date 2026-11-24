@@ -17,11 +17,11 @@ class EmailService
     public function sendGuestWelcomeEmail(Guest $guest)
     {
         try {
-            Mail::to($guest->email)->queue(new \App\Mail\GuestWelcomeMail($guest));
+            Mail::to($guest->correo)->queue(new \App\Mail\GuestWelcomeMail($guest));
             
             Log::info('Welcome email queued for guest', [
                 'guest_id' => $guest->id,
-                'email' => $guest->email,
+                'email' => $guest->correo,
                 'event_id' => $guest->event_id
             ]);
             
@@ -42,10 +42,10 @@ class EmailService
     public function sendEventReminder(Event $event, int $hoursBeforeEvent = 24)
     {
         try {
-            $guests = $event->guests()->whereNotNull('email')->get();
+            $guests = $event->guests()->whereNotNull('correo')->get();
             
             foreach ($guests as $guest) {
-                Mail::to($guest->email)->queue(new \App\Mail\EventReminderMail($guest, $hoursBeforeEvent));
+                Mail::to($guest->correo)->queue(new \App\Mail\EventReminderMail($guest, $hoursBeforeEvent));
             }
             
             Log::info('Event reminder emails queued', [
@@ -122,7 +122,7 @@ class EmailService
     public function sendBulkMessageToGuests(Event $event, string $subject, string $message, array $guestIds = [])
     {
         try {
-            $query = $event->guests()->whereNotNull('email');
+            $query = $event->guests()->whereNotNull('correo');
             
             if (!empty($guestIds)) {
                 $query->whereIn('id', $guestIds);
@@ -131,7 +131,7 @@ class EmailService
             $guests = $query->get();
             
             foreach ($guests as $guest) {
-                Mail::to($guest->email)->queue(new \App\Mail\CustomMessageMail($guest, $subject, $message));
+                Mail::to($guest->correo)->queue(new \App\Mail\CustomMessageMail($guest, $subject, $message));
             }
             
             Log::info('Bulk custom messages queued', [
@@ -183,10 +183,10 @@ class EmailService
     {
         return [
             'total_guests' => $event->guests()->count(),
-            'guests_with_email' => $event->guests()->whereNotNull('email')->count(),
-            'guests_without_email' => $event->guests()->whereNull('email')->count(),
+            'guests_with_email' => $event->guests()->whereNotNull('correo')->count(),
+            'guests_without_email' => $event->guests()->whereNull('correo')->count(),
             'email_coverage_percentage' => $event->guests()->count() > 0 
-                ? round(($event->guests()->whereNotNull('email')->count() / $event->guests()->count()) * 100, 2)
+                ? round(($event->guests()->whereNotNull('correo')->count() / $event->guests()->count()) * 100, 2)
                 : 0
         ];
     }

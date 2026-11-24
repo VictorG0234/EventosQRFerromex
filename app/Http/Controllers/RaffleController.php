@@ -272,6 +272,7 @@ class RaffleController extends Controller
                 'id' => $event->id,
                 'name' => $event->name,
             ],
+            'raffleSettings' => app(\App\Services\RaffleAppearanceService::class)->payloadFor($event),
             'prizes' => $prizes
         ]);
     }

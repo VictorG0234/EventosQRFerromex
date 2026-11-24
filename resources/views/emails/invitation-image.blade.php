@@ -34,12 +34,11 @@
 </head>
 <body>
     <div class="email-container">
+        @if (!empty($emailMessage))
+            <p style="white-space: pre-line; text-align: left;">{{ $emailMessage }}</p>
+        @endif
+
         <img src="{{ $invitationImageUrl }}" alt="Invitación {{ $event->name }}" class="invitation-image">
-        
-        {{-- <div class="footer">
-            <p>Grupo México Transportes Ferromex</p>
-            <p>{{ $event->name }}</p>
-        </div> --}}
     </div>
 </body>
 </html>
