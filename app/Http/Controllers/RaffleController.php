@@ -899,6 +899,9 @@ class RaffleController extends Controller
             'winners_count' => $winners->count(),
             'eligible_count' => $eligibleCount,
             'can_raffle' => $canRaffle,
+            'general_prizes' => $event->generalRafflePrizes()
+                ->orderBy('id')
+                ->get(['id', 'name', 'active']),
             'has_winners' => $hasWinners
         ]);
     }

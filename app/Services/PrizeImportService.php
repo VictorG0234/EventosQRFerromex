@@ -3,14 +3,60 @@
 namespace App\Services;
 
 use App\Models\Event;
+use App\Models\GeneralRafflePrize;
 use App\Models\Prize;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class PrizeImportService
 {
+    public function importGeneralFromCsv(UploadedFile $file, Event $event): int
+    {
+        $data = Excel::toCollection(null, $file)->first();
+
+        if (!$data || $data->isEmpty()) {
+            throw ValidationException::withMessages(['csv_file' => 'El archivo CSV está vacío.']);
+        }
+
+        $hasHeaders = $this->hasHeaders($data->first()->toArray());
+        $rows = ($hasHeaders ? $data->skip(1) : $data)->values();
+
+        if ($rows->isEmpty()) {
+            throw ValidationException::withMessages(['csv_file' => 'El archivo CSV no contiene premios.']);
+        }
+
+        $validatedRows = $rows->map(function ($row, $index) use ($hasHeaders) {
+            try {
+                return $this->validateRow($row->toArray(), $index + ($hasHeaders ? 2 : 1));
+            } catch (\Exception $exception) {
+                throw ValidationException::withMessages(['csv_file' => $exception->getMessage()]);
+            }
+        });
+
+        return DB::transaction(function () use ($validatedRows, $event) {
+            $imported = 0;
+            foreach ($validatedRows as $row) {
+                for ($i = 0; $i < (int) $row['stock']; $i++) {
+                    GeneralRafflePrize::create([
+                        'event_id' => $event->id,
+                        'name' => $row['name'],
+                        'description' => $row['description'],
+                        'category' => $row['category'],
+                        'value' => $row['value'],
+                        'active' => $row['active'],
+                    ]);
+                    $imported++;
+                }
+            }
+
+            return $imported;
+        });
+    }
+
     /**
      * Importar premios desde un archivo CSV
      */
@@ -31,7 +77,7 @@ class PrizeImportService
             // Detectar y saltar headers si existen
             $firstRow = $data->first()->toArray();
             $hasHeaders = $this->hasHeaders($firstRow);
-            $dataRows = $hasHeaders ? $data->skip(1) : $data;
+            $dataRows = ($hasHeaders ? $data->skip(1) : $data)->values();
             
             $results['total'] = $dataRows->count();
 
@@ -199,7 +245,7 @@ class PrizeImportService
             $hasHeaders = $this->hasHeaders($firstRow);
             
             // Si tiene headers, saltarlos para el preview
-            $dataRows = $hasHeaders ? $data->skip(1) : $data;
+            $dataRows = ($hasHeaders ? $data->skip(1) : $data)->values();
             
             $preview = [
                 'total_rows' => $dataRows->count(),
@@ -215,7 +261,7 @@ class PrizeImportService
                         'valid' => $this->isRowValid($row->toArray()),
                     ];
                 })->toArray(),
-                'validation_summary' => $this->getValidationSummary($dataRows)
+                'validation_summary' => $this->getValidationSummary($dataRows, $hasHeaders)
             ];
 
             return $preview;
@@ -335,7 +381,7 @@ class PrizeImportService
     /**
      * Obtener resumen de validación
      */
-    protected function getValidationSummary(Collection $data): array
+    protected function getValidationSummary(Collection $data, bool $hasHeaders): array
     {
         $valid = 0;
         $invalid = 0;
@@ -348,7 +394,7 @@ class PrizeImportService
             } else {
                 $invalid++;
                 $errors[] = [
-                    'row' => $index + 1,
+                    'row' => $index + ($hasHeaders ? 2 : 1),
                     'errors' => $validation['errors']
                 ];
             }

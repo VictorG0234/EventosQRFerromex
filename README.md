@@ -16,6 +16,7 @@ SaaS para gestión integral de eventos corporativos con códigos QR, control de 
 
 ### 🔄 En Desarrollo
 - Importación masiva desde CSV
+- Los premios de la rifa general se importan por separado desde la pantalla de rifa general. La importación conserva el orden del CSV; todavía no asigna premios a ganadores.
 - Sistema de envío de emails
 - Frontend con React + Inertia
 - APIs para tiempo real

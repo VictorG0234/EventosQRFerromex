@@ -12,7 +12,7 @@ import {
 import { useState, useRef } from 'react';
 import axios from 'axios';
 
-export default function Import({ auth, event }) {
+export default function Import({ auth, event, generalRaffle = false }) {
     const { data, setData, post, processing, errors } = useForm({
         csv_file: null,
     });
@@ -21,10 +21,16 @@ export default function Import({ auth, event }) {
     const [dragActive, setDragActive] = useState(false);
     const [previewLoading, setPreviewLoading] = useState(false);
     const fileInputRef = useRef(null);
+    const previewRequestRef = useRef(0);
 
     const handleFileSelect = async (file) => {
-        if (!file || !file.type.includes('csv')) {
+        const requestId = ++previewRequestRef.current;
+        setPreview(null);
+        setData('csv_file', null);
+
+        if (!file || !/\.(csv|txt)$/i.test(file.name)) {
             alert('Por favor selecciona un archivo CSV válido');
+            setPreviewLoading(false);
             return;
         }
 
@@ -42,6 +48,7 @@ export default function Import({ auth, event }) {
                 },
             });
 
+            if (requestId !== previewRequestRef.current) return;
             if (response.data.success) {
                 setPreview(response.data.data);
             } else {
@@ -50,12 +57,13 @@ export default function Import({ auth, event }) {
                 setData('csv_file', null);
             }
         } catch (error) {
+            if (requestId !== previewRequestRef.current) return;
             const errorMessage = error.response?.data?.message || error.message || 'Error al procesar el archivo';
             alert(errorMessage);
             setPreview(null);
             setData('csv_file', null);
         } finally {
-            setPreviewLoading(false);
+            if (requestId === previewRequestRef.current) setPreviewLoading(false);
         }
     };
 
@@ -91,7 +99,7 @@ export default function Import({ auth, event }) {
             alert('Por favor selecciona un archivo CSV');
             return;
         }
-        post(route('events.prizes.import.process', event.id));
+        post(route(generalRaffle ? 'events.draw.general.prizes.import.process' : 'events.prizes.import.process', event.id));
     };
 
     const downloadTemplate = () => {
@@ -104,13 +112,13 @@ export default function Import({ auth, event }) {
             header={
                 <div className="flex items-center">
                     <Link
-                        href={route('events.prizes.index', event.id)}
+                        href={route(generalRaffle ? 'events.draw.general' : 'events.prizes.index', event.id)}
                         className="mr-4 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                     >
-                        ← Volver a premios
+                        {generalRaffle ? '← Volver a rifa general' : '← Volver a premios'}
                     </Link>
                     <h2 className="font-semibold text-xl text-gray-800 dark:text-white leading-tight">
-                        Importar Premios - {event.name}
+                        Importar Premios {generalRaffle ? 'de la Rifa General' : ''} - {event.name}
                     </h2>
                 </div>
             }
@@ -131,7 +139,7 @@ export default function Import({ auth, event }) {
                                     </h3>
                                     <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
                                         <p className="text-blue-800 dark:text-blue-200 font-medium">
-                                            ⚠️ Nota importante: Estos premios son para la rifa pública
+                                            ⚠️ Nota importante: Estos premios son para la rifa {generalRaffle ? 'general' : 'pública'}
                                         </p>
                                     </div>
                                     <p className="text-gray-600 dark:text-gray-300 mb-4">
@@ -348,14 +356,14 @@ export default function Import({ auth, event }) {
                                 {/* Botones */}
                                 <div className="flex items-center justify-end space-x-3 pt-6 border-t mt-6">
                                     <Link
-                                        href={route('events.prizes.index', event.id)}
+                                        href={route(generalRaffle ? 'events.draw.general' : 'events.prizes.index', event.id)}
                                         className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                     >
                                         Cancelar
                                     </Link>
 
                                     <PrimaryButton 
-                                        disabled={processing || !data.csv_file || (preview?.validation_summary?.invalid_rows > 0)}
+                                        disabled={processing || previewLoading || !data.csv_file || !preview || (preview?.validation_summary?.invalid_rows > 0)}
                                     >
                                         {processing ? 'Importando...' : 'Importar Premios'}
                                     </PrimaryButton>

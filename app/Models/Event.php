@@ -53,6 +53,11 @@ class Event extends Model
         return $this->hasMany(Prize::class);
     }
 
+    public function generalRafflePrizes(): HasMany
+    {
+        return $this->hasMany(GeneralRafflePrize::class);
+    }
+
     public function attendances(): HasMany
     {
         return $this->hasMany(Attendance::class);
