@@ -184,7 +184,7 @@ export default function Create({ auth, event }) {
                                         >
                                             <option value="">Selecciona una descripción</option>
                                             <option value="General">General</option>
-                                            <option value="Subdirectories">Subdirectories</option>
+                                            <option value="Subdirector">Subdirector</option>
                                             <option value="Ganadores previos">Ganadores previos</option>
                                             <option value="Nuevo ingreso">Nuevo ingreso</option>
                                             <option value="Directores">Directores</option>
