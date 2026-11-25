@@ -376,6 +376,33 @@ class PrizeController extends Controller
         ]);
     }
 
+    public function generalImportForm(Event $event)
+    {
+        $this->authorize('update', $event);
+
+        return Inertia::render('Events/Prizes/Import', [
+            'event' => [
+                'id' => $event->id,
+                'name' => $event->name,
+            ],
+            'generalRaffle' => true,
+        ]);
+    }
+
+    public function generalImport(Request $request, Event $event)
+    {
+        $this->authorize('update', $event);
+
+        $request->validate([
+            'csv_file' => 'required|file|mimes:csv,txt|max:10240',
+        ]);
+
+        $imported = $this->importService->importGeneralFromCsv($request->file('csv_file'), $event);
+
+        return redirect()->route('events.draw.general', $event)
+            ->with('success', "Se importaron {$imported} premios para la rifa general.");
+    }
+
     /**
      * Process CSV import.
      */

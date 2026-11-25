@@ -213,6 +213,8 @@ Route::middleware('auth')->group(function () {
     Route::get('events/{event}/raffle', [RaffleController::class, 'index'])->name('events.raffle.index');
     Route::get('events/{event}/draw', [RaffleController::class, 'drawCards'])->name('events.draw.cards');
     Route::get('events/{event}/draw-general', [RaffleController::class, 'drawGeneral'])->name('events.draw.general');
+    Route::get('events/{event}/draw-general/prizes/import', [PrizeController::class, 'generalImportForm'])->name('events.draw.general.prizes.import');
+    Route::post('events/{event}/draw-general/prizes/import', [PrizeController::class, 'generalImport'])->name('events.draw.general.prizes.import.process');
     Route::post('events/{event}/draw-general/execute', [RaffleController::class, 'executeGeneralDraw'])->name('events.draw.general.execute');
     Route::post('events/{event}/draw-general/reselect', [RaffleController::class, 'reselectGeneralWinner'])->name('events.draw.general.reselect');
     Route::post('events/{event}/draw-general/mark-delivered', [RaffleController::class, 'markPrizeAsDelivered'])->name('events.draw.general.mark-delivered');

@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Trophy, Sparkles, ArrowLeft, Users, CheckCircle, RefreshCw, Search, Package } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-export default function DrawGeneral({ auth, event, winners, winners_count, eligible_count, can_raffle }) {
+export default function DrawGeneral({ auth, event, winners, winners_count, eligible_count, can_raffle, general_prizes }) {
     const { flash } = usePage().props;
     const [isDrawing, setIsDrawing] = useState(false);
     const [winnersList, setWinnersList] = useState(winners || []);
@@ -317,6 +317,27 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
 
             <div className="py-6">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                    <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <h3 className="text-lg font-semibold">Premios de la rifa general ({general_prizes.length})</h3>
+                            <Link
+                                href={route('events.draw.general.prizes.import', event.id)}
+                                className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+                            >
+                                Importar premios
+                            </Link>
+                        </div>
+                        <p className="mt-2 text-sm text-amber-700">
+                            Los premios importados todavía no se asignan a los ganadores de la rifa general.
+                        </p>
+                        {general_prizes.length > 0 && (
+                            <ol className="mt-3 list-inside list-decimal text-sm text-gray-700">
+                                {general_prizes.map((prize) => (
+                                    <li key={prize.id}>{prize.name}{!prize.active && ' (inactivo)'}</li>
+                                ))}
+                            </ol>
+                        )}
+                    </div>
                     {/* Estadísticas */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                         <div className="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200">
