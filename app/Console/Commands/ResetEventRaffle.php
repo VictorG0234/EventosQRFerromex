@@ -7,6 +7,7 @@ use App\Models\RaffleEntry;
 use App\Models\RaffleLog;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ResetEventRaffle extends Command
 {
@@ -116,11 +117,19 @@ class ResetEventRaffle extends Command
 
         try {
             DB::beginTransaction();
+            $event = Event::whereKey($event->id)->lockForUpdate()->firstOrFail();
 
             // 1. Restaurar stock de premios
             $this->info('Restaurando stock de premios...');
             foreach ($event->prizes as $prize) {
-                $winnersCount = $prize->raffleEntries()->where('status', 'won')->count();
+                if ($prize->name === 'Rifa General') {
+                    continue;
+                }
+
+                $winnersCount = $prize->raffleEntries()
+                    ->where('event_id', $event->id)
+                    ->where('status', 'won')
+                    ->count();
                 if ($winnersCount > 0) {
                     $prize->increment('stock', $winnersCount);
                     $this->line("  ✓ Premio '{$prize->name}': +{$winnersCount} stock");
@@ -162,6 +171,10 @@ class ResetEventRaffle extends Command
 
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error al reiniciar las rifas del evento', [
+                'event_id' => $event->id,
+                'exception' => $e,
+            ]);
             
             $this->error('');
             $this->error('═══════════════════════════════════════════════════════');

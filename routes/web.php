@@ -211,10 +211,12 @@ Route::middleware('auth')->group(function () {
     
     // Rutas de rifas
     Route::get('events/{event}/raffle', [RaffleController::class, 'index'])->name('events.raffle.index');
+    Route::post('events/{event}/raffle/reset', [RaffleController::class, 'reset'])->name('events.raffle.reset');
     Route::get('events/{event}/draw', [RaffleController::class, 'drawCards'])->name('events.draw.cards');
     Route::get('events/{event}/draw-general', [RaffleController::class, 'drawGeneral'])->name('events.draw.general');
     Route::get('events/{event}/draw-general/prizes/import', [PrizeController::class, 'generalImportForm'])->name('events.draw.general.prizes.import');
     Route::post('events/{event}/draw-general/prizes/import', [PrizeController::class, 'generalImport'])->name('events.draw.general.prizes.import.process');
+    Route::post('events/{event}/draw-general/prizes/assign', [RaffleController::class, 'assignGeneralPrizes'])->name('events.draw.general.prizes.assign');
     Route::post('events/{event}/draw-general/execute', [RaffleController::class, 'executeGeneralDraw'])->name('events.draw.general.execute');
     Route::post('events/{event}/draw-general/reselect', [RaffleController::class, 'reselectGeneralWinner'])->name('events.draw.general.reselect');
     Route::post('events/{event}/draw-general/mark-delivered', [RaffleController::class, 'markPrizeAsDelivered'])->name('events.draw.general.mark-delivered');

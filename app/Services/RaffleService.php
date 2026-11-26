@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Carbon\Carbon;
 
 class RaffleService
@@ -278,7 +279,7 @@ class RaffleService
     /**
      * Validar entrada elegible para rifa general
      */
-    private function isEntryEligibleForGeneralRaffle($entry, Prize $prize): bool
+    public function isEntryEligibleForGeneralRaffle(RaffleEntry $entry, Prize $prize): bool
     {
         // Validar que el entry tiene guest válido
         if (!$this->hasValidGuest($entry)) {
@@ -1485,6 +1486,36 @@ class RaffleService
         );
     }
 
+    public function availableGeneralRafflePrizes(Event $event): HasMany
+    {
+        return $event->generalRafflePrizes()
+            ->where('active', true)
+            ->whereDoesntHave('raffleEntry');
+    }
+
+    public function assignPrizesToExistingGeneralWinners(Event $event): array
+    {
+        return DB::transaction(function () use ($event) {
+            $event = Event::whereKey($event->id)->lockForUpdate()->firstOrFail();
+            $generalPrize = $this->getOrCreateGeneralRafflePrize($event);
+            $winners = RaffleEntry::where('event_id', $event->id)
+                ->where('prize_id', $generalPrize->id)
+                ->where('status', 'won')
+                ->whereNull('general_raffle_prize_id')
+                ->orderBy('id')
+                ->get();
+            $prizes = $this->availableGeneralRafflePrizes($event)->get()->shuffle()->values();
+
+            foreach ($winners->take($prizes->count()) as $index => $winner) {
+                $winner->update(['general_raffle_prize_id' => $prizes[$index]->id]);
+            }
+
+            $assigned = min($winners->count(), $prizes->count());
+
+            return ['assigned' => $assigned, 'remaining' => $winners->count() - $assigned];
+        });
+    }
+
     /**
      * Obtener invitados elegibles para la rifa general
      * @param Event $event
@@ -1541,6 +1572,7 @@ class RaffleService
             $eligibleGuests = $this->getEligibleGuestsForGeneralRaffle($event);
             
             if ($eligibleGuests->isEmpty()) {
+                DB::rollBack();
                 return [
                     'success' => false,
                     'error' => 'No hay invitados elegibles para la rifa general.',
@@ -1668,22 +1700,54 @@ class RaffleService
      * @param bool $sendNotification
      * @return array
      */
-    public function drawGeneralRaffle(Event $event, int $winnersCount, bool $sendNotification = false): array
+    public function drawGeneralRaffle(Event $event, int $winnersCount, bool $sendNotification = false, bool $resetPrevious = false): array
     {
         try {
             DB::beginTransaction();
+            $event = Event::whereKey($event->id)->lockForUpdate()->firstOrFail();
 
             // Obtener o crear el premio especial "Rifa General"
             $generalPrize = $this->getOrCreateGeneralRafflePrize($event);
 
+            if ($resetPrevious) {
+                RaffleEntry::where('event_id', $event->id)
+                    ->where('prize_id', $generalPrize->id)
+                    ->where('status', 'won')
+                    ->update([
+                        'status' => 'pending',
+                        'drawn_at' => null,
+                        'position' => null,
+                        'general_raffle_prize_id' => null,
+                        'prize_delivered' => false,
+                        'delivered_at' => null,
+                        'delivered_by' => null,
+                    ]);
+            }
+
+            $unassignedWinners = RaffleEntry::where('event_id', $event->id)
+                ->where('prize_id', $generalPrize->id)
+                ->where('status', 'won')
+                ->whereNull('general_raffle_prize_id')
+                ->exists();
+            if ($unassignedWinners) {
+                DB::rollBack();
+                return ['success' => false, 'error' => 'Asigna primero premios a los ganadores anteriores.'];
+            }
+
+            $availablePrizes = $this->availableGeneralRafflePrizes($event)->get()->shuffle()->values();
+            if ($winnersCount < 1 || $winnersCount > $availablePrizes->count()) {
+                DB::rollBack();
+                return ['success' => false, 'error' => 'La cantidad de ganadores no puede exceder los premios activos disponibles.'];
+            }
+
             // Asegurar que todos los elegibles tengan entradas creadas
             // Esto garantiza que si se borraron ganadores, todos los elegibles puedan participar
             $createResult = $this->createGeneralRaffleEntries($event);
-            if (!$createResult['success'] && $createResult['total_eligible'] > 0) {
-                // Si hay elegibles pero no se pudieron crear entradas, es un error
+            if (!$createResult['success']) {
+                DB::rollBack();
                 return [
                     'success' => false,
-                    'error' => 'Error al crear entradas: ' . ($createResult['error'] ?? 'Error desconocido')
+                    'error' => $createResult['error']
                 ];
             }
             
@@ -1698,7 +1762,7 @@ class RaffleService
             // Esto asegura que usuarios con "No Participa" o que ya ganaron en rifa pública no puedan ganar
             $eligibleEntries = $pendingEntries->filter(function ($entry) use ($generalPrize) {
                 return $this->isEntryEligibleForGeneralRaffle($entry, $generalPrize);
-            });
+            })->unique('guest_id')->values();
             
             // LIMPIEZA ADICIONAL: Marcar como 'lost' las entradas inválidas que no pasaron el filtro
             // Esto previene que queden entradas pendientes para usuarios que ya no son elegibles
@@ -1758,6 +1822,7 @@ class RaffleService
             }
 
             if ($eligibleEntries->isEmpty()) {
+                DB::rollBack();
                 return [
                     'success' => false,
                     'error' => 'No hay participantes elegibles después de aplicar las reglas.'
@@ -1796,18 +1861,27 @@ class RaffleService
             $winners = collect();
             $maxImexWinners = 2;
             $maxSubdirectoresWinners = 2;
-            $winnersCount = min($winnersCount, $eligibleEntries->count());
             $imexSlotsAvailable = $maxImexWinners - $existingImexWinnersCount;
             $subdirectoresSlotsAvailable = $maxSubdirectoresWinners - $existingSubdirectoresWinnersCount;
             
             // REGLA IMEX: Seleccionar primero los ganadores IMEX (hasta 2, OBLIGATORIO)
             if ($imexEntries->isNotEmpty() && $imexSlotsAvailable > 0) {
                 // Seleccionar hasta los slots disponibles (máximo 2) o los que haya disponibles
-                $imexWinnersToSelect = min($imexSlotsAvailable, $imexEntries->count());
+                $imexWinnersToSelect = min($imexSlotsAvailable, $imexEntries->count(), $winnersCount);
                 
                 if ($imexWinnersToSelect > 0) {
-                    $imexWinners = $imexEntries->shuffle()->take($imexWinnersToSelect);
-                    $winners = $winners->merge($imexWinners);
+                    foreach ($imexEntries->shuffle() as $entry) {
+                        if ($winners->count() >= $imexWinnersToSelect) {
+                            break;
+                        }
+                        if (in_array($entry->id, $subdirectoresEntryIds)) {
+                            if ($subdirectoresSlotsAvailable <= 0) {
+                                continue;
+                            }
+                            $subdirectoresSlotsAvailable--;
+                        }
+                        $winners->push($entry);
+                    }
                 }
             }
 
@@ -1820,7 +1894,10 @@ class RaffleService
                 // Agregar Subdirectores si hay slots disponibles
                 if ($subdirectoresSlotsAvailable > 0 && $subdirectoresEntries->isNotEmpty()) {
                     // Solo agregar hasta los slots disponibles
-                    $subdirectoresToAdd = $subdirectoresEntries->shuffle()->take($subdirectoresSlotsAvailable);
+                    $subdirectoresToAdd = $subdirectoresEntries
+                        ->reject(fn ($entry) => in_array($entry->id, $imexEntryIds))
+                        ->shuffle()
+                        ->take($subdirectoresSlotsAvailable);
                     $poolEntries = $poolEntries->merge($subdirectoresToAdd);
                 }
                 
@@ -1836,6 +1913,10 @@ class RaffleService
 
             // Mezclar los ganadores aleatoriamente para que el orden final sea aleatorio
             $winners = $winners->shuffle();
+            if ($winners->count() < $winnersCount) {
+                DB::rollBack();
+                return ['success' => false, 'error' => "Solo hay {$winners->count()} participantes disponibles con las reglas de la rifa. Reduce la cantidad de ganadores."];
+            }
 
             // Obtener la posición máxima actual de ganadores existentes para continuar la numeración
             $maxExistingPosition = RaffleEntry::where('event_id', $event->id)
@@ -1845,11 +1926,12 @@ class RaffleService
 
             // Marcar ganadores con posiciones incrementales (no decrementar stock del premio especial)
             $currentPosition = $maxExistingPosition;
-            foreach ($winners as $entry) {
+            foreach ($winners->values() as $index => $entry) {
                 $currentPosition++;
                 $entry->update([
                     'status' => 'won',
                     'position' => $currentPosition,
+                    'general_raffle_prize_id' => $availablePrizes[$index]->id,
                     'drawn_at' => Carbon::now(),
                     'raffle_metadata' => array_merge($entry->raffle_metadata ?? [], [
                         'raffle_type' => 'general',

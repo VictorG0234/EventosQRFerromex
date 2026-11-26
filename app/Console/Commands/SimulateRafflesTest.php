@@ -33,6 +33,7 @@ class SimulateRafflesTest extends Command
                             {--guests-file=storage/app/exports/guests.csv : Ruta del archivo de guests}
                             {--attendances-file=storage/app/exports/asistencias.txt : Ruta del archivo de asistencias}
                             {--prizes-file=storage/app/exports/premios.csv : Ruta del archivo de premios}
+                            {--general-prizes-file= : CSV de premios de rifa general; por defecto se usa el archivo de premios}
                             {--general-winners=76 : Número de ganadores en la rifa general}';
 
     /**
@@ -62,6 +63,7 @@ class SimulateRafflesTest extends Command
         $guestsFile = $this->option('guests-file');
         $attendancesFile = $this->option('attendances-file');
         $prizesFile = $this->option('prizes-file');
+        $generalPrizesFile = $this->option('general-prizes-file') ?: $prizesFile;
         $generalWinners = (int) $this->option('general-winners');
 
         $this->info("🎲 Iniciando simulación de {$count} rifas");
@@ -83,10 +85,16 @@ class SimulateRafflesTest extends Command
             return 1;
         }
 
+        if (!file_exists($generalPrizesFile)) {
+            $this->error("❌ No se encontró el archivo de premios generales: {$generalPrizesFile}");
+            return 1;
+        }
+
         $this->info("📁 Archivos encontrados:");
         $this->line("   • Guests: {$guestsFile}");
         $this->line("   • Asistencias: {$attendancesFile}");
         $this->line("   • Premios: {$prizesFile}");
+        $this->line("   • Premios generales: {$generalPrizesFile}");
         $this->newLine();
 
         $allWinners = [];
@@ -150,6 +158,9 @@ class SimulateRafflesTest extends Command
                 }
 
                 // Crear entradas para rifa general
+                $generalPrizesFileUpload = new UploadedFile($generalPrizesFile, basename($generalPrizesFile), null, null, true);
+                $importedGeneralPrizes = $this->prizeImportService->importGeneralFromCsv($generalPrizesFileUpload, $event);
+                $this->line("   ✅ Premios generales importados: {$importedGeneralPrizes}");
                 $this->line("   🎲 Creando entradas para rifa general...");
                 $generalEntriesResult = $this->raffleService->createGeneralRaffleEntries($event);
                 if ($generalEntriesResult['success']) {
@@ -161,6 +172,8 @@ class SimulateRafflesTest extends Command
                 $generalDrawResult = $this->raffleService->drawGeneralRaffle($event, $generalWinners, false);
                 if ($generalDrawResult['success']) {
                     $this->line("      ✅ {$generalDrawResult['winners_count']} ganadores seleccionados");
+                } else {
+                    throw new \RuntimeException('No se pudo realizar la rifa general: ' . $generalDrawResult['error']);
                 }
 
                 // Recopilar ganadores de esta rifa
