@@ -57,8 +57,10 @@ Cada invitado tiene:
 - Control automático de stock
 - Sorteos en tiempo real
 - La rifa pública admite como máximo un ganador IMEX por evento, sin contar ganadores de la rifa general. Se considera IMEX a quien tenga esa compañía o categoría de rifa, sin distinguir mayúsculas ni espacios exteriores.
+- La rifa general admite como máximo dos ganadores IMEX por evento, identificados por compañía o categoría de rifa. Sus ganadores se cuentan por separado de los de la rifa pública.
 - En la rifa general, cada ganador recibe aleatoriamente un premio activo disponible; la cantidad solicitada no puede superar los premios disponibles.
 - Los ganadores anteriores sin premio se asignan con el botón **Asignar premios pendientes**. Si ya se entregaron premios, la asignación aleatoria puede no reflejar lo entregado.
+- Si existen más de dos ganadores IMEX anteriores y alguno no tiene premio asignado, se debe revisar el resultado antes de asignar premios pendientes.
 - Al reemplazar un ganador se conserva su premio; al reiniciar las rifas del evento, los premios importados vuelven a estar disponibles.
 
 ## 🚀 Instalación
@@ -170,7 +172,7 @@ El comando ejecuta un test completo que:
    - Las categorías `Participa en premios NO en auto` e `IMEX`, así como la compañía `IMEX`, no participan por el premio llamado `Automovil`.
    - No hay ganadores repetidos
    - Como máximo 1 ganador IMEX en rifa pública
-   - Exactamente 2 ganadores IMEX en rifa general
+   - Como máximo 2 ganadores IMEX en rifa general
    - Ganadores de rifa pública no participan en rifa general
    - Invitados INV no participan en ninguna rifa
    - Stock se actualiza correctamente

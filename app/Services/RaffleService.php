@@ -17,6 +17,8 @@ use Carbon\Carbon;
 
 class RaffleService
 {
+    public const GENERAL_IMEX_WINNER_LIMIT = 2;
+
     // Constantes para descripciones excluidas y permitidas
     private const EXCLUDED_DESCRIPTIONS_PUBLIC = ['Ganadores previos', 'Nuevo ingreso', 'Directores', 'No Participa'];
     private const ALLOWED_DESCRIPTIONS_GENERAL = ['General', 'Subdirectores', 'IMEX'];
@@ -108,7 +110,7 @@ class RaffleService
             && !(strtolower(trim($prize->name)) === 'automovil' && $this->isImexGuest($guest));
     }
 
-    private function isImexGuest(Guest $guest): bool
+    public function isImexGuest(Guest $guest): bool
     {
         return $this->normalizeCompania($guest->compania) === 'IMEX'
             || $this->normalizeCompania($guest->categoria_rifa) === 'IMEX';
@@ -208,9 +210,36 @@ class RaffleService
         return null;
     }
 
+    public function countGeneralImexWinners(int $eventId): int
+    {
+        return RaffleEntry::where('event_id', $eventId)
+            ->where('status', 'won')
+            ->whereHas('prize', fn ($query) => $query->where('event_id', $eventId)->where('name', 'Rifa General'))
+            ->whereHas('guest', function ($query) {
+                $query->where(function ($query) {
+                    $query->whereRaw('TRIM(UPPER(COALESCE(compania, \'\'))) = ?', ['IMEX'])
+                        ->orWhereRaw('TRIM(UPPER(COALESCE(categoria_rifa, \'\'))) = ?', ['IMEX']);
+                });
+            })
+            ->count();
+    }
+
+    public function generalImexWinnerError(Prize $prize, Guest $guest): ?string
+    {
+        if ($error = $this->imexPreviouslyWonError($prize, $guest)) {
+            return $error;
+        }
+
+        if ($this->isImexGuest($guest) && $this->countGeneralImexWinners($prize->event_id) >= self::GENERAL_IMEX_WINNER_LIMIT) {
+            return 'Ya hay dos ganadores IMEX en la rifa general de este evento.';
+        }
+
+        return null;
+    }
+
 
     /**
-     * Filtrar entradas por compañía IMEX
+     * Filtrar entradas por compañía o categoría IMEX
      */
     private function filterImexEntries(Collection $entries): Collection
     {
@@ -219,8 +248,7 @@ class RaffleService
                 return false;
             }
 
-            $compania = $this->normalizeCompania($entry->guest->compania);
-            return $compania === 'IMEX';
+            return $this->isImexGuest($entry->guest);
         });
     }
 
@@ -637,19 +665,10 @@ class RaffleService
                     return $this->isEntryEligibleForGeneralRaffle($entry, $prize);
                 });
                 
-                // REGLA: En rifa general debe haber máximo 2 ganadores IMEX (por evento)
-                // Verificar cuántos ganadores IMEX hay en la rifa general (excluyendo el premio especial "Rifa General")
-                $generalPrize = $this->getOrCreateGeneralRafflePrize($event);
-                $existingImexWinnersCount = RaffleEntry::where('event_id', $event->id)
-                    ->where('prize_id', '!=', $generalPrize->id) // Excluir premio especial "Rifa General"
-                    ->where('status', 'won')
-                    ->whereHas('guest', function ($q) {
-                        $q->where('compania', 'IMEX');
-                    })
-                    ->count();
-                
-                $maxImexWinners = 2;
-                $imexSlotsAvailable = $maxImexWinners - $existingImexWinnersCount;
+                $imexSlotsAvailable = max(0, self::GENERAL_IMEX_WINNER_LIMIT - $this->countGeneralImexWinners($event->id));
+                $imexEntries = $this->filterImexEntries($eligibleEntries);
+                $nonImexEntries = $eligibleEntries->reject(fn ($entry) => $this->isImexGuest($entry->guest));
+                $eligibleEntries = $nonImexEntries->merge($imexEntries->shuffle()->take($imexSlotsAvailable));
                 
                 // Si hay slots disponibles para IMEX y hay participantes IMEX, priorizarlos
                 if ($imexSlotsAvailable > 0) {
@@ -666,10 +685,6 @@ class RaffleService
                             // Si necesitamos más ganadores, completar con no-IMEX
                             $remainingWinnersNeeded = $winnersCount - $winners->count();
                             if ($remainingWinnersNeeded > 0) {
-                                $nonImexEntries = $eligibleEntries->reject(function ($entry) use ($imexWinners) {
-                                    return $imexWinners->contains('id', $entry->id);
-                                });
-                                
                                 if ($nonImexEntries->isNotEmpty()) {
                                     $additionalWinners = $nonImexEntries->shuffle()->take($remainingWinnersNeeded);
                                     $winners = $winners->merge($additionalWinners)->shuffle();
@@ -953,6 +968,9 @@ class RaffleService
                 $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize) {
                     return $this->isEntryEligibleForGeneralRaffle($entry, $prize);
                 });
+                if ($this->countGeneralImexWinners($prize->event_id) >= self::GENERAL_IMEX_WINNER_LIMIT) {
+                    $eligibleEntries = $eligibleEntries->reject(fn ($entry) => $this->isImexGuest($entry->guest));
+                }
             }
 
             if ($eligibleEntries->isEmpty()) {
@@ -1092,7 +1110,7 @@ class RaffleService
             }
 
             if ($prize->name === 'Rifa General'
-                && ($error = $this->imexPreviouslyWonError($prize, $winnerEntry->guest))) {
+                && ($error = $this->generalImexWinnerError($prize, $winnerEntry->guest))) {
                 DB::rollBack();
                 return ['success' => false, 'error' => $error];
             }
@@ -1569,6 +1587,10 @@ class RaffleService
                 ->whereNull('general_raffle_prize_id')
                 ->orderBy('id')
                 ->get();
+            if ($this->countGeneralImexWinners($event->id) > self::GENERAL_IMEX_WINNER_LIMIT
+                && $winners->contains(fn ($winner) => $winner->guest && $this->isImexGuest($winner->guest))) {
+                return ['assigned' => 0, 'remaining' => $winners->count(), 'error' => 'Hay más de dos ganadores IMEX registrados. Revisa los resultados antes de asignar premios pendientes.'];
+            }
             $prizes = $this->availableGeneralRafflePrizes($event)->get()->shuffle()->values();
 
             foreach ($winners->take($prizes->count()) as $index => $winner) {
@@ -1894,14 +1916,7 @@ class RaffleService
                 ];
             }
 
-            // REGLA IMEX: Debe haber solo 2 ganadores con la Compañía IMEX (por evento) - OBLIGATORIO
-            $existingImexWinnersCount = RaffleEntry::where('event_id', $event->id)
-                ->where('prize_id', $generalPrize->id)
-                ->where('status', 'won')
-                ->whereHas('guest', function ($q) {
-                    $q->where('compania', 'IMEX');
-                })
-                ->count();
+            $existingImexWinnersCount = $this->countGeneralImexWinners($event->id);
             
             // REGLA SUBDIRECTORES: Máximo 2 ganadores Subdirectores (por evento) - OPCIONAL
             $existingSubdirectoresWinnersCount = RaffleEntry::where('event_id', $event->id)
@@ -1924,9 +1939,8 @@ class RaffleService
             });
 
             $winners = collect();
-            $maxImexWinners = 2;
             $maxSubdirectoresWinners = 2;
-            $imexSlotsAvailable = $maxImexWinners - $existingImexWinnersCount;
+            $imexSlotsAvailable = self::GENERAL_IMEX_WINNER_LIMIT - $existingImexWinnersCount;
             $subdirectoresSlotsAvailable = $maxSubdirectoresWinners - $existingSubdirectoresWinnersCount;
             
             // REGLA IMEX: Seleccionar primero los ganadores IMEX (hasta 2, OBLIGATORIO)
