@@ -594,7 +594,7 @@ class RaffleController extends Controller
                     return $error;
                 }
                 if ($prize->name === 'Rifa General'
-                    && ($error = $this->raffleService->imexPreviouslyWonError($prize, $guest))) {
+                    && ($error = $this->raffleService->generalImexWinnerError($prize, $guest))) {
                     return $error;
                 }
                 $entry->update(['status' => 'won', 'drawn_at' => now()]);
@@ -917,27 +917,19 @@ class RaffleController extends Controller
         // Obtener invitados elegibles
         $eligibleGuests = $this->raffleService->getEligibleGuestsForGeneralRaffle($event);
         
-        // Contar ganadores IMEX existentes
-        $existingImexWinnersCount = RaffleEntry::where('event_id', $event->id)
-            ->where('prize_id', $generalPrize->id)
-            ->where('status', 'won')
-            ->whereHas('guest', function ($q) {
-                $q->where('compania', 'IMEX');
-            })
-            ->count();
+        $existingImexWinnersCount = $this->raffleService->countGeneralImexWinners($event->id);
         
         // Separar invitados elegibles en IMEX y no-IMEX
         $imexEligibleGuests = $eligibleGuests->filter(function ($guest) {
-            return strtoupper(trim($guest->compania ?? '')) === 'IMEX';
+            return $this->raffleService->isImexGuest($guest);
         });
         
         $nonImexEligibleGuests = $eligibleGuests->reject(function ($guest) {
-            return strtoupper(trim($guest->compania ?? '')) === 'IMEX';
+            return $this->raffleService->isImexGuest($guest);
         });
         
         // Calcular eligible_count considerando la limitación de 2 ganadores IMEX
-        $maxImexWinners = 2;
-        $imexSlotsAvailable = max(0, $maxImexWinners - $existingImexWinnersCount);
+        $imexSlotsAvailable = max(0, RaffleService::GENERAL_IMEX_WINNER_LIMIT - $existingImexWinnersCount);
         $imexEligibleCount = min($imexSlotsAvailable, $imexEligibleGuests->count());
         $eligibleCount = $imexEligibleCount + $nonImexEligibleGuests->count();
         
@@ -969,6 +961,10 @@ class RaffleController extends Controller
     {
         $this->authorize('update', $event);
         $result = $this->raffleService->assignPrizesToExistingGeneralWinners($event);
+
+        if (isset($result['error'])) {
+            return back()->with('error', $result['error']);
+        }
 
         if ($result['remaining'] > 0) {
             return back()->with('error', "Se asignaron {$result['assigned']} premios. Faltan {$result['remaining']} ganadores; importa más premios activos.");
@@ -1197,15 +1193,7 @@ class RaffleController extends Controller
                 $pendingEntries->push($currentWinnerEntry);
             }
 
-            // Contar cuántos ganadores IMEX hay actualmente (excluyendo el que se está reemplazando)
-            $currentImexWinnersCount = RaffleEntry::where('event_id', $event->id)
-                ->where('prize_id', $generalPrize->id)
-                ->where('status', 'won')
-                ->where('guest_id', '!=', $guest->id)
-                ->whereHas('guest', function ($q) {
-                    $q->where('compania', 'IMEX');
-                })
-                ->count();
+            $currentImexWinnersCount = $this->raffleService->countGeneralImexWinners($event->id);
 
             // Contar cuántos ganadores Subdirectores hay actualmente (excluyendo el que se está reemplazando)
             $currentSubdirectoresWinnersCount = RaffleEntry::where('event_id', $event->id)
@@ -1217,16 +1205,13 @@ class RaffleController extends Controller
                 })
                 ->count();
 
-            // Verificar si el ganador actual es IMEX
-            $currentWinnerIsImex = strtoupper(trim($guest->compania ?? '')) === 'IMEX';
-            
             // Verificar si el ganador actual es Subdirector
             $currentWinnerIsSubdirector = strtolower(trim($guest->descripcion ?? '')) === 'subdirectores';
 
             // Filtrar para asegurar que solo incluimos elegibles
             // REGLA IMEX: Debe haber solo 2 ganadores IMEX (obligatorio)
             // REGLA SUBDIRECTORES: Máximo 2 ganadores Subdirectores (opcional)
-            $eligibleEntries = $pendingEntries->filter(function ($entry) use ($eligibleGuests, $guest, $generalPrize, $currentImexWinnersCount, $currentWinnerIsImex, $currentSubdirectoresWinnersCount, $currentWinnerIsSubdirector) {
+            $eligibleEntries = $pendingEntries->filter(function ($entry) use ($eligibleGuests, $guest, $generalPrize, $currentImexWinnersCount, $currentSubdirectoresWinnersCount, $currentWinnerIsSubdirector) {
                 // Excluir al guest actual de la selección (no puede re-seleccionarse a sí mismo)
                 if ($entry->guest_id === $guest->id) {
                     return false;
@@ -1238,23 +1223,11 @@ class RaffleController extends Controller
                     return false;
                 }
 
-                $entryIsImex = strtoupper(trim($entry->guest->compania ?? '')) === 'IMEX';
+                $entryIsImex = $this->raffleService->isImexGuest($entry->guest);
                 $entryIsSubdirector = strtolower(trim($entry->guest->descripcion ?? '')) === 'subdirectores';
 
-                // REGLA IMEX: Si ya hay 2 ganadores IMEX y el ganador actual NO es IMEX,
-                // entonces el nuevo ganador NO puede ser IMEX
-                if ($currentImexWinnersCount >= 2 && !$currentWinnerIsImex) {
-                    if ($entryIsImex) {
-                        return false; // No permitir más ganadores IMEX
-                    }
-                }
-
-                // REGLA IMEX: Si ya hay 2 ganadores IMEX y el ganador actual es IMEX,
-                // entonces el nuevo ganador NO puede ser IMEX (para mantener 2)
-                if ($currentImexWinnersCount >= 2 && $currentWinnerIsImex) {
-                    if ($entryIsImex) {
-                        return false; // No permitir más ganadores IMEX
-                    }
+                if ($currentImexWinnersCount >= RaffleService::GENERAL_IMEX_WINNER_LIMIT && $entryIsImex) {
+                    return false;
                 }
 
                 // REGLA SUBDIRECTORES: Si ya hay 2 ganadores Subdirectores y el ganador actual NO es Subdirector,

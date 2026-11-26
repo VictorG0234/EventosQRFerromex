@@ -117,7 +117,7 @@ class GeneralRafflePrizeAssignmentTest extends TestCase
         $this->assertSame(1, $event->raffleEntries()->where('status', 'won')->count());
     }
 
-    public function test_general_raffle_keeps_its_company_based_imex_rule_and_excludes_public_winner(): void
+    public function test_general_raffle_excludes_public_winner_without_counting_them_toward_imex_limit(): void
     {
         $owner = $this->owner();
         $event = $this->event($owner);
@@ -139,6 +139,158 @@ class GeneralRafflePrizeAssignmentTest extends TestCase
             ->whereNotNull('general_raffle_prize_id')
             ->pluck('guest_id')->all();
         $this->assertEqualsCanonicalizing([$first->id, $second->id], $winners);
+    }
+
+    public function test_general_draw_limits_mixed_company_and_category_imex_to_two(): void
+    {
+        $owner = $this->owner();
+        $event = $this->event($owner);
+        $publicWinner = $this->guest($event, '1', 'IMEX');
+        $publicPrize = Prize::create(['event_id' => $event->id, 'name' => 'Público', 'stock' => 1, 'active' => true]);
+        RaffleEntry::enterRaffle($publicWinner, $publicPrize)->update(['status' => 'won', 'drawn_at' => now()]);
+        $otherEvent = $this->event($owner);
+        $this->legacyWinner($otherEvent, $this->guest($otherEvent, '2', 'IMEX'));
+        $this->guest($event, '3', ' imex ');
+        $this->guest($event, '4')->update(['categoria_rifa' => ' iMeX ']);
+        $this->guest($event, '5')->update(['categoria_rifa' => 'IMEX', 'descripcion' => 'Subdirectores']);
+        $ordinaryOne = $this->guest($event, '6');
+        $ordinaryTwo = $this->guest($event, '7');
+        foreach (range(1, 4) as $number) {
+            $this->prize($event, "Premio {$number}");
+        }
+
+        $this->actingAs($owner)->get(route('events.draw.general', $event))
+            ->assertOk()->assertInertia(fn ($page) => $page->where('eligible_count', 4));
+        $this->postJson(route('events.draw.general.execute', $event), ['winners_count' => 4])
+            ->assertOk()->assertJsonPath('winners_count', 4);
+
+        $generalWinners = RaffleEntry::where('event_id', $event->id)
+            ->whereNotNull('general_raffle_prize_id')->with('guest')->get();
+        $service = app(RaffleService::class);
+        $this->assertCount(2, $generalWinners->filter(fn ($entry) => $service->isImexGuest($entry->guest)));
+        $this->assertContains($ordinaryOne->id, $generalWinners->pluck('guest_id')->all());
+        $this->assertContains($ordinaryTwo->id, $generalWinners->pluck('guest_id')->all());
+        $this->assertNotContains($publicWinner->id, $generalWinners->pluck('guest_id')->all());
+    }
+
+    public function test_following_draw_respects_existing_imex_winners_and_updates_available_count(): void
+    {
+        $owner = $this->owner();
+        $event = $this->event($owner);
+        $first = $this->guest($event, '1', ' imex ');
+        $second = $this->guest($event, '2');
+        $second->update(['categoria_rifa' => 'IMEX']);
+        $third = $this->guest($event, '3');
+        $third->update(['categoria_rifa' => ' imEx ']);
+        $normal = $this->guest($event, '4');
+        foreach (range(1, 3) as $number) {
+            $this->prize($event, "Premio {$number}");
+        }
+
+        $this->actingAs($owner)->postJson(route('events.draw.general.execute', $event), ['winners_count' => 2])
+            ->assertOk();
+        $this->get(route('events.draw.general', $event))
+            ->assertOk()->assertInertia(fn ($page) => $page->where('eligible_count', 1));
+        $this->postJson(route('events.draw.general.execute', $event), ['winners_count' => 1])
+            ->assertOk()->assertJsonPath('winners.0.id', $normal->id);
+        $this->assertSame(2, app(RaffleService::class)->countGeneralImexWinners($event->id));
+    }
+
+    public function test_confirmation_and_manual_selection_cannot_exceed_general_imex_limit(): void
+    {
+        $owner = $this->owner();
+        $event = $this->event($owner);
+        $this->legacyWinner($event, $this->guest($event, '1', ' imex '));
+        $second = $this->guest($event, '2');
+        $second->update(['categoria_rifa' => 'IMEX']);
+        $this->legacyWinner($event, $second);
+        $candidate = $this->guest($event, '3');
+        $candidate->update(['categoria_rifa' => 'IMEX']);
+        $general = app(RaffleService::class)->getOrCreateGeneralRafflePrize($event);
+        $entry = RaffleEntry::enterRaffle($candidate, $general);
+        $error = 'Ya hay dos ganadores IMEX en la rifa general de este evento.';
+
+        $this->actingAs($owner)->postJson(route('events.raffle.confirm-winner', [$event, $general]), [
+            'entry_id' => $entry->id, 'send_notification' => false,
+        ])->assertStatus(422)->assertJsonPath('message', $error);
+        $this->post(route('events.raffle.select-winner', [$event, $general]), [
+            'guest_id' => $candidate->id, 'send_notification' => false,
+        ])->assertSessionHas('error', $error);
+        $this->assertSame('pending', $entry->fresh()->status);
+    }
+
+    public function test_generic_general_draw_and_temporary_selection_respect_available_imex_slots(): void
+    {
+        $event = $this->event($this->owner());
+        $this->legacyWinner($event, $this->guest($event, '1', 'IMEX'));
+        $categoryOne = $this->guest($event, '2');
+        $categoryOne->update(['categoria_rifa' => 'IMEX']);
+        $categoryTwo = $this->guest($event, '3');
+        $categoryTwo->update(['categoria_rifa' => 'IMEX']);
+        $normalOne = $this->guest($event, '4');
+        $normalTwo = $this->guest($event, '5');
+        $service = app(RaffleService::class);
+        $general = $service->getOrCreateGeneralRafflePrize($event);
+        foreach ([$categoryOne, $categoryTwo, $normalOne, $normalTwo] as $guest) {
+            RaffleEntry::enterRaffle($guest, $general);
+        }
+
+        $draw = $service->drawRaffle($general, 3, false, 'general');
+        $this->assertTrue($draw['success']);
+        $this->assertCount(3, $draw['winners']);
+        $this->assertContains($normalOne->id, collect($draw['winners'])->pluck('guest_id')->all());
+        $this->assertContains($normalTwo->id, collect($draw['winners'])->pluck('guest_id')->all());
+        $this->assertSame(2, $service->countGeneralImexWinners($event->id));
+
+        $remainingImex = $this->guest($event, '6');
+        $remainingImex->update(['categoria_rifa' => 'IMEX']);
+        $remainingNormal = $this->guest($event, '7');
+        RaffleEntry::enterRaffle($remainingImex, $general);
+        RaffleEntry::enterRaffle($remainingNormal, $general);
+        $temporary = $service->selectWinnerTemporary($general, 'general');
+        $this->assertTrue($temporary['success']);
+        $this->assertSame($remainingNormal->id, $temporary['winner']->guest_id);
+    }
+
+    public function test_replacement_does_not_exceed_general_imex_limit_and_frees_replaced_slot(): void
+    {
+        $owner = $this->owner();
+        $event = $this->event($owner);
+        $imexOne = $this->guest($event, '1', ' imex ');
+        $imexTwo = $this->guest($event, '2');
+        $imexTwo->update(['categoria_rifa' => 'IMEX']);
+        $this->legacyWinner($event, $imexOne);
+        $secondWinner = $this->legacyWinner($event, $imexTwo);
+        $secondWinner->update(['general_raffle_prize_id' => $this->prize($event, 'Segundo')->id]);
+        $normal = $this->guest($event, '3');
+        $normalWinner = $this->legacyWinner($event, $normal);
+        $normalWinner->update(['general_raffle_prize_id' => $this->prize($event, 'Tercero')->id]);
+        $imexCandidate = $this->guest($event, '4');
+        $imexCandidate->update(['categoria_rifa' => ' imex ']);
+        $normalCandidate = $this->guest($event, '5');
+
+        $this->actingAs($owner)->postJson(route('events.draw.general.reselect', $event), ['guest_id' => $normal->id])
+            ->assertOk()->assertJsonPath('winner.id', $normalCandidate->id);
+        $normal->update(['categoria_rifa' => 'No Participa']);
+        $this->postJson(route('events.draw.general.reselect', $event), ['guest_id' => $imexTwo->id])
+            ->assertOk()->assertJsonPath('winner.id', $imexCandidate->id);
+        $this->assertSame(2, app(RaffleService::class)->countGeneralImexWinners($event->id));
+    }
+
+    public function test_pending_legacy_prize_assignment_is_blocked_if_there_are_over_two_imex_winners(): void
+    {
+        $owner = $this->owner();
+        $event = $this->event($owner);
+        $first = $this->legacyWinner($event, $this->guest($event, '1', 'IMEX'));
+        $second = $this->guest($event, '2');
+        $second->update(['categoria_rifa' => 'IMEX']);
+        $this->legacyWinner($event, $second);
+        $this->legacyWinner($event, $this->guest($event, '3', ' imex '));
+        $this->prize($event, 'Premio');
+
+        $this->actingAs($owner)->post(route('events.draw.general.prizes.assign', $event))
+            ->assertSessionHas('error', 'Hay más de dos ganadores IMEX registrados. Revisa los resultados antes de asignar premios pendientes.');
+        $this->assertNull($first->fresh()->general_raffle_prize_id);
     }
 
     public function test_subsequent_draws_do_not_reuse_prizes_or_previous_winners(): void
