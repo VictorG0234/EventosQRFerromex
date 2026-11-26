@@ -202,7 +202,7 @@ class RaffleController extends Controller
                 $q->where('event_id', $event->id)
                   ->where('status', 'won');
             })
-            ->get(['id', 'compania', 'descripcion']);
+            ->get(['id', 'compania', 'descripcion', 'categoria_rifa']);
 
         // Pre-calcular elegibles por premio (considerando reglas específicas)
         $eligibleCountsByPrize = [];
@@ -215,10 +215,12 @@ class RaffleController extends Controller
             
             // Si es automóvil, excluir IMEX y Subdirectores
             if ($isAutomovil) {
-                $eligibleForPrize = $eligibleForPrize->filter(function ($guest) {
+                $eligibleForPrize = $eligibleForPrize->filter(function ($guest) use ($prize) {
                     $compania = strtoupper(trim($guest->compania ?? ''));
                     $descripcion = strtolower(trim($guest->descripcion ?? ''));
-                    return $compania !== 'IMEX' && $descripcion !== 'subdirectores';
+                    return $compania !== 'IMEX'
+                        && $descripcion !== 'subdirectores'
+                        && $this->raffleService->isCategoryAllowedForPrize($prize, $guest->categoria_rifa);
                 });
             }
             
@@ -546,6 +548,10 @@ class RaffleController extends Controller
 
         if (!$entry) {
             return back()->with('error', 'El invitado seleccionado no tiene una participación válida para este premio.');
+        }
+
+        if (!$this->raffleService->isCategoryAllowedForPrize($prize, $guest->categoria_rifa)) {
+            return back()->with('error', 'La categoría del invitado no permite participar por el automóvil.');
         }
 
         try {
