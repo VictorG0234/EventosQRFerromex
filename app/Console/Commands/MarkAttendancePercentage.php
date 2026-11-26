@@ -285,6 +285,10 @@ class MarkAttendancePercentage extends Command
      */
     private function isGuestEligibleForPrize(Guest $guest, Prize $prize, string $raffleType = 'general'): bool
     {
+        if (!$this->raffleService->isCategoryAllowedForPrize($prize, $guest->categoria_rifa)) {
+            return false;
+        }
+
         // REGLA COMÚN: Debe tener asistencia (ya la tiene porque estamos en el proceso de marcarla)
         
         // REGLAS DE RIFA GENERAL

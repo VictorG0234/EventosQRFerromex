@@ -161,6 +161,7 @@ El comando ejecuta un test completo que:
 9. ✅ Valida todas las reglas de negocio:
    - Descripciones prohibidas en ganadores
    - Categorías prohibidas
+   - La categoría `Participa en premios NO en auto` no participa por el premio llamado `Automovil`.
    - No hay ganadores repetidos
    - Exactamente 1 ganador IMEX en rifa pública
    - Exactamente 2 ganadores IMEX en rifa general

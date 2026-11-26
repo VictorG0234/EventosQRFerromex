@@ -326,6 +326,10 @@ class ImportAttendanceIds extends Command
      */
     private function isGuestEligibleForPrize(Guest $guest, Prize $prize, string $raffleType = 'general'): bool
     {
+        if (!$this->raffleService->isCategoryAllowedForPrize($prize, $guest->categoria_rifa)) {
+            return false;
+        }
+
         if ($raffleType === 'general') {
             if (!in_array($guest->descripcion, ['General', 'Subdirectores', 'IMEX'])) {
                 return false;

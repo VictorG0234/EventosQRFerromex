@@ -20,6 +20,7 @@ class RaffleService
     private const EXCLUDED_DESCRIPTIONS_PUBLIC = ['Ganadores previos', 'Nuevo ingreso', 'Directores', 'No Participa'];
     private const ALLOWED_DESCRIPTIONS_GENERAL = ['General', 'Subdirectores', 'IMEX'];
     private const EXCLUDED_CATEGORIES = ['No Participa'];
+    private const NO_AUTOMOBILE_CATEGORY = 'participa en premios no en auto';
 
     /**
      * Normalizar descripción para comparación (trim y lowercase)
@@ -87,6 +88,17 @@ class RaffleService
         }
         
         return true;
+    }
+
+    public function isCategoryAllowedForPrize(Prize $prize, ?string $category): bool
+    {
+        if (strtolower($prize->name) !== 'automovil') {
+            return true;
+        }
+
+        $normalized = strtolower(trim(preg_replace('/\s+/', ' ', $category ?? '')));
+
+        return $normalized !== self::NO_AUTOMOBILE_CATEGORY;
     }
 
     /**
@@ -206,7 +218,8 @@ class RaffleService
         }
         
         // Excluir categorías de rifa prohibidas
-        if (!$this->isCategoryAllowed($guest->categoria_rifa)) {
+        if (!$this->isCategoryAllowed($guest->categoria_rifa)
+            || !$this->isCategoryAllowedForPrize($prize, $guest->categoria_rifa)) {
             // Log solo en desarrollo para debugging (no en producción para evitar spam)
             Log::debug('Entrada excluida por categoría de rifa prohibida', [
                 'guest_id' => $guest->id,
@@ -299,7 +312,8 @@ class RaffleService
         }
         
         // Excluir categorías de rifa prohibidas
-        if (!$this->isCategoryAllowed($guest->categoria_rifa)) {
+        if (!$this->isCategoryAllowed($guest->categoria_rifa)
+            || !$this->isCategoryAllowedForPrize($prize, $guest->categoria_rifa)) {
             // Log importante para debugging (incluir en producción para detectar problemas)
             Log::warning('Entrada excluida de rifa general por categoría de rifa prohibida', [
                 'guest_id' => $guest->id,
@@ -1008,6 +1022,14 @@ class RaffleService
                 ];
             }
 
+            if (!$this->isCategoryAllowedForPrize($prize, $winnerEntry->guest->categoria_rifa)) {
+                DB::rollBack();
+                return [
+                    'success' => false,
+                    'error' => 'La categoría del invitado no permite participar por el automóvil.',
+                ];
+            }
+
             // Mark as winner
             $winnerEntry->update([
                 'status' => 'won',
@@ -1150,7 +1172,9 @@ class RaffleService
             });
         }
 
-        return $query->get();
+        return $query->get()
+            ->filter(fn (Guest $guest) => $this->isCategoryAllowedForPrize($prize, $guest->categoria_rifa))
+            ->values();
     }
 
     /**
