@@ -16,7 +16,7 @@ SaaS para gestión integral de eventos corporativos con códigos QR, control de 
 
 ### 🔄 En Desarrollo
 - Importación masiva desde CSV
-- Los premios de la rifa general se importan por separado desde la pantalla de rifa general. La importación conserva el orden del CSV; todavía no asigna premios a ganadores.
+- Los premios de la rifa general se importan por separado desde la pantalla de rifa general.
 - Sistema de envío de emails
 - Frontend con React + Inertia
 - APIs para tiempo real
@@ -56,6 +56,9 @@ Cada invitado tiene:
 - Solo invitados con asistencia confirmada pueden participar
 - Control automático de stock
 - Sorteos en tiempo real
+- En la rifa general, cada ganador recibe aleatoriamente un premio activo disponible; la cantidad solicitada no puede superar los premios disponibles.
+- Los ganadores anteriores sin premio se asignan con el botón **Asignar premios pendientes**. Si ya se entregaron premios, la asignación aleatoria puede no reflejar lo entregado.
+- Al reemplazar un ganador se conserva su premio; al reiniciar las rifas del evento, los premios importados vuelven a estar disponibles.
 
 ## 🚀 Instalación
 
@@ -117,6 +120,8 @@ php artisan serve
 5. **Email System**: Configurar envío automático de códigos QR
 
 ### Comando Principal de Testing
+
+Los comandos de prueba de rifas importan los premios generales desde `--general-prizes-file`; si se omite, usan el CSV de `--prizes-file`. El CSV debe contener al menos tantos premios activos como indique `--general-winners`.
 
 El proyecto incluye un comando completo para probar el sistema de rifas:
 

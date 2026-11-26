@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/ui/button';
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/Components/ui/alert-dialog';
@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Trophy, Sparkles, ArrowLeft, Users, CheckCircle, RefreshCw, Search, Package } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
-export default function DrawGeneral({ auth, event, winners, winners_count, eligible_count, can_raffle, general_prizes }) {
+export default function DrawGeneral({ auth, event, winners, winners_count, eligible_count, can_raffle, general_prizes_count, available_prizes_count, unassigned_winners_count }) {
     const { flash } = usePage().props;
     const [isDrawing, setIsDrawing] = useState(false);
     const [winnersList, setWinnersList] = useState(winners || []);
@@ -21,6 +21,8 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
     const [searchQuery, setSearchQuery] = useState('');
     const [deliveredPrizes, setDeliveredPrizes] = useState({});
     const [deliveringPrize, setDeliveringPrize] = useState(null);
+    const assignForm = useForm({});
+    const maxWinners = Math.min(eligible_count, available_prizes_count);
 
     // Inicializar estado de premios entregados desde el servidor
     // Solo se ejecuta al montar el componente o cuando winners (props) cambia
@@ -49,6 +51,12 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
         setShowDrawModal(true);
     };
 
+    const handleAssignPrizes = () => {
+        if (window.confirm('Se asignarán premios al azar a los ganadores anteriores, incluso si están marcados como entregados. La asignación podría no coincidir con un premio entregado previamente. ¿Continuar?')) {
+            assignForm.post(route('events.draw.general.prizes.assign', event.id), { preserveScroll: true, preserveState: false });
+        }
+    };
+
     const validateNumberOfWinners = (value) => {
         const num = parseInt(value);
         if (!value || value.trim() === '') {
@@ -59,8 +67,8 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
             setValidationError('El número de ganadores debe ser mayor a 0');
             return false;
         }
-        if (num > eligible_count) {
-            setValidationError(`El número de ganadores no puede ser mayor a ${eligible_count} (elegibles disponibles)`);
+        if (num > maxWinners) {
+            setValidationError(`El número de ganadores no puede ser mayor a ${maxWinners} según los elegibles y premios disponibles`);
             return false;
         }
         setValidationError('');
@@ -232,6 +240,7 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                         updatedWinners[winnerIndex] = {
                             id: result.winner.id,
                             name: result.winner.name,
+                            prize_name: result.winner.prize_name,
                             company: result.winner.company,
                             employee_number: result.winner.employee_number,
                             position: result.winner.position, // Heredar la posición
@@ -319,23 +328,37 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
                     <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                            <h3 className="text-lg font-semibold">Premios de la rifa general ({general_prizes.length})</h3>
-                            <Link
-                                href={route('events.draw.general.prizes.import', event.id)}
-                                className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
-                            >
-                                Importar premios
-                            </Link>
+                            <h3 className="text-lg font-semibold">Premios de la rifa general ({general_prizes_count})</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {winnersList.length > 0 && (
+                                    <Button onClick={handleOpenDrawModal} disabled={isDrawing || !can_raffle}>
+                                        <Sparkles className="w-4 h-4 mr-2" />
+                                        Rifar más premios
+                                    </Button>
+                                )}
+                                <Link
+                                    href={route('events.draw.general.prizes.import', event.id)}
+                                    className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+                                >
+                                    Importar premios
+                                </Link>
+                            </div>
                         </div>
-                        <p className="mt-2 text-sm text-amber-700">
-                            Los premios importados todavía no se asignan a los ganadores de la rifa general.
-                        </p>
-                        {general_prizes.length > 0 && (
-                            <ol className="mt-3 list-inside list-decimal text-sm text-gray-700">
-                                {general_prizes.map((prize) => (
-                                    <li key={prize.id}>{prize.name}{!prize.active && ' (inactivo)'}</li>
-                                ))}
-                            </ol>
+                        <p className="mt-2 text-sm text-gray-600">Premios activos disponibles: {available_prizes_count}</p>
+                        {available_prizes_count === 0 && (
+                            <p className="mt-1 text-sm text-amber-700">Importa premios activos para realizar más sorteos.</p>
+                        )}
+                        {unassigned_winners_count > 0 && (
+                            <div className="mt-3 text-sm text-amber-700">
+                                <p>{unassigned_winners_count} ganadores anteriores aún no tienen premio asignado.</p>
+                                <Button
+                                    className="mt-2"
+                                    disabled={assignForm.processing || available_prizes_count === 0}
+                                    onClick={handleAssignPrizes}
+                                >
+                                    {assignForm.processing ? 'Asignando...' : 'Asignar premios pendientes'}
+                                </Button>
+                            </div>
                         )}
                     </div>
                     {/* Estadísticas */}
@@ -369,7 +392,7 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                     <div>
                                         <p className="text-sm font-medium text-gray-500">Estado</p>
                                         <p className="text-lg font-bold text-gray-900">
-                                            {winnersList.length > 0 ? 'Completada' : 'En progreso'}
+                                            {winnersList.length > 0 && available_prizes_count === 0 && unassigned_winners_count === 0 ? 'Completada' : 'En progreso'}
                                         </p>
                                     </div>
                                 </div>
@@ -430,6 +453,9 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                                             {winner.name}
                                                         </h4>
                                                     </div>
+                                                    <p className="mb-2 text-xs font-medium text-gray-800">
+                                                        Premio: {winner.prize_name || 'Sin asignar'}
+                                                    </p>
                                                     
                                                     <div className="flex items-center justify-between">
                                                         <p className="text-xs text-gray-700">
@@ -441,7 +467,7 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                                                 <>
                                                                     <Button
                                                                         onClick={() => handleDeliverPrize(winner.id)}
-                                                                        disabled={deliveringPrize === winner.id}
+                                                                        disabled={deliveringPrize === winner.id || !winner.prize_name}
                                                                         variant="outline"
                                                                         size="sm"
                                                                         className="bg-white p-1 h-6 w-6 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -460,7 +486,7 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                                                     
                                                                     <Button
                                                                         onClick={() => handleReselectWinner(winner.id)}
-                                                                        disabled={reselectingWinner === winner.id || isDrawing}
+                                                                        disabled={reselectingWinner === winner.id || isDrawing || !winner.prize_name}
                                                                         variant="outline"
                                                                         size="sm"
                                                                         className="bg-white p-1 h-6 w-6 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -599,7 +625,7 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                 id="winners_count"
                                 type="number"
                                 min="1"
-                                max={eligible_count}
+                                max={maxWinners}
                                 value={numberOfWinners}
                                 onChange={(e) => {
                                     setNumberOfWinners(e.target.value);
@@ -608,19 +634,22 @@ export default function DrawGeneral({ auth, event, winners, winners_count, eligi
                                     }
                                 }}
                                 onBlur={(e) => validateNumberOfWinners(e.target.value)}
-                                placeholder={`Máximo: ${eligible_count}`}
+                                placeholder={`Máximo: ${maxWinners}`}
                                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm px-3 py-2 border"
                             />
                             {validationError && (
                                 <p className="mt-1 text-sm text-red-600">{validationError}</p>
                             )}
                             <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                Debe ser mayor a 0 y menor o igual a {eligible_count} (elegibles disponibles)
+                                Debe ser mayor a 0 y menor o igual a {maxWinners}.
                             </p>
                         </div>
                         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
                             <p className="text-sm text-blue-800 dark:text-blue-200">
                                 <span className="font-medium">Elegibles disponibles:</span> {eligible_count}
+                            </p>
+                            <p className="text-sm text-blue-800 dark:text-blue-200">
+                                <span className="font-medium">Premios disponibles:</span> {available_prizes_count}
                             </p>
                         </div>
                     </div>

@@ -9,6 +9,7 @@ use App\Models\RaffleEntry;
 use App\Models\RaffleLog;
 use App\Services\RaffleService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -158,6 +159,24 @@ class RaffleController extends Controller
             'general_winners_count' => $generalWinnersCount,
             'total_prizes' => $statistics['total_prizes'] ?? 0
         ]);
+    }
+
+    public function reset(Request $request, Event $event)
+    {
+        $this->authorize('update', $event);
+        $request->validate(['confirmed' => 'accepted']);
+
+        $exitCode = Artisan::call('raffle:reset', [
+            'event' => $event->id,
+            '--force' => true,
+        ]);
+
+        if ($exitCode !== 0) {
+            return back()->with('error', 'No se pudieron reiniciar las rifas. Consulta el registro de errores.');
+        }
+
+        return redirect()->route('events.raffle.index', $event)
+            ->with('success', 'Se reiniciaron las rifas pública y general de este evento.');
     }
 
     /**
@@ -489,10 +508,15 @@ class RaffleController extends Controller
             return back()->with('error', 'Solo se pueden resetear participaciones ganadoras.');
         }
 
-        $entry->update([
+        $updates = [
             'status' => 'pending',
             'drawn_at' => null,
-        ]);
+            'general_raffle_prize_id' => null,
+        ];
+        if ($entry->general_raffle_prize_id) {
+            $updates += ['prize_delivered' => false, 'delivered_at' => null, 'delivered_by' => null];
+        }
+        $entry->update($updates);
 
         return back()->with('success', 'Participación reseteada exitosamente.');
     }
@@ -846,7 +870,7 @@ class RaffleController extends Controller
         $winners = RaffleEntry::where('event_id', $event->id)
             ->where('prize_id', $generalPrize->id)
             ->where('status', 'won')
-            ->with('guest')
+            ->with(['guest', 'generalRafflePrize'])
             ->orderBy('position', 'asc')
             ->orderBy('drawn_at', 'asc') // Fallback para ganadores sin position
             ->get()
@@ -854,6 +878,7 @@ class RaffleController extends Controller
                 return [
                     'id' => $entry->guest->id,
                     'name' => $entry->guest->nombre_completo,
+                    'prize_name' => $entry->generalRafflePrize?->name,
                     'company' => $entry->guest->compania,
                     'employee_number' => $entry->guest->numero_empleado,
                     'position' => $entry->position,
@@ -892,9 +917,11 @@ class RaffleController extends Controller
         
         // Verificar si ya hay ganadores
         $hasWinners = $winners->count() > 0;
+        $unassignedWinnersCount = $winners->whereNull('prize_name')->count();
+        $availablePrizesCount = $this->raffleService->availableGeneralRafflePrizes($event)->count();
         
         // Verificar si se puede rifar (hay invitados elegibles y no hay ganadores o se permite volver a rifar)
-        $canRaffle = $eligibleCount > 0;
+        $canRaffle = $eligibleCount > 0 && $availablePrizesCount > 0 && $unassignedWinnersCount === 0;
 
         return Inertia::render('Events/Draw/General', [
             'event' => [
@@ -905,11 +932,23 @@ class RaffleController extends Controller
             'winners_count' => $winners->count(),
             'eligible_count' => $eligibleCount,
             'can_raffle' => $canRaffle,
-            'general_prizes' => $event->generalRafflePrizes()
-                ->orderBy('id')
-                ->get(['id', 'name', 'active']),
+            'general_prizes_count' => $event->generalRafflePrizes()->count(),
+            'available_prizes_count' => $availablePrizesCount,
+            'unassigned_winners_count' => $unassignedWinnersCount,
             'has_winners' => $hasWinners
         ]);
+    }
+
+    public function assignGeneralPrizes(Event $event)
+    {
+        $this->authorize('update', $event);
+        $result = $this->raffleService->assignPrizesToExistingGeneralWinners($event);
+
+        if ($result['remaining'] > 0) {
+            return back()->with('error', "Se asignaron {$result['assigned']} premios. Faltan {$result['remaining']} ganadores; importa más premios activos.");
+        }
+
+        return back()->with('success', "Se asignaron {$result['assigned']} premios a ganadores anteriores.");
     }
 
     /**
@@ -934,23 +973,8 @@ class RaffleController extends Controller
             $sendNotification = $validated['send_notification'] ?? false;
             $resetPrevious = $validated['reset_previous'] ?? false;
 
-            // Obtener el premio especial "Rifa General"
-            $generalPrize = $this->raffleService->getOrCreateGeneralRafflePrize($event);
-
-            // Si se indica resetear ganadores anteriores
-            if ($resetPrevious) {
-                // Resetear todos los ganadores anteriores de la rifa general
-                RaffleEntry::where('event_id', $event->id)
-                    ->where('prize_id', $generalPrize->id)
-                    ->where('status', 'won')
-                    ->update([
-                        'status' => 'pending',
-                        'drawn_at' => null
-                    ]);
-            }
-
             // Realizar el sorteo
-            $result = $this->raffleService->drawGeneralRaffle($event, $winnersCount, $sendNotification);
+            $result = $this->raffleService->drawGeneralRaffle($event, $winnersCount, $sendNotification, $resetPrevious);
 
             if (!$result['success']) {
                 return response()->json([
@@ -972,6 +996,7 @@ class RaffleController extends Controller
                     return [
                         'id' => $entry->guest->id,
                         'name' => $entry->guest->nombre_completo,
+                        'prize_name' => $entry->generalRafflePrize->name,
                         'company' => $entry->guest->compania,
                         'employee_number' => $entry->guest->numero_empleado,
                         'email' => $entry->guest->correo,
@@ -1016,12 +1041,14 @@ class RaffleController extends Controller
 
         try {
             DB::beginTransaction();
+            $event = Event::whereKey($event->id)->lockForUpdate()->firstOrFail();
             // Obtener el premio especial "Rifa General"
             $generalPrize = $this->raffleService->getOrCreateGeneralRafflePrize($event);
 
             // Verificar que el guest pertenece al evento
             $guest = Guest::findOrFail($validated['guest_id']);
             if ($guest->event_id !== $event->id) {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'El invitado no pertenece a este evento.'
@@ -1036,9 +1063,18 @@ class RaffleController extends Controller
                 ->first();
 
             if (!$currentWinnerEntry) {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'El invitado seleccionado no es un ganador actual de la rifa general.'
+                ], 422);
+            }
+
+            if ($currentWinnerEntry->prize_delivered || !$currentWinnerEntry->general_raffle_prize_id) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede reemplazar un ganador con premio entregado o sin premio asignado.'
                 ], 422);
             }
 
@@ -1053,12 +1089,14 @@ class RaffleController extends Controller
             // Guardar el drawn_at y position original para conservar la posición en la fila
             $originalDrawnAt = $currentWinnerEntry->drawn_at;
             $originalPosition = $currentWinnerEntry->position;
+            $originalPrizeId = $currentWinnerEntry->general_raffle_prize_id;
 
             // Resetear el ganador actual (marcar como pending, limpiar position)
             $currentWinnerEntry->update([
                 'status' => 'pending',
                 'drawn_at' => null,
-                'position' => null
+                'position' => null,
+                'general_raffle_prize_id' => null,
             ]);
             $currentWinnerEntry->refresh();
 
@@ -1076,13 +1114,7 @@ class RaffleController extends Controller
             $eligibleGuestIds = $eligibleGuests->pluck('id')->toArray();
             
             if (empty($eligibleGuestIds)) {
-                // Restaurar el ganador original si no hay elegibles (conservar drawn_at y position original)
-                $currentWinnerEntry->update([
-                    'status' => 'won',
-                    'drawn_at' => $originalDrawnAt ?? now(),
-                    'position' => $originalPosition
-                ]);
-                DB::commit();
+                DB::rollBack();
                 
                 return response()->json([
                     'success' => false,
@@ -1104,8 +1136,8 @@ class RaffleController extends Controller
             
             // Crear entradas en batch si hay algunas que faltan
             if ($guestsToCreateEntries->isNotEmpty()) {
-                foreach ($guestsToCreateEntries as $guest) {
-                    RaffleEntry::enterRaffle($guest, $generalPrize, [
+                foreach ($guestsToCreateEntries as $eligibleGuest) {
+                    RaffleEntry::enterRaffle($eligibleGuest, $generalPrize, [
                         'auto_entered' => true,
                         'entered_by' => 'system',
                         'raffle_type' => 'general'
@@ -1168,14 +1200,15 @@ class RaffleController extends Controller
             // Filtrar para asegurar que solo incluimos elegibles
             // REGLA IMEX: Debe haber solo 2 ganadores IMEX (obligatorio)
             // REGLA SUBDIRECTORES: Máximo 2 ganadores Subdirectores (opcional)
-            $eligibleEntries = $pendingEntries->filter(function ($entry) use ($eligibleGuests, $guest, $currentImexWinnersCount, $currentWinnerIsImex, $currentSubdirectoresWinnersCount, $currentWinnerIsSubdirector) {
+            $eligibleEntries = $pendingEntries->filter(function ($entry) use ($eligibleGuests, $guest, $generalPrize, $currentImexWinnersCount, $currentWinnerIsImex, $currentSubdirectoresWinnersCount, $currentWinnerIsSubdirector) {
                 // Excluir al guest actual de la selección (no puede re-seleccionarse a sí mismo)
                 if ($entry->guest_id === $guest->id) {
                     return false;
                 }
 
                 // Verificar que el guest es elegible
-                if (!$eligibleGuests->contains('id', $entry->guest_id)) {
+                if (!$eligibleGuests->contains('id', $entry->guest_id)
+                    || !$this->raffleService->isEntryEligibleForGeneralRaffle($entry, $generalPrize)) {
                     return false;
                 }
 
@@ -1218,14 +1251,7 @@ class RaffleController extends Controller
             });
 
             if ($eligibleEntries->isEmpty()) {
-                // Si no hay elegibles (además del actual), restaurar el ganador original (conservar drawn_at y position original)
-                $currentWinnerEntry->update([
-                    'status' => 'won',
-                    'drawn_at' => $originalDrawnAt ?? now(),
-                    'position' => $originalPosition
-                ]);
-                
-                DB::commit();
+                DB::rollBack();
 
                 return response()->json([
                     'success' => false,
@@ -1251,6 +1277,7 @@ class RaffleController extends Controller
             // Marcar el nuevo ganador heredando la posición del ganador anterior
             $newWinnerEntry->status = 'won';
             $newWinnerEntry->position = $originalPosition; // Heredar la posición
+            $newWinnerEntry->general_raffle_prize_id = $originalPrizeId;
             $newWinnerEntry->drawn_at = $originalDrawnAt ?? Carbon::now();
             $newWinnerEntry->raffle_metadata = $newMetadata;
             $newWinnerEntry->save();
@@ -1287,6 +1314,7 @@ class RaffleController extends Controller
                 'winner' => [
                     'id' => $newWinnerEntry->guest->id,
                     'name' => $newWinnerEntry->guest->nombre_completo,
+                    'prize_name' => $newWinnerEntry->generalRafflePrize->name,
                     'company' => $newWinnerEntry->guest->compania,
                     'employee_number' => $newWinnerEntry->guest->numero_empleado,
                     'email' => $newWinnerEntry->guest->correo,
@@ -1331,6 +1359,7 @@ class RaffleController extends Controller
 
         try {
             DB::beginTransaction();
+            $event = Event::whereKey($event->id)->lockForUpdate()->firstOrFail();
 
             // Obtener el premio especial "Rifa General"
             $generalPrize = $this->raffleService->getOrCreateGeneralRafflePrize($event);
@@ -1338,6 +1367,7 @@ class RaffleController extends Controller
             // Verificar que el guest pertenece al evento
             $guest = Guest::findOrFail($validated['guest_id']);
             if ($guest->event_id !== $event->id) {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'El invitado no pertenece a este evento.'
@@ -1352,14 +1382,24 @@ class RaffleController extends Controller
                 ->first();
 
             if (!$winnerEntry) {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'El invitado seleccionado no es un ganador de la rifa general.'
                 ], 422);
             }
 
+            if (!$winnerEntry->general_raffle_prize_id) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El ganador aún no tiene un premio asignado.'
+                ], 422);
+            }
+
             // Verificar si ya fue marcado como entregado
             if ($winnerEntry->isDelivered()) {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'El premio ya fue marcado como entregado anteriormente.'

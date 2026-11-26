@@ -15,6 +15,7 @@ class RaffleEntry extends Model
         'event_id',
         'guest_id',
         'prize_id',
+        'general_raffle_prize_id',
         'status',
         'position',
         'participated_at',
@@ -47,6 +48,11 @@ class RaffleEntry extends Model
     public function prize(): BelongsTo
     {
         return $this->belongsTo(Prize::class);
+    }
+
+    public function generalRafflePrize(): BelongsTo
+    {
+        return $this->belongsTo(GeneralRafflePrize::class);
     }
 
     public function deliveredBy(): BelongsTo

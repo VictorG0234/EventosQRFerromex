@@ -66,9 +66,9 @@ class GeneralRafflePrizeImportTest extends TestCase
         $this->get(route('events.draw.general', $event))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->has('general_prizes', 3)
-                ->where('general_prizes.0.name', 'Bicicleta')
-                ->where('general_prizes.2.name', 'Reloj'));
+                ->where('general_prizes_count', 3)
+                ->where('available_prizes_count', 2)
+                ->missing('general_prizes'));
     }
 
     public function test_invalid_csv_does_not_import_any_rows(): void

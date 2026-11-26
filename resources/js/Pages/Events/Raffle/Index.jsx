@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Badge } from '@/Components/ui/badge';
 import { Gift, Trophy, Sparkles, Target, ArrowLeft, Users, Eye } from 'lucide-react';
@@ -8,6 +8,17 @@ import { toast } from 'react-hot-toast';
 export default function RaffleIndex({ auth, event, prizes, statistics, public_raffle_status, public_raffle_completed, public_raffle_total, general_raffle_status, general_winners_count, total_prizes }) {
     const { flash } = usePage().props;
     const [liveData, setLiveData] = useState({ statistics, recent_winners: [] });
+    const resetForm = useForm({ confirmed: true });
+
+    const resetRaffles = () => {
+        if (!window.confirm(
+            `¿Reiniciar las rifas pública y general de "${event.name}"?\n\nSe eliminarán sus ganadores, participaciones y registros de rifa. Esta acción no se puede deshacer. Los invitados, asistencias y premios se conservarán.`
+        )) {
+            return;
+        }
+
+        resetForm.post(route('events.raffle.reset', event.id), { preserveScroll: true, preserveState: false });
+    };
 
     // Auto-refresh live data
     useEffect(() => {
@@ -55,7 +66,15 @@ export default function RaffleIndex({ auth, event, prizes, statistics, public_ra
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                            type="button"
+                            onClick={resetRaffles}
+                            disabled={resetForm.processing}
+                            className="inline-flex items-center rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {resetForm.processing ? 'Reiniciando...' : 'Reiniciar rifas'}
+                        </button>
                         <Link
                             href={route('events.raffle.settings.edit', event.id)}
                             className="inline-flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium rounded-md transition-colors"
