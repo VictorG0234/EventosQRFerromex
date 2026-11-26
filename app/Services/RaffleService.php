@@ -146,6 +146,36 @@ class RaffleService
             ->exists();
     }
 
+    public function hasPublicImexWinner(int $eventId): bool
+    {
+        return RaffleEntry::where('event_id', $eventId)
+            ->where('status', 'won')
+            ->whereHas('prize', function ($query) use ($eventId) {
+                $query->where('event_id', $eventId)->where('name', '!=', 'Rifa General');
+            })
+            ->whereHas('guest', function ($query) {
+                $query->whereRaw('TRIM(UPPER(compania)) = ?', ['IMEX']);
+            })
+            ->exists();
+    }
+
+    public function publicImexWinnerError(Prize $prize, Guest $guest): ?string
+    {
+        if ($this->normalizeCompania($guest->compania) !== 'IMEX') {
+            return null;
+        }
+
+        if (strtolower(trim($prize->name)) === 'automovil') {
+            return 'Un participante IMEX no puede ganar el automóvil.';
+        }
+
+        if ($this->hasPublicImexWinner($prize->event_id)) {
+            return 'Ya existe un ganador IMEX en la rifa pública de este evento.';
+        }
+
+        return null;
+    }
+
 
     /**
      * Filtrar entradas por compañía IMEX
@@ -182,7 +212,7 @@ class RaffleService
         $entry, 
         Prize $prize, 
         bool $enforceImexRestriction, 
-        bool $existingIMEXWinnerInThisPrize,
+        bool $existingIMEXWinner,
         bool $existingSubdirectoresWinnerInPublicRaffle = false
     ): bool
     {
@@ -240,13 +270,20 @@ class RaffleService
             return false;
         }
         
+        if ($companiaNormalizada === 'IMEX'
+            && ($existingIMEXWinner || strtolower(trim($prize->name)) === 'automovil')) {
+            return false;
+        }
+
+        // Máximo un ganador Subdirector en la rifa pública.
+        if ($descripcionNormalizada === 'subdirectores' && $existingSubdirectoresWinnerInPublicRaffle) {
+            return false;
+        }
+
         // REGLA ESPECIAL IMEX: Si este premio requiere IMEX, SOLO IMEX pueden ganar
         // Solo se aplica si enforceImexRestriction es true (hay IMEX disponibles)
         if ($enforceImexRestriction) {
             if ($companiaNormalizada !== 'IMEX') {
-                return false;
-            }
-            if ($existingIMEXWinnerInThisPrize) {
                 return false;
             }
             return true;
@@ -257,17 +294,6 @@ class RaffleService
             return false;
         }
         
-        // REGLA SUBDIRECTORES: Máximo 1 ganador Subdirector en toda la rifa pública (opcional, no obligatorio)
-        // Si ya hay un ganador Subdirector en la rifa pública, no permitir más
-        if ($descripcionNormalizada === 'subdirectores' && $existingSubdirectoresWinnerInPublicRaffle) {
-            return false;
-        }
-
-        // REGLA 2: Si Compañía del Guest es IMEX no puede ganar Prize con name Automovil
-        if (strtolower($prize->name) === 'automovil' && $companiaNormalizada === 'IMEX') {
-            return false;
-        }
-
         // REGLA 11: Si Descripción del Guest es Subdirectores no puede ganar prize con name Automovil
         if (strtolower($prize->name) === 'automovil' && $descripcionNormalizada === 'subdirectores') {
             return false;
@@ -361,6 +387,7 @@ class RaffleService
             $eligibleGuests = $this->getEligibleGuests($prize, $raffleType);
             
             if ($eligibleGuests->isEmpty()) {
+                DB::rollBack();
                 return [
                     'success' => false,
                     'error' => 'No hay invitados elegibles para este premio según las reglas de la rifa ' . $raffleType . '. Verifica que haya invitados que cumplan todas las condiciones requeridas.',
@@ -444,6 +471,8 @@ class RaffleService
     {
         try {
             DB::beginTransaction();
+            $event = Event::whereKey($prize->event_id)->lockForUpdate()->firstOrFail();
+            $prize->setRelation('event', $event);
 
             // Get all pending entries for this prize
             $pendingEntries = RaffleEntry::where('prize_id', $prize->id)
@@ -452,6 +481,7 @@ class RaffleService
                 ->get();
 
             if ($pendingEntries->isEmpty()) {
+                DB::rollBack();
                 return [
                     'success' => false,
                     'error' => 'No hay participaciones pendientes para este premio'
@@ -483,6 +513,7 @@ class RaffleService
             $winnersCount = min($winnersCount, max($availableStock, 1));
             
             if ($winnersCount <= 0 || $prize->stock <= 0) {
+                DB::rollBack();
                 return [
                     'success' => false,
                     'error' => 'No hay stock disponible para este premio. Stock actual: ' . $prize->stock
@@ -520,25 +551,7 @@ class RaffleService
                 // Verificar si este premio es el seleccionado para tener ganador IMEX
                 $isIMEXPrize = $event->imex_prize_id === $prize->id;
                 
-                // Verificar si ya existe un ganador IMEX en este premio específico
-                $existingIMEXWinnerInThisPrize = RaffleEntry::where('prize_id', $prize->id)
-                    ->whereHas('guest', function ($q) {
-                        $q->where('compania', 'IMEX');
-                    })
-                    ->where('status', 'won')
-                    ->exists();
-                
-                // Verificar si ya existe un ganador con compañía IMEX en otros premios (excluyendo este premio y la rifa general)
-                $existingIMEXWinnerInOtherPrizes = RaffleEntry::whereHas('prize', function ($q) use ($prize) {
-                    $q->where('event_id', $prize->event_id)
-                      ->where('id', '!=', $prize->id) // Excluir este premio
-                      ->where('name', '!=', 'Rifa General'); // Excluir premio de rifa general
-                })
-                ->whereHas('guest', function ($q) {
-                    $q->where('compania', 'IMEX');
-                })
-                ->where('status', 'won')
-                ->exists();
+                $existingIMEXWinner = $this->hasPublicImexWinner($event->id);
 
                 // REGLA SUBDIRECTORES: Verificar si ya hay un ganador Subdirector en la rifa pública (máximo 1, opcional)
                 $existingSubdirectoresWinnerInPublicRaffle = RaffleEntry::whereHas('prize', function ($q) use ($prize) {
@@ -568,10 +581,10 @@ class RaffleService
                 }
                 
                 // Solo aplicar restricción IMEX si hay participantes IMEX disponibles
-                $enforceImexRestriction = $isIMEXPrize && $hasImexAvailable;
+                $enforceImexRestriction = $isIMEXPrize && !$existingIMEXWinner && $hasImexAvailable;
                 
-                $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $enforceImexRestriction, $existingIMEXWinnerInThisPrize, $existingSubdirectoresWinnerInPublicRaffle) {
-                    return $this->isEntryEligibleForPublicRaffle($entry, $prize, $enforceImexRestriction, $existingIMEXWinnerInThisPrize, $existingSubdirectoresWinnerInPublicRaffle);
+                $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $enforceImexRestriction, $existingIMEXWinner, $existingSubdirectoresWinnerInPublicRaffle) {
+                    return $this->isEntryEligibleForPublicRaffle($entry, $prize, $enforceImexRestriction, $existingIMEXWinner, $existingSubdirectoresWinnerInPublicRaffle);
                 });
             }
             
@@ -632,6 +645,7 @@ class RaffleService
             }
 
             if ($eligibleEntries->isEmpty()) {
+                DB::rollBack();
                 return [
                     'success' => false,
                     'error' => 'No hay participantes elegibles después de aplicar las reglas de la rifa. Verifica que haya invitados que cumplan todas las condiciones requeridas.'
@@ -642,12 +656,12 @@ class RaffleService
             // Solo aplica para RIFA PÚBLICA
             if ($raffleType === 'public') {
                 // Verificar si este premio es el seleccionado para tener ganador IMEX
-                // (ya se calculó arriba en la sección de rifa pública: $isIMEXPrize y $existingIMEXWinnerInThisPrize)
+                // (ya se calculó arriba en la sección de rifa pública)
                 
                 // Solo forzar IMEX si:
                 // 1. Este premio es el asignado a IMEX (imex_prize_id)
                 // 2. Este premio aún no tiene ganador IMEX
-                $needsIMEXWinner = $isIMEXPrize && !$existingIMEXWinnerInThisPrize;
+                $needsIMEXWinner = $isIMEXPrize && !$existingIMEXWinner;
 
                 
                 if ($needsIMEXWinner) {
@@ -661,6 +675,7 @@ class RaffleService
                     if ($imexEntries->isEmpty()) {
                         // Si hay IMEX en pendientes pero no en elegibles, significa que fueron filtrados
                         if ($imexEntriesInPending->isNotEmpty() && $imexEntries->isEmpty()) {
+                            DB::rollBack();
                             return [
                                 'success' => false,
                                 'error' => 'REGLA 1: Hay participantes IMEX disponibles, pero fueron excluidos por otras reglas. Verifica las condiciones del premio y los participantes.'
@@ -685,8 +700,11 @@ class RaffleService
                         
                         // Si necesitamos más ganadores, seleccionar del resto de elegibles
                         if ($winnersCount > 1) {
-                            $remainingEligible = $eligibleEntries->reject(function ($entry) use ($imexWinner) {
-                                return $entry->id === $imexWinner->id;
+                            $hasSubdirector = $existingSubdirectoresWinnerInPublicRaffle
+                                || $this->normalizeDescription($imexWinner->guest->descripcion) === 'subdirectores';
+                            $remainingEligible = $pendingEntries->filter(function ($entry) use ($prize, $imexWinner, $hasSubdirector) {
+                                return $entry->id !== $imexWinner->id
+                                    && $this->isEntryEligibleForPublicRaffle($entry, $prize, false, true, $hasSubdirector);
                             });
                             
                             if ($remainingEligible->isNotEmpty()) {
@@ -780,6 +798,9 @@ class RaffleService
     public function selectWinnerTemporary(Prize $prize, string $raffleType = 'public'): array
     {
         try {
+            DB::beginTransaction();
+            $event = Event::whereKey($prize->event_id)->lockForUpdate()->firstOrFail();
+            $prize->setRelation('event', $event);
             // Get all pending entries for this prize
             $pendingEntries = RaffleEntry::where('prize_id', $prize->id)
                 ->where('status', 'pending')
@@ -787,6 +808,7 @@ class RaffleService
                 ->get();
 
             if ($pendingEntries->isEmpty()) {
+                DB::rollBack();
                 return [
                     'success' => false,
                     'error' => 'No hay participaciones pendientes para este premio'
@@ -816,6 +838,7 @@ class RaffleService
             $availableStock = max($prize->stock, 0);
             
             if ($availableStock <= 0) {
+                DB::rollBack();
                 return [
                     'success' => false,
                     'error' => 'No hay stock disponible para este premio. Stock actual: ' . $prize->stock
@@ -826,7 +849,6 @@ class RaffleService
             $eligibleEntries = $pendingEntries;
             $existingIMEXWinner = false;
             $isIMEXPrize = false;
-            $existingIMEXWinnerInThisPrize = false;
             $enforceImexRestriction = false;
             
             // REGLAS DE RIFA PÚBLICA (solo para rifa pública)
@@ -856,13 +878,7 @@ class RaffleService
                 // Verificar si este premio es el seleccionado para tener ganador IMEX
                 $isIMEXPrize = $event->imex_prize_id === $prize->id;
                 
-                // Verificar si ya existe un ganador IMEX en este premio específico
-                $existingIMEXWinnerInThisPrize = RaffleEntry::where('prize_id', $prize->id)
-                    ->whereHas('guest', function ($q) {
-                        $q->where('compania', 'IMEX');
-                    })
-                    ->where('status', 'won')
-                    ->exists();
+                $existingIMEXWinner = $this->hasPublicImexWinner($event->id);
                 
                 // REGLA SUBDIRECTORES: Verificar si ya hay un ganador Subdirector en la rifa pública (máximo 1, opcional)
                 $existingSubdirectoresWinnerInPublicRaffle = RaffleEntry::whereHas('prize', function ($q) use ($prize) {
@@ -888,11 +904,11 @@ class RaffleService
                 }
                 
                 // Solo aplicar restricción IMEX si hay participantes IMEX disponibles
-                $enforceImexRestriction = $isIMEXPrize && $hasImexAvailable;
+                $enforceImexRestriction = $isIMEXPrize && !$existingIMEXWinner && $hasImexAvailable;
                 
                 // Filtrar candidatos según reglas adicionales de rifa pública
-                $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $enforceImexRestriction, $existingIMEXWinnerInThisPrize, $existingSubdirectoresWinnerInPublicRaffle) {
-                    return $this->isEntryEligibleForPublicRaffle($entry, $prize, $enforceImexRestriction, $existingIMEXWinnerInThisPrize, $existingSubdirectoresWinnerInPublicRaffle);
+                $eligibleEntries = $pendingEntries->filter(function ($entry) use ($prize, $enforceImexRestriction, $existingIMEXWinner, $existingSubdirectoresWinnerInPublicRaffle) {
+                    return $this->isEntryEligibleForPublicRaffle($entry, $prize, $enforceImexRestriction, $existingIMEXWinner, $existingSubdirectoresWinnerInPublicRaffle);
                 });
             }
             
@@ -906,6 +922,7 @@ class RaffleService
             }
 
             if ($eligibleEntries->isEmpty()) {
+                DB::rollBack();
                 return [
                     'success' => false,
                     'error' => 'No hay participantes elegibles después de aplicar las reglas de la rifa. Verifica que haya invitados que cumplan todas las condiciones requeridas.'
@@ -916,13 +933,13 @@ class RaffleService
             // Solo aplica para RIFA PÚBLICA
             if ($raffleType === 'public') {
                 // Verificar si este premio es el seleccionado para tener ganador IMEX
-                // (ya se calculó arriba en la sección de rifa pública: $isIMEXPrize y $existingIMEXWinnerInThisPrize)
+                // (ya se calculó arriba en la sección de rifa pública)
                 
                 // Solo forzar IMEX si:
                 // 1. Este premio es el asignado a IMEX (imex_prize_id)
                 // 2. Este premio aún no tiene ganador IMEX
                 // 3. HAY participantes IMEX disponibles (enforceImexRestriction)
-                $needsIMEXWinner = $isIMEXPrize && !$existingIMEXWinnerInThisPrize && $enforceImexRestriction;
+                $needsIMEXWinner = $isIMEXPrize && !$existingIMEXWinner && $enforceImexRestriction;
                 
                 if ($needsIMEXWinner) {
                     // En este punto, $eligibleEntries ya solo contiene IMEX (filtrado arriba)
@@ -934,6 +951,7 @@ class RaffleService
                             'prize_id' => $prize->id,
                             'prize_name' => $prize->name
                         ]);
+                        DB::rollBack();
                         return [
                             'success' => false,
                             'error' => 'REGLA 1: No hay participantes IMEX disponibles en las entradas pendientes. Debe haber al menos un ganador con compañía IMEX en el evento. Total de entradas pendientes: ' . $pendingEntries->count()
@@ -961,6 +979,7 @@ class RaffleService
 
             // Crear log de la selección (aún no confirmado)
             $this->createRaffleLog($prize, $winnerEntry, $raffleType, false);
+            DB::commit();
 
             // NO guardar en BD, solo devolver el ganador seleccionado
             return [
@@ -969,8 +988,8 @@ class RaffleService
                 'total_participants' => $pendingEntries->count(),
                 'draw_timestamp' => now()->toISOString()
             ];
-
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Temporary winner selection failed', [
                 'prize_id' => $prize->id,
                 'error' => $e->getMessage()
@@ -994,6 +1013,7 @@ class RaffleService
     {
         try {
             DB::beginTransaction();
+            Event::whereKey($prize->event_id)->lockForUpdate()->firstOrFail();
 
             // Find the entry
             $winnerEntry = RaffleEntry::where('prize_id', $prize->id)
@@ -1029,6 +1049,12 @@ class RaffleService
                     'success' => false,
                     'error' => 'La categoría del invitado no permite participar por el automóvil.',
                 ];
+            }
+
+            if ($prize->name !== 'Rifa General'
+                && ($error = $this->publicImexWinnerError($prize, $winnerEntry->guest))) {
+                DB::rollBack();
+                return ['success' => false, 'error' => $error];
             }
 
             // Mark as winner
@@ -1428,7 +1454,7 @@ class RaffleService
     /**
      * Validate prize configuration
      */
-    public function validatePrize(Prize $prize): array
+    public function validatePrize(Prize $prize, string $raffleType = 'general'): array
     {
         $messages = [];
 
@@ -1440,8 +1466,7 @@ class RaffleService
             $messages[] = 'El premio no está activo';
         }
 
-        // Por defecto usar 'general' para validación (puedes cambiar esto según necesites)
-        $eligibleGuests = $this->getEligibleGuests($prize, 'general');
+        $eligibleGuests = $this->getEligibleGuests($prize, $raffleType);
         if ($eligibleGuests->isEmpty()) {
             $messages[] = 'No hay invitados elegibles para este premio';
         }

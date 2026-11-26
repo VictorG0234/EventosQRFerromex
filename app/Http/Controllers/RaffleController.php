@@ -311,7 +311,7 @@ class RaffleController extends Controller
 
         // RIFA PÚBLICA: usar tipo 'public' (las rifas desde esta interfaz son públicas)
         $eligibleGuests = $this->raffleService->getEligibleGuests($prize, 'public');
-        $validation = $this->raffleService->validatePrize($prize);
+        $validation = $this->raffleService->validatePrize($prize, 'public');
         $results = $this->raffleService->getPrizeResults($prize);
 
         return Inertia::render('Events/Raffle/Show', [
@@ -358,14 +358,17 @@ class RaffleController extends Controller
 
         try {
             // Validate prize before creating entries
-            $validation = $this->raffleService->validatePrize($prize);
+            $validation = $this->raffleService->validatePrize($prize, 'public');
             
             if (!$validation['can_raffle']) {
                 return back()->with('error', $validation['messages'][0] ?? 'No se puede crear la rifa para este premio.');
             }
 
-            // RIFA GENERAL: usar tipo 'general' (este método se usa desde la interfaz general)
-            $result = $this->raffleService->createRaffleEntries($prize, 'general');
+            $result = $this->raffleService->createRaffleEntries($prize, 'public');
+
+            if (!$result['success']) {
+                return back()->with('error', $result['error']);
+            }
 
             return back()->with('success', "Se crearon {$result['entries_created']} participaciones para la rifa del premio \"{$prize->name}\".");
             
@@ -391,10 +394,13 @@ class RaffleController extends Controller
         ]);
 
         try {
-            // RIFA GENERAL: usar tipo 'general'
-            $result = $this->raffleService->drawRaffle($prize, $validated['quantity'], $validated['send_notification'] ?? true, 'general');
+            $result = $this->raffleService->drawRaffle($prize, $validated['quantity'], $validated['send_notification'] ?? true, 'public');
+            if (!$result['success']) {
+                return response()->json(['success' => false, 'message' => $result['error']], 422);
+            }
 
-            $winnerNames = collect($result['winners'])->pluck('guest.full_name')->implode(', ');
+            $winners = collect($result['winners']);
+            $winnerNames = $winners->pluck('guest.full_name')->implode(', ');
             $message = "¡Rifa realizada exitosamente! Ganadores: {$winnerNames}";
 
             if ($validated['send_notification'] ?? true) {
@@ -404,7 +410,7 @@ class RaffleController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $message,
-                'winners' => $result['winners']->map(function ($entry) {
+                'winners' => $winners->map(function ($entry) {
                     return [
                         'id' => $entry->id,
                         'guest' => [
@@ -417,7 +423,7 @@ class RaffleController extends Controller
                         'drawn_at' => $entry->drawn_at->format('d/m/Y H:i:s'),
                     ];
                 }),
-                'remaining_stock' => $prize->fresh()->stock - $result['winners']->count()
+                'remaining_stock' => $prize->fresh()->stock
             ]);
 
         } catch (Exception $e) {
@@ -579,10 +585,24 @@ class RaffleController extends Controller
         }
 
         try {
-            $entry->update([
-                'status' => 'won',
-                'drawn_at' => now(),
-            ]);
+            $error = DB::transaction(function () use ($event, $prize, $guest, $entry) {
+                Event::whereKey($event->id)->lockForUpdate()->firstOrFail();
+                $entry->refresh();
+                $guest->refresh();
+                if ($entry->status !== 'pending') {
+                    return 'El invitado seleccionado ya no tiene una participación pendiente.';
+                }
+                if ($prize->name !== 'Rifa General'
+                    && ($error = $this->raffleService->publicImexWinnerError($prize, $guest))) {
+                    return $error;
+                }
+                $entry->update(['status' => 'won', 'drawn_at' => now()]);
+                return null;
+            });
+
+            if ($error) {
+                return back()->with('error', $error);
+            }
 
             // Send notification if requested
             if ($validated['send_notification'] ?? true) {
@@ -714,6 +734,8 @@ class RaffleController extends Controller
         }
 
         try {
+            DB::beginTransaction();
+            Event::whereKey($event->id)->lockForUpdate()->firstOrFail();
             // Resetear ganador anterior si es necesario
             if ($validated['reset_previous'] ?? false) {
                 $this->resetPreviousWinner($prize, $validated['card_index'] ?? 0);
@@ -722,6 +744,7 @@ class RaffleController extends Controller
             // Asegurar que hay participaciones pendientes
             $pendingEntries = $this->ensurePendingEntries($prize);
             if ($pendingEntries === false) {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'No se pudieron crear participaciones pendientes para este premio.'
@@ -733,6 +756,7 @@ class RaffleController extends Controller
             $result = $this->raffleService->selectWinnerTemporary($prize, 'public');
 
             if (!$result['success']) {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => $result['error'] ?? 'Error al realizar la rifa',
@@ -742,6 +766,7 @@ class RaffleController extends Controller
 
             $winnerEntry = $result['winner'];
             $prize->refresh();
+            DB::commit();
 
             return response()->json([
                 'success' => true,
