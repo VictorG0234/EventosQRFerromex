@@ -227,7 +227,7 @@ class RaffleController extends Controller
         $eligibleCountsByPrize = [];
         foreach ($prizes as $prize) {
             $isIMEXPrize = $imexPrizeId === $prize->id;
-            $isAutomovil = strtolower($prize->name) === 'automovil';
+            $isAutomovil = strtolower(trim($prize->name)) === 'automovil';
             
             // Filtrar elegibles según reglas específicas del premio (en memoria)
             $eligibleForPrize = $baseEligibleGuests;
@@ -235,11 +235,9 @@ class RaffleController extends Controller
             // Si es automóvil, excluir IMEX y Subdirectores
             if ($isAutomovil) {
                 $eligibleForPrize = $eligibleForPrize->filter(function ($guest) use ($prize) {
-                    $compania = strtoupper(trim($guest->compania ?? ''));
                     $descripcion = strtolower(trim($guest->descripcion ?? ''));
-                    return $compania !== 'IMEX'
-                        && $descripcion !== 'subdirectores'
-                        && $this->raffleService->isCategoryAllowedForPrize($prize, $guest->categoria_rifa);
+                    return $descripcion !== 'subdirectores'
+                        && $this->raffleService->isGuestAllowedForPrize($prize, $guest);
                 });
             }
             
@@ -580,10 +578,6 @@ class RaffleController extends Controller
             return back()->with('error', 'El invitado seleccionado no tiene una participación válida para este premio.');
         }
 
-        if (!$this->raffleService->isCategoryAllowedForPrize($prize, $guest->categoria_rifa)) {
-            return back()->with('error', 'La categoría del invitado no permite participar por el automóvil.');
-        }
-
         try {
             $error = DB::transaction(function () use ($event, $prize, $guest, $entry) {
                 Event::whereKey($event->id)->lockForUpdate()->firstOrFail();
@@ -592,8 +586,15 @@ class RaffleController extends Controller
                 if ($entry->status !== 'pending') {
                     return 'El invitado seleccionado ya no tiene una participación pendiente.';
                 }
+                if (!$this->raffleService->isGuestAllowedForPrize($prize, $guest)) {
+                    return 'El invitado no puede participar por el automóvil.';
+                }
                 if ($prize->name !== 'Rifa General'
                     && ($error = $this->raffleService->publicImexWinnerError($prize, $guest))) {
+                    return $error;
+                }
+                if ($prize->name === 'Rifa General'
+                    && ($error = $this->raffleService->imexPreviouslyWonError($prize, $guest))) {
                     return $error;
                 }
                 $entry->update(['status' => 'won', 'drawn_at' => now()]);

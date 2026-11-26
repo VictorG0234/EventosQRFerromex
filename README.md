@@ -56,7 +56,7 @@ Cada invitado tiene:
 - Solo invitados con asistencia confirmada pueden participar
 - Control automático de stock
 - Sorteos en tiempo real
-- La rifa pública admite como máximo un ganador de compañía IMEX por evento, sin contar ganadores de la rifa general. La compañía se compara sin distinguir mayúsculas ni espacios exteriores.
+- La rifa pública admite como máximo un ganador IMEX por evento, sin contar ganadores de la rifa general. Se considera IMEX a quien tenga esa compañía o categoría de rifa, sin distinguir mayúsculas ni espacios exteriores.
 - En la rifa general, cada ganador recibe aleatoriamente un premio activo disponible; la cantidad solicitada no puede superar los premios disponibles.
 - Los ganadores anteriores sin premio se asignan con el botón **Asignar premios pendientes**. Si ya se entregaron premios, la asignación aleatoria puede no reflejar lo entregado.
 - Al reemplazar un ganador se conserva su premio; al reiniciar las rifas del evento, los premios importados vuelven a estar disponibles.
@@ -167,9 +167,9 @@ El comando ejecuta un test completo que:
 9. ✅ Valida todas las reglas de negocio:
    - Descripciones prohibidas en ganadores
    - Categorías prohibidas
-   - La categoría `Participa en premios NO en auto` no participa por el premio llamado `Automovil`.
+   - Las categorías `Participa en premios NO en auto` e `IMEX`, así como la compañía `IMEX`, no participan por el premio llamado `Automovil`.
    - No hay ganadores repetidos
-   - Exactamente 1 ganador IMEX en rifa pública
+   - Como máximo 1 ganador IMEX en rifa pública
    - Exactamente 2 ganadores IMEX en rifa general
    - Ganadores de rifa pública no participan en rifa general
    - Invitados INV no participan en ninguna rifa

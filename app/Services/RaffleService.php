@@ -93,13 +93,25 @@ class RaffleService
 
     public function isCategoryAllowedForPrize(Prize $prize, ?string $category): bool
     {
-        if (strtolower($prize->name) !== 'automovil') {
+        if (strtolower(trim($prize->name)) !== 'automovil') {
             return true;
         }
 
         $normalized = strtolower(trim(preg_replace('/\s+/', ' ', $category ?? '')));
 
-        return $normalized !== self::NO_AUTOMOBILE_CATEGORY;
+        return !in_array($normalized, [self::NO_AUTOMOBILE_CATEGORY, 'imex'], true);
+    }
+
+    public function isGuestAllowedForPrize(Prize $prize, Guest $guest): bool
+    {
+        return $this->isCategoryAllowedForPrize($prize, $guest->categoria_rifa)
+            && !(strtolower(trim($prize->name)) === 'automovil' && $this->isImexGuest($guest));
+    }
+
+    private function isImexGuest(Guest $guest): bool
+    {
+        return $this->normalizeCompania($guest->compania) === 'IMEX'
+            || $this->normalizeCompania($guest->categoria_rifa) === 'IMEX';
     }
 
     /**
@@ -154,14 +166,17 @@ class RaffleService
                 $query->where('event_id', $eventId)->where('name', '!=', 'Rifa General');
             })
             ->whereHas('guest', function ($query) {
-                $query->whereRaw('TRIM(UPPER(compania)) = ?', ['IMEX']);
+                $query->where(function ($query) {
+                    $query->whereRaw('TRIM(UPPER(COALESCE(compania, \'\'))) = ?', ['IMEX'])
+                        ->orWhereRaw('TRIM(UPPER(COALESCE(categoria_rifa, \'\'))) = ?', ['IMEX']);
+                });
             })
             ->exists();
     }
 
     public function publicImexWinnerError(Prize $prize, Guest $guest): ?string
     {
-        if ($this->normalizeCompania($guest->compania) !== 'IMEX') {
+        if (!$this->isImexGuest($guest)) {
             return null;
         }
 
@@ -169,8 +184,25 @@ class RaffleService
             return 'Un participante IMEX no puede ganar el automóvil.';
         }
 
+        if ($error = $this->imexPreviouslyWonError($prize, $guest)) {
+            return $error;
+        }
+
         if ($this->hasPublicImexWinner($prize->event_id)) {
             return 'Ya existe un ganador IMEX en la rifa pública de este evento.';
+        }
+
+        return null;
+    }
+
+    public function imexPreviouslyWonError(Prize $prize, Guest $guest): ?string
+    {
+        if ($this->isImexGuest($guest)
+            && RaffleEntry::where('event_id', $prize->event_id)
+            ->where('guest_id', $guest->id)
+            ->where('status', 'won')
+            ->exists()) {
+            return 'Este participante IMEX ya ganó un premio en el evento.';
         }
 
         return null;
@@ -186,9 +218,16 @@ class RaffleService
             if (!$this->hasValidGuest($entry)) {
                 return false;
             }
+
             $compania = $this->normalizeCompania($entry->guest->compania);
             return $compania === 'IMEX';
         });
+    }
+
+    private function filterPublicImexEntries(Collection $entries): Collection
+    {
+        return $entries->filter(fn ($entry) => $this->hasValidGuest($entry)
+            && $this->isImexGuest($entry->guest));
     }
 
     /**
@@ -234,6 +273,7 @@ class RaffleService
         }
         
         $companiaNormalizada = $this->normalizeCompania($guest->compania);
+        $isImex = $this->isImexGuest($guest);
         $descripcionNormalizada = $this->normalizeDescription($guest->descripcion);
         
         // REGLA 6, 7, 8: Excluir descripciones prohibidas
@@ -250,7 +290,7 @@ class RaffleService
         
         // Excluir categorías de rifa prohibidas
         if (!$this->isCategoryAllowed($guest->categoria_rifa)
-            || !$this->isCategoryAllowedForPrize($prize, $guest->categoria_rifa)) {
+            || !$this->isGuestAllowedForPrize($prize, $guest)) {
             // Log solo en desarrollo para debugging (no en producción para evitar spam)
             Log::debug('Entrada excluida por categoría de rifa prohibida', [
                 'guest_id' => $guest->id,
@@ -270,7 +310,7 @@ class RaffleService
             return false;
         }
         
-        if ($companiaNormalizada === 'IMEX'
+        if ($isImex
             && ($existingIMEXWinner || strtolower(trim($prize->name)) === 'automovil')) {
             return false;
         }
@@ -283,19 +323,19 @@ class RaffleService
         // REGLA ESPECIAL IMEX: Si este premio requiere IMEX, SOLO IMEX pueden ganar
         // Solo se aplica si enforceImexRestriction es true (hay IMEX disponibles)
         if ($enforceImexRestriction) {
-            if ($companiaNormalizada !== 'IMEX') {
+            if (!$isImex) {
                 return false;
             }
             return true;
         }
         
         // Para premios que NO requieren IMEX: IMEX puede aparecer pero NO puede ganar
-        if ($companiaNormalizada === 'IMEX') {
+        if ($isImex) {
             return false;
         }
         
         // REGLA 11: Si Descripción del Guest es Subdirectores no puede ganar prize con name Automovil
-        if (strtolower($prize->name) === 'automovil' && $descripcionNormalizada === 'subdirectores') {
+        if (strtolower(trim($prize->name)) === 'automovil' && $descripcionNormalizada === 'subdirectores') {
             return false;
         }
 
@@ -340,7 +380,7 @@ class RaffleService
         
         // Excluir categorías de rifa prohibidas
         if (!$this->isCategoryAllowed($guest->categoria_rifa)
-            || !$this->isCategoryAllowedForPrize($prize, $guest->categoria_rifa)) {
+            || !$this->isGuestAllowedForPrize($prize, $guest)) {
             // Log importante para debugging (incluir en producción para detectar problemas)
             Log::warning('Entrada excluida de rifa general por categoría de rifa prohibida', [
                 'guest_id' => $guest->id,
@@ -368,6 +408,10 @@ class RaffleService
                 'prize_id' => $prize->id,
                 'entry_id' => $entry->id ?? null
             ]);
+            return false;
+        }
+
+        if ($this->imexPreviouslyWonError($prize, $guest)) {
             return false;
         }
         
@@ -536,7 +580,7 @@ class RaffleService
                     $eligiblePrizesForIMEX = Prize::where('event_id', $event->id)
                         ->where('active', true)
                         ->where('name', '!=', 'Rifa General')
-                        ->whereRaw('LOWER(name) != ?', ['automovil'])
+                        ->whereRaw('LOWER(TRIM(name)) != ?', ['automovil'])
                         ->get();
                     
                     if ($eligiblePrizesForIMEX->isNotEmpty()) {
@@ -571,12 +615,7 @@ class RaffleService
                 // PARCHE: Verificar primero si hay IMEX disponibles para el premio IMEX
                 $hasImexAvailable = false;
                 if ($isIMEXPrize) {
-                    $imexCheck = $pendingEntries->filter(function ($entry) {
-                        if (!$this->hasValidGuest($entry)) return false;
-                        $guest = $entry->guest;
-                        $compania = strtoupper(trim($guest->compania ?? ''));
-                        return $compania === 'IMEX';
-                    });
+                    $imexCheck = $this->filterPublicImexEntries($pendingEntries);
                     $hasImexAvailable = $imexCheck->isNotEmpty();
                 }
                 
@@ -667,10 +706,10 @@ class RaffleService
                 if ($needsIMEXWinner) {
                     // Buscar participantes IMEX elegibles en las entradas pendientes originales
                     // (antes de aplicar el filtro de Automovil, para tener mejor diagnóstico)
-                    $imexEntriesInPending = $this->filterImexEntries($pendingEntries);
+                    $imexEntriesInPending = $this->filterPublicImexEntries($pendingEntries);
                     
                     // Ahora buscar en las entradas elegibles (después de filtros)
-                    $imexEntries = $this->filterImexEntries($eligibleEntries);
+                    $imexEntries = $this->filterPublicImexEntries($eligibleEntries);
 
                     if ($imexEntries->isEmpty()) {
                         // Si hay IMEX en pendientes pero no en elegibles, significa que fueron filtrados
@@ -863,7 +902,7 @@ class RaffleService
                     $eligiblePrizesForIMEX = Prize::where('event_id', $event->id)
                         ->where('active', true)
                         ->where('name', '!=', 'Rifa General')
-                        ->whereRaw('LOWER(name) != ?', ['automovil'])
+                        ->whereRaw('LOWER(TRIM(name)) != ?', ['automovil'])
                         ->get();
                     
                     if ($eligiblePrizesForIMEX->isNotEmpty()) {
@@ -894,12 +933,7 @@ class RaffleService
                 // PARCHE: Verificar primero si hay IMEX disponibles para el premio IMEX
                 $hasImexAvailable = false;
                 if ($isIMEXPrize) {
-                    $imexCheck = $pendingEntries->filter(function ($entry) {
-                        if (!$this->hasValidGuest($entry)) return false;
-                        $guest = $entry->guest;
-                        $compania = strtoupper(trim($guest->compania ?? ''));
-                        return $compania === 'IMEX';
-                    });
+                    $imexCheck = $this->filterPublicImexEntries($pendingEntries);
                     $hasImexAvailable = $imexCheck->isNotEmpty();
                 }
                 
@@ -1043,16 +1077,22 @@ class RaffleService
                 ];
             }
 
-            if (!$this->isCategoryAllowedForPrize($prize, $winnerEntry->guest->categoria_rifa)) {
+            if (!$this->isGuestAllowedForPrize($prize, $winnerEntry->guest)) {
                 DB::rollBack();
                 return [
                     'success' => false,
-                    'error' => 'La categoría del invitado no permite participar por el automóvil.',
+                    'error' => 'El invitado no puede participar por el automóvil.',
                 ];
             }
 
             if ($prize->name !== 'Rifa General'
                 && ($error = $this->publicImexWinnerError($prize, $winnerEntry->guest))) {
+                DB::rollBack();
+                return ['success' => false, 'error' => $error];
+            }
+
+            if ($prize->name === 'Rifa General'
+                && ($error = $this->imexPreviouslyWonError($prize, $winnerEntry->guest))) {
                 DB::rollBack();
                 return ['success' => false, 'error' => $error];
             }
@@ -1168,7 +1208,7 @@ class RaffleService
             // REGLA ESPECIAL: Para el premio imex_prize_id, todos pueden participar (aparecer en animación)
             // pero solo IMEX puede ganar (eso se maneja en drawRaffle)
             // Para el automóvil, excluir IMEX completamente (ni participar ni aparecer en animación)
-            if (strtolower($prize->name) === 'automovil') {
+            if (strtolower(trim($prize->name)) === 'automovil') {
                 $query->where(function ($q) {
                     $q->whereRaw('TRIM(UPPER(compania)) != ?', ['IMEX'])
                       ->whereRaw('TRIM(LOWER(descripcion)) != ?', ['subdirectores']);
@@ -1200,7 +1240,7 @@ class RaffleService
         }
 
         return $query->get()
-            ->filter(fn (Guest $guest) => $this->isCategoryAllowedForPrize($prize, $guest->categoria_rifa))
+            ->filter(fn (Guest $guest) => $this->isGuestAllowedForPrize($prize, $guest))
             ->values();
     }
 

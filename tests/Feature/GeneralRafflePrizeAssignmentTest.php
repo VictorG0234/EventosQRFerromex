@@ -117,6 +117,30 @@ class GeneralRafflePrizeAssignmentTest extends TestCase
         $this->assertSame(1, $event->raffleEntries()->where('status', 'won')->count());
     }
 
+    public function test_general_raffle_keeps_its_company_based_imex_rule_and_excludes_public_winner(): void
+    {
+        $owner = $this->owner();
+        $event = $this->event($owner);
+        $publicWinner = $this->guest($event, '1');
+        $publicWinner->update(['categoria_rifa' => 'IMEX']);
+        $publicPrize = Prize::create(['event_id' => $event->id, 'name' => 'Público', 'stock' => 1, 'active' => true]);
+        RaffleEntry::enterRaffle($publicWinner, $publicPrize)->update(['status' => 'won', 'drawn_at' => now()]);
+        $first = $this->guest($event, '2');
+        $second = $this->guest($event, '3');
+        $first->update(['categoria_rifa' => 'IMEX']);
+        $second->update(['categoria_rifa' => 'IMEX']);
+        $this->prize($event, 'Uno');
+        $this->prize($event, 'Dos');
+
+        $this->actingAs($owner)->postJson(route('events.draw.general.execute', $event), ['winners_count' => 2])
+            ->assertOk()->assertJsonPath('winners_count', 2);
+
+        $winners = RaffleEntry::where('event_id', $event->id)
+            ->whereNotNull('general_raffle_prize_id')
+            ->pluck('guest_id')->all();
+        $this->assertEqualsCanonicalizing([$first->id, $second->id], $winners);
+    }
+
     public function test_subsequent_draws_do_not_reuse_prizes_or_previous_winners(): void
     {
         $owner = $this->owner();
