@@ -11,13 +11,23 @@ use App\Models\User;
 use App\Services\RaffleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class AutomobileRaffleEligibilityTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function setupRaffle(): array
+    public static function excludedParticipants(): array
+    {
+        return [
+            'no auto category' => ['  PARTICIPA en premios   NO en auto  ', 'FERROMEX'],
+            'imex category' => ['  imEx  ', 'FERROMEX'],
+            'imex company' => ['Participa en todo', ' imEx '],
+        ];
+    }
+
+    private function setupRaffle(string $category, string $company): array
     {
         $user = User::create(['name' => 'Organizador', 'email' => 'owner@example.com', 'password' => bcrypt('password')]);
         $event = Event::create(['user_id' => $user->id, 'name' => 'Evento', 'event_date' => '2026-12-01']);
@@ -25,12 +35,12 @@ class AutomobileRaffleEligibilityTest extends TestCase
         $otherPrize = Prize::create(['event_id' => $event->id, 'name' => 'Bicicleta', 'stock' => 1, 'active' => true]);
 
         $guests = collect([
-            '  PARTICIPA en premios   NO en auto  ',
+            $category,
             'Participa en todo',
-        ])->map(function ($category, $index) use ($event) {
+        ])->map(function ($category, $index) use ($event, $company) {
             $guest = Guest::create([
                 'event_id' => $event->id,
-                'compania' => 'FERROMEX',
+                'compania' => $index === 0 ? $company : 'FERROMEX',
                 'numero_empleado' => (string) ($index + 1),
                 'nombre_completo' => "Invitado {$index}",
                 'correo' => "invitado{$index}@example.com",
@@ -47,9 +57,10 @@ class AutomobileRaffleEligibilityTest extends TestCase
         return [$user, $event, $automobile, $otherPrize, $guests[0], $guests[1]];
     }
 
-    public function test_category_is_excluded_from_car_candidates_but_allowed_for_other_prizes(): void
+    #[DataProvider('excludedParticipants')]
+    public function test_category_is_excluded_from_car_candidates_but_allowed_for_other_prizes(string $category, string $company): void
     {
-        [$user, $event, $automobile, $otherPrize, $excluded, $eligible] = $this->setupRaffle();
+        [$user, $event, $automobile, $otherPrize, $excluded, $eligible] = $this->setupRaffle($category, $company);
         $service = app(RaffleService::class);
 
         $this->assertSame([$eligible->id], $service->getEligibleGuests($automobile, 'public')->pluck('id')->all());
@@ -63,9 +74,10 @@ class AutomobileRaffleEligibilityTest extends TestCase
                 ->where('prizes.1.eligible_count', 2));
     }
 
-    public function test_existing_pending_entry_cannot_win_car_in_either_draw_path(): void
+    #[DataProvider('excludedParticipants')]
+    public function test_existing_pending_entry_cannot_win_car_in_either_draw_path(string $category, string $company): void
     {
-        [, , $automobile, , $excluded, $eligible] = $this->setupRaffle();
+        [, , $automobile, , $excluded, $eligible] = $this->setupRaffle($category, $company);
         $service = app(RaffleService::class);
         RaffleEntry::enterRaffle($excluded, $automobile);
         RaffleEntry::enterRaffle($eligible, $automobile);
@@ -74,14 +86,21 @@ class AutomobileRaffleEligibilityTest extends TestCase
         $this->assertTrue($temporary['success']);
         $this->assertSame($eligible->id, $temporary['winner']->guest_id);
 
+        $publicResult = $service->drawRaffle($automobile, 1, false, 'public');
+        $this->assertTrue($publicResult['success']);
+        $this->assertSame($eligible->id, $publicResult['winners'][0]->guest_id);
+        $automobile->update(['stock' => 1]);
+        RaffleEntry::where('prize_id', $automobile->id)->update(['status' => 'pending', 'drawn_at' => null]);
+
         $result = $service->drawRaffle($automobile, 1, false, 'general');
         $this->assertTrue($result['success']);
         $this->assertSame($eligible->id, $result['winners'][0]->guest_id);
     }
 
-    public function test_excluded_entry_cannot_be_confirmed_or_selected_manually_for_car(): void
+    #[DataProvider('excludedParticipants')]
+    public function test_excluded_entry_cannot_be_confirmed_or_selected_manually_for_car(string $category, string $company): void
     {
-        [$user, $event, $automobile, , $excluded] = $this->setupRaffle();
+        [$user, $event, $automobile, , $excluded] = $this->setupRaffle($category, $company);
         $entry = RaffleEntry::enterRaffle($excluded, $automobile);
 
         $this->actingAs($user)->post(route('events.raffle.confirm-winner', [$event, $automobile]), [
@@ -97,9 +116,10 @@ class AutomobileRaffleEligibilityTest extends TestCase
         $this->assertSame(1, $automobile->fresh()->stock);
     }
 
-    public function test_simulated_attendance_does_not_create_car_entry_for_excluded_category(): void
+    #[DataProvider('excludedParticipants')]
+    public function test_simulated_attendance_does_not_create_car_entry_for_excluded_category(string $category, string $company): void
     {
-        [, $event, $automobile, $otherPrize, $excluded, $eligible] = $this->setupRaffle();
+        [, $event, $automobile, $otherPrize, $excluded, $eligible] = $this->setupRaffle($category, $company);
         $event->attendances()->delete();
 
         $this->artisan('attendance:mark-percentage', ['--event' => $event->id, '--percentage' => 100])
@@ -110,9 +130,10 @@ class AutomobileRaffleEligibilityTest extends TestCase
         $this->assertDatabaseHas('raffle_entries', ['prize_id' => $otherPrize->id, 'guest_id' => $excluded->id]);
     }
 
-    public function test_attendance_import_does_not_create_car_entry_for_excluded_category(): void
+    #[DataProvider('excludedParticipants')]
+    public function test_attendance_import_does_not_create_car_entry_for_excluded_category(string $category, string $company): void
     {
-        [, $event, $automobile, $otherPrize, $excluded, $eligible] = $this->setupRaffle();
+        [, $event, $automobile, $otherPrize, $excluded, $eligible] = $this->setupRaffle($category, $company);
         $event->attendances()->delete();
         $file = UploadedFile::fake()->createWithContent('attendances.txt', "1\n2\n");
 
